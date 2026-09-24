@@ -1,0 +1,122 @@
+{
+  "description": "Recorded chord-label expectations. 'rendered' is the canonical form the normalizer must produce, 'transposed' is the result of transposing by 'semitones'. Unknown labels are never upgraded or transformed.",
+  "cases": [
+    {
+      "label": "C",
+      "root": "C",
+      "quality": "major",
+      "bass": null,
+      "rendered": "C",
+      "semitones": 2,
+      "transposed": "D"
+    },
+    {
+      "label": "G",
+      "root": "G",
+      "quality": "major",
+      "bass": null,
+      "rendered": "G",
+      "semitones": 2,
+      "transposed": "A"
+    },
+    {
+      "label": "Am",
+      "root": "A",
+      "quality": "minor",
+      "bass": null,
+      "rendered": "Am",
+      "semitones": 2,
+      "transposed": "Bm"
+    },
+    {
+      "label": "F",
+      "root": "F",
+      "quality": "major",
+      "bass": null,
+      "rendered": "F",
+      "semitones": 2,
+      "transposed": "G"
+    },
+    {
+      "label": "C/E",
+      "root": "C",
+      "quality": "major",
+      "bass": "E",
+      "rendered": "C/E",
+      "semitones": 2,
+      "transposed": "D/F#"
+    },
+    {
+      "label": "Am/G",
+      "root": "A",
+      "quality": "minor",
+      "bass": "G",
+      "rendered": "Am/G",
+      "semitones": -1,
+      "transposed": "G#m/F#"
+    },
+    {
+      "label": "Bbmaj7",
+      "root": "A#",
+      "quality": "maj7",
+      "bass": null,
+      "rendered": "A#maj7",
+      "semitones": 1,
+      "transposed": "Bmaj7"
+    },
+    {
+      "label": "Dm7",
+      "root": "D",
+      "quality": "m7",
+      "bass": null,
+      "rendered": "Dm7",
+      "semitones": 3,
+      "transposed": "Fm7"
+    },
+    {
+      "label": "C\u266f",
+      "root": "C#",
+      "quality": "major",
+      "bass": null,
+      "rendered": "C#",
+      "semitones": 1,
+      "transposed": "D"
+    },
+    {
+      "label": "CM7",
+      "root": "C",
+      "quality": "maj7",
+      "bass": null,
+      "rendered": "Cmaj7",
+      "semitones": 2,
+      "transposed": "Dmaj7"
+    },
+    {
+      "label": "N",
+      "root": null,
+      "quality": "no_chord",
+      "bass": null,
+      "rendered": "N",
+      "semitones": 5,
+      "transposed": "N"
+    },
+    {
+      "label": "C7#11",
+      "root": "C",
+      "quality": "other",
+      "bass": null,
+      "rendered": "C7#11",
+      "semitones": 2,
+      "transposed": "C7#11"
+    },
+    {
+      "label": "???",
+      "root": null,
+      "quality": "unknown",
+      "bass": null,
+      "rendered": "?",
+      "semitones": 2,
+      "transposed": "???"
+    }
+  ]
+}

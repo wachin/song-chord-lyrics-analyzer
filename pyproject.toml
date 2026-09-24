@@ -1,0 +1,92 @@
+[build-system]
+# setuptools>=77 understands the PEP 639 SPDX license expression below.
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "song-chord-lyrics-analyzer"
+dynamic = ["version"]
+description = "Cross-platform song analysis laboratory: synchronized lyrics, chords, key, tempo and beats"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [{ name = "Song Chord Lyrics Analyzer contributors" }]
+keywords = ["audio", "chords", "lyrics", "music-information-retrieval", "tempo", "key"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Multimedia :: Sound/Audio :: Analysis",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+# Core installation intentionally has zero required dependencies.
+# Analysis engines are optional and are added in later roadmap phases.
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "ruff>=0.5",
+    "mypy>=1.10",
+]
+
+[project.scripts]
+songlab = "song_chord_lyrics_analyzer.cli.main:main"
+
+[project.urls]
+Homepage = "https://github.com/song-chord-lyrics-analyzer/song-chord-lyrics-analyzer"
+Issues = "https://github.com/song-chord-lyrics-analyzer/song-chord-lyrics-analyzer/issues"
+
+[tool.setuptools.dynamic]
+version = { attr = "song_chord_lyrics_analyzer.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+song_chord_lyrics_analyzer = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra"
+markers = [
+    "integration: tests that require external tools (FFmpeg) or heavy models",
+    "slow: tests that take a long time to run",
+]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+src = ["src", "tests"]
+# Documentation holds illustrative snippets (including the ROADMAP) that must
+# never be rewritten by the formatter.
+extend-exclude = ["*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+ignore = [
+    "RUF001",
+    "RUF002",
+    "RUF003",
+    # __all__ lists are ordered by meaning (models grouped by concern), not
+    # alphabetically, which keeps the public surface readable.
+    "RUF022",
+]
+
+[tool.mypy]
+python_version = "3.10"
+files = ["src"]
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+check_untyped_defs = true
+disallow_untyped_defs = true

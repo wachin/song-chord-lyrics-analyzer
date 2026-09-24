@@ -6,6 +6,27 @@ the project uses [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Research
+
+* Completed the phase 1 dependency research for every candidate needed before the
+  first analysis phases, with each fact sourced (package metadata, upstream
+  `LICENSE`/`COPYING`, model card, or vendor licence page) and dated.
+* **Adopted** (as optional extras, when their phase arrives): numpy, scipy,
+  librosa, soundfile, music21, faster-whisper, basic-pitch, beat_this. **PyQt6**
+  confirmed compatible with GPL-3.0-or-later for phase 15, with PySide6 recorded
+  as the permissive alternative.
+* **Rejected**: madmom (the PyPI release does not build on Python 3.13, and its
+  model files are CC BY-NC-SA 4.0) and Essentia (AGPL-3.0-only library, MTG
+  models CC BY-NC-SA 4.0, no Windows support).
+* **Never bundle**: Demucs pre-trained weights (upstream licence question still
+  open, repository archived 2025-01-01), Chordino and Sonic Annotator
+  (GPL-2.0 external executables).
+* Recorded that current numpy/scipy/librosa releases require Python >= 3.12, so
+  DSP extras effectively raise the floor above the core's 3.10.
+* Remaining open questions are listed explicitly: no smoke tests yet, unverified
+  weights (torchcrepe, Spleeter, UVR), and the GPL-2.0 "only" vs "or later"
+  question for the Vamp plugins.
+
 ## [0.1.0] - 2026-09-23
 
 Phase 0 (repository bootstrap) plus the first tasks from the roadmap. No

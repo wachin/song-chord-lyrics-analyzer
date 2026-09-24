@@ -171,7 +171,7 @@ Only WAV files can be inspected without FFmpeg.
 | Area | Status |
 | --- | --- |
 | Phase 0 repository bootstrap | done |
-| Phase 1 dependency research | started (see `DEPENDENCY_MATRIX.md`, `LICENSE_AUDIT.md`) |
+| Phase 1 dependency research | done for the pre-analysis candidates; heavy ML options deliberately still open (see `DEPENDENCY_MATRIX.md`, `LICENSE_AUDIT.md`) |
 | Phase 2 audio foundation | metadata + FFmpeg discovery done; resampling/decoding pending |
 | Phase 3 lyrics laboratory | not started |
 | Phase 4 chord laboratory | chord normalization done; engines pending |

@@ -973,13 +973,13 @@ recorded in `docs/DEPENDENCY_MATRIX.md` §13; 24.2 is unresolved (the listed URL
 remains inventoried only.*
 
 *Reference clones (2026-09-24): the section 24 repositories, plus extra study material for instrument
-recognition, transcription, audio identification and cross-cutting music libraries, are registered as
-read-only git submodules under `external/` in four blocks (chords, practice tools and visualization /
-instrument recognition and detection / transcription, audio and other / cross-cutting libraries) -
-28 repositories as of 2026-09-24. They are study material only - never imported, packaged, installed,
-linted, tested or copied from; see `external/README.md` and `AGENTS.md`. Block 1 was investigated on
-2026-09-24; four superseded or off-scope submodules were removed after their verdicts were recorded
-(`docs/DEPENDENCY_MATRIX.md` §13).*
+recognition and cross-cutting music libraries, are registered as read-only git submodules under
+`external/` in three blocks (chords, practice tools and visualization / instrument recognition /
+cross-cutting libraries) - 13 repositories as of 2026-09-24, down from a peak of 32 after the cleanup
+rule was applied to every investigated block. They are study material only - never imported, packaged,
+installed, linted, tested or copied from; see `external/README.md` and `AGENTS.md`. All three original
+blocks were investigated on 2026-09-24; verdicts live in `docs/DEPENDENCY_MATRIX.md` §13, and 19
+superseded, unlicensed or off-scope submodules were removed after their verdicts were recorded.*
 
 *Cleanup rule: `external/` is a temporary research pool and must shrink, not grow. After each
 repository has been investigated and its verdict recorded (`docs/DEPENDENCY_MATRIX.md`, and

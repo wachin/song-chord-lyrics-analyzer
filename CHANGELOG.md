@@ -93,6 +93,17 @@ track). Full detail: `docs/DEPENDENCY_MATRIX.md` §10.
   `Chord-recognition` (a superseded, unlicensed course project), `scales-chords`
   (an Obsidian plugin, off scope) and `chordscope` (its core beat/chord engine is
   madmom, already rejected). The pool went from 32 to 28 submodules.
+* Investigated blocks 2 (instrument recognition, 12 clones) and 3 (transcription,
+  audio identification and other, 5 clones) with the same verdict-per-clone method.
+  Block 2 kept only the two paper-backed MIT repositories (`instrument-prediction`,
+  ISMIR 2018 frame-level recognition; `predominant-instrument-recognition`, APSIPA
+  ASC 2023 NSynth-pretrained polyphonic recognition) — ten were course projects and
+  notebooks without any licence file. Block 3 was removed entirely: `muscriptor`
+  carries **CC BY-NC 4.0 weights** (the same non-commercial pattern that rejected
+  madmom and Essentia), `presto`/`shazam-build`/`audd-go` address song
+  identification this offline-first project does not have, and `Ear` is an LLM demo.
+  The pool went from 28 to 13 submodules; every removed pin remains recoverable
+  from git history.
 
 ### Documentation
 

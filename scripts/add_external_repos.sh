@@ -31,25 +31,13 @@ REPOS=(
   "musicpractice|https://github.com/atinm/musicpractice"
   "Guitariz|https://github.com/Guitariz/Guitariz"
   "ChordMiniApp|https://github.com/ptnghia-j/ChordMiniApp"
-  # block 2: instrument recognition and detection
-  "Music-Instrument-Recognition|https://github.com/dhivyasreedhar/Music-Instrument-Recognition"
-  "music-instrument-classifier|https://github.com/IvyZX/music-instrument-classifier"
-  "Musical-Instrument-Recognition-by-XGBoost|https://github.com/Jay-Codeman/Musical-Instrument-Recognition-by-XGBoost"
-  "babaktr-musical-instrument-recognition|https://github.com/babaktr/musical-instrument-recognition"
+  # block 2: instrument recognition — kept after investigation (2026-09-24); the other
+  # ten clones of the original block were removed (docs/DEPENDENCY_MATRIX.md §13.8)
   "instrument-prediction|https://github.com/biboamy/instrument-prediction"
-  "Instrument-Recognition-with-CNNs|https://github.com/bt-s/Instrument-Recognition-with-CNNs"
   "predominant-instrument-recognition|https://github.com/nii-yamagishilab/predominant-instrument-recognition"
-  "bronzelion-musical-instrument-recognition|https://github.com/bronzelion/musical-instrument-recognition"
-  "instrument-recognition-polyphonic|https://github.com/vskadandale/instrument-recognition-polyphonic"
-  "instrument-recogniton|https://github.com/vk-mittal14/instrument-recogniton"
-  "instrument-classifier|https://github.com/LMicol/instrument-classifier"
-  "Musical-Instrument-Detection|https://github.com/KunalDhawan/Musical-Instrument-Detection"
-  # block 3: transcription, audio identification and other
-  "muscriptor|https://github.com/muscriptor/muscriptor"
-  "presto|https://github.com/skulklabs/presto"
-  "shazam-build|https://github.com/Danztee/shazam-build"
-  "audd-go|https://github.com/AudDMusic/audd-go"
-  "Ear|https://github.com/Kaidorespy/Ear"
+  # block 3 was removed entirely on 2026-09-24 (docs/DEPENDENCY_MATRIX.md §13.9):
+  # muscriptor carries CC BY-NC 4.0 weights, presto/shazam-build/audd-go address song
+  # identification this project does not need, and Ear is an LLM demo.
   # block 4: cross-cutting libraries
   "libcantus|https://github.com/libraz/libcantus"
   "basic-pitch|https://github.com/spotify/basic-pitch"

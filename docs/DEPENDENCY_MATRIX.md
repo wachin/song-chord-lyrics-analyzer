@@ -36,7 +36,7 @@ engine working.
 | **Reject for integration** | madmom (does not build on current Python; non-commercial weights), Essentia (AGPL library + non-commercial models + no Windows support) |
 | **Never bundle, execute only** | FFmpeg/ffprobe, Sonic Annotator, Chordino/NNLS Chroma |
 | **Never bundle weights** | Demucs (code MIT, weights licence unresolved) |
-| **Reference clones investigated (2026-09-24, roadmap §24)** | 1ucas/chordify kept as the architectural reference; chordscope investigated and removed after recording; chord-extractor, Chord-recognition and scales-chords removed as superseded/off-scope; orchidas/Chord-Recognition investigated and kept for now — see §13 |
+| **Reference clones investigated (2026-09-24, roadmap §24)** | 1ucas/chordify kept as the architectural reference; chordscope investigated and removed after recording; chord-extractor, Chord-recognition and scales-chords removed as superseded/off-scope; orchidas/Chord-Recognition investigated and kept for now — see §13. Blocks 2 and 3 investigated the same day: 15 of 17 clones removed, 2 paper-backed MIT repositories kept (§13.8, §13.9) |
 
 ## 1. Core package
 
@@ -373,4 +373,81 @@ codebase.
   discussions. ChordMiniApp additionally embeds Beat-Transformer,
   Chord-CNN-LSTM and SongFormer models, which may deserve their own §24-style
   investigation if the roadmap grows a chord-model comparison area.
+
+### 13.8 Block 2 — instrument recognition and detection (12 clones)
+
+**Recorded on 2026-09-24, reading the clones.** Instrument recognition is not a
+roadmap section today; this block existed as study material for a possible future
+instrument/stem area. The finding: the block is dominated by course projects and
+notebooks — **ten of the twelve carry no licence file** (code fully reserved, never
+copy), most classify a handful of classes on monophonic or single-note audio, and
+none documents its weights well enough to reuse. Per the cleanup rule, only the two
+paper-backed MIT repositories are kept; the other ten are removed after this record.
+
+Kept:
+
+* **biboamy/instrument-prediction — MIT — kept.** Code of the ISMIR 2018 paper
+  "Frame-level instrument recognition by timbre and pitch" (Hung & Yang), trained
+  on MusicNet (7 instruments), with a real-music prediction path. If the roadmap
+  ever grows an instrument area, this harmonic-stacking approach is the natural
+  first reading.
+* **nii-yamagishilab/predominant-instrument-recognition — MIT — kept.** Code of the
+  APSIPA ASC 2023 paper "Exploring isolated musical notes as pre-training data for
+  predominant instrument recognition in polyphonic music" (NSynth pre-training,
+  pytorch-lightning). The closest published baseline to what a polyphonic
+  instrument area would need; requires Python 3.9/torch 1.13 era pins.
+
+Removed (technical note + licence status):
+
+* **dhivyasreedhar/Music-Instrument-Recognition** — no licence; CNN (mel
+  spectrograms) vs kNN (MFCC) notebooks on the London Philharmonic dataset,
+  monophonic only. The literature-review PDF was the only lasting value.
+* **IvyZX/music-instrument-classifier** — no licence; single-note classifier for 5
+  instruments in the 4th octave, serialized sklearn model.
+* **Jay-Codeman/Musical-Instrument-Recognition-by-XGBoost** — no licence; XGBoost
+  over handcrafted features on Medley-solos-DB.
+* **babaktr/musical-instrument-recognition** — no licence; MATLAB ANN scripts.
+* **bt-s/Instrument-Recognition-with-CNNs** — no licence; KTH DT2119 course CNN
+  project.
+* **bronzelion/musical-instrument-recognition** — no licence; 4-instrument app with
+  a pickled model.
+* **vskadandale/instrument-recognition-polyphonic** — **GPL-3.0** (the one clone of
+  the block that is legally copyable), a UPF SMC master's thesis on polyphonic
+  recognition trained on MedleyDB — but MedleyDB is licence-restricted and not
+  redistributable, and the two kept paper repos cover the technique better.
+  Removed with that reasoning recorded.
+* **vk-mittal14/instrument-recogniton** — no licence; string-instrument
+  classification report and scripts.
+* **LMicol/instrument-classifier** — MIT, but a mel-spectrogram classifier shipped
+  as a docker-compose web app; no technique to take.
+* **KunalDhawan/Musical-Instrument-Detection** — no licence; DSP course project
+  classifying instrument families from temporal/spectral features.
+
+### 13.9 Block 3 — transcription, audio identification and other (5 clones)
+
+**Recorded on 2026-09-24, reading the clones. All five removed.**
+
+* **muscriptor/muscriptor — code MIT, weights CC BY-NC 4.0 — removed.** Kyutai +
+  Mirelo's multi-instrument transcription model (recording → MIDI + sheet music),
+  claiming top open-source accuracy. The weights are gated on Hugging Face (accept
+  the CC BY-NC 4.0 licence, then authenticate with a token) and are therefore
+  non-commercial — the same pattern that rejected madmom and Essentia (§3.1): they
+  cannot ship inside a GPL-3 work. The project's transcription path is basic-pitch
+  (Apache-2.0, weights bundled in the wheel, §6); MOSS-Music remains the
+  large-model candidate (§3.2). Worth re-checking only if Kyutai ever relicenses
+  the weights.
+* **skulklabs/presto — MIT, Go — removed.** Identifies a song from a short clip by
+  matching compact fingerprints against a persistent library (two fingerprinting
+  algorithms, embedded-friendly). Identifying *unknown* songs is not this project's
+  problem — we already hold the audio we analyse.
+* **Danztee/shazam-build — MIT, Go — removed.** From-scratch Shazam fingerprinting:
+  spectrogram peaks → constellation map → anchor/target combinatorial hashing with
+  time deltas, backed by PostgreSQL with a React frontend. The algorithm summary in
+  its README is the lasting reference; the same technique is published literature.
+* **AudDMusic/audd-go — MIT, Go — removed.** SDK for the AudD cloud recognition
+  API. A network service contradicts this project's offline-first principle, and
+  the identification problem is out of scope (see presto).
+* **Kaidorespy/Ear — MIT — removed.** Beta demo: analyzes a song, optionally adds
+  lyrics, and has an LLM write a grounded description. A prompt pipeline around
+  models, not an analysis engine; no technique to take at this stage.
 

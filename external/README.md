@@ -14,9 +14,9 @@ exclusions are configured in `pyproject.toml` on purpose. The binding rules are 
 
 ## Remove what does not survive the research
 
-Twenty-eight repositories are registered (2026-09-24). That is a temporary research
-pool, not a permanent part of this repository — it is too many to keep, and submodules
-are not free: every clone pays for them, every `git status` walks them, and every stale
+Thirteen repositories are registered (2026-09-24, down from a peak of 32). That is a
+temporary research pool, not a permanent part of this repository, and submodules are
+not free: every clone pays for them, every `git status` walks them, and every stale
 pin is maintenance debt.
 
 **This directory must shrink, not grow.** The workflow for every repository here is:
@@ -34,7 +34,8 @@ rm -rf .git/modules/external/<name>
 ```
 
 A repository whose only justification is "might be useful someday" does not survive
-step 3.
+step 3. This is not hypothetical: 19 of the original 32 were removed on 2026-09-24
+exactly this way, right after their verdicts were recorded.
 
 ## Repositories
 
@@ -56,39 +57,16 @@ the code as fully reserved and never copy from it.
 | `Guitariz` | <https://github.com/Guitariz/Guitariz> | Guitariz Studio: full-stack music learning platform with AI-powered chord detection, stem isolation and interactive theory tools | MIT (LICENSE file) |
 | `ChordMiniApp` | <https://github.com/ptnghia-j/ChordMiniApp> | ChordMini: open-source web tool for chord recognition, beat tracking, piano visualization, guitar diagrams and lyrics synchronization | MIT (LICENSE file); LFS objects unfetchable upstream, see notes |
 
-### Block 2 — instrument recognition and detection (12)
+### Block 2 — instrument recognition (2)
 
-Extra study material: none of these is a target of section 24; they inform a possible
-future instrument/stem area of the roadmap.
-
-| Submodule | Upstream | What it is | Licence |
-| --- | --- | --- | --- |
-| `Music-Instrument-Recognition` | <https://github.com/dhivyasreedhar/Music-Instrument-Recognition> | CNN (mel spectrograms) vs kNN (MFCCs) on the London Philharmonic dataset; monophonic only | no licence file |
-| `music-instrument-classifier` | <https://github.com/IvyZX/music-instrument-classifier> | single-note classifier for cello, clarinet, flute, violin and piano (4th octave) | no licence file |
-| `Musical-Instrument-Recognition-by-XGBoost` | <https://github.com/Jay-Codeman/Musical-Instrument-Recognition-by-XGBoost> | team project on Medley-solos-DB using XGBoost over audio features | no licence file |
-| `babaktr-musical-instrument-recognition` | <https://github.com/babaktr/musical-instrument-recognition> | musical instrument recognition system using artificial neural networks | no licence file |
-| `instrument-prediction` | <https://github.com/biboamy/instrument-prediction> | frame-level instrument recognition by timbre and pitch (ISMIR 2018 paper code) | MIT (LICENSE file) |
-| `Instrument-Recognition-with-CNNs` | <https://github.com/bt-s/Instrument-Recognition-with-CNNs> | KTH DT2119 course project: instrument recognition with CNNs | no licence file |
-| `predominant-instrument-recognition` | <https://github.com/nii-yamagishilab/predominant-instrument-recognition> | NSynth-pretrained predominant instrument recognition (APSIPA ASC 2023 paper code) | MIT (LICENSE.txt) |
-| `bronzelion-musical-instrument-recognition` | <https://github.com/bronzelion/musical-instrument-recognition> | app that detects the instrument of an audio clip (four instruments covered) | no licence file |
-| `instrument-recognition-polyphonic` | <https://github.com/vskadandale/instrument-recognition-polyphonic> | master's thesis (UPF SMC): polyphonic instrument recognition trained on MedleyDB | GPL-3.0 (LICENSE file) |
-| `instrument-recogniton` | <https://github.com/vk-mittal14/instrument-recogniton> | string-instrument classification with machine learning | no licence file |
-| `instrument-classifier` | <https://github.com/LMicol/instrument-classifier> | instrument sound classification from mel spectrogram features | MIT (LICENSE file) |
-| `Musical-Instrument-Detection` | <https://github.com/KunalDhawan/Musical-Instrument-Detection> | DSP course project: instrument-family classification from temporal and spectral features over 10 orchestral instruments | no licence file |
-
-### Block 4 — cross-cutting libraries (3)
-
-### Block 3 — transcription, audio identification and other (5)
-
-Extra study material outside the current scope of section 24.
+Kept from an original 12 after investigation (2026-09-24, `docs/DEPENDENCY_MATRIX.md`
+§13.8): these are the only two that are paper-backed, MIT-licensed, and technically
+relevant to a possible future instrument/stem area of the roadmap.
 
 | Submodule | Upstream | What it is | Licence |
 | --- | --- | --- | --- |
-| `muscriptor` | <https://github.com/muscriptor/muscriptor> | MuScriptor (Kyutai + Mirelo): multi-instrument transcription of a recording into MIDI and sheet music | MIT (LICENSE file) |
-| `presto` | <https://github.com/skulklabs/presto> | Go: identifies a song from a short clip by matching compact fingerprints against a persistent library | MIT (LICENSE file) |
-| `shazam-build` | <https://github.com/Danztee/shazam-build> | from-scratch Shazam audio fingerprinting in Go (DSP pipeline, PostgreSQL fingerprint store, React frontend) | MIT (LICENSE file) |
-| `audd-go` | <https://github.com/AudDMusic/audd-go> | Go client for the AudD cloud music recognition API | MIT (LICENSE file) |
-| `Ear` | <https://github.com/Kaidorespy/Ear> | audio perception for LLMs: analyses a song and has an LLM write a grounded description of it | MIT (LICENSE file) |
+| `instrument-prediction` | <https://github.com/biboamy/instrument-prediction> | frame-level instrument recognition by timbre and pitch (ISMIR 2018 paper code, MusicNet, 7 instruments) | MIT (LICENSE file) |
+| `predominant-instrument-recognition` | <https://github.com/nii-yamagishilab/predominant-instrument-recognition> | NSynth-pretrained predominant instrument recognition in polyphonic music (APSIPA ASC 2023 paper code) | MIT (LICENSE.txt) |
 
 ### Block 4 — cross-cutting libraries (3)
 
@@ -99,6 +77,11 @@ Useful regardless of the analysis area being researched.
 | `libcantus` | <https://github.com/libraz/libcantus> | pure-TypeScript music theory for MIDI note events: recover the harmony from notes and write new parts against it; no runtime dependencies | Apache-2.0 (LICENSE file, with NOTICE) |
 | `basic-pitch` | <https://github.com/spotify/basic-pitch> | Spotify's Basic Pitch: lightweight-NN automatic music transcription (Python). Already researched as a dependency — adopted conditionally; see `docs/DEPENDENCY_MATRIX.md` | Apache-2.0 (LICENSE file, with NOTICE) |
 | `basic-pitch-ts` | <https://github.com/spotify/basic-pitch-ts> | TypeScript/npm sibling of Basic Pitch for browser and Node transcription | Apache-2.0 (LICENSE file) |
+
+Block 3 (transcription, audio identification and other) was removed entirely on
+2026-09-24: its transcription candidate carries non-commercial weights, its
+fingerprinting/cloud tools address a problem this project does not have, and the
+LLM demo is not an analysis engine — see `docs/DEPENDENCY_MATRIX.md` §13.9.
 
 ## Commands
 
@@ -126,7 +109,7 @@ Notes:
 
 * `.gitmodules` is the authoritative list of registered paths and URLs; this README
   documents what each one is for.
-* The existing clones were added without `--depth 1`, so they carry full history;
+* Some existing clones were added without `--depth 1`, so they carry full history;
   `scripts/add_external_repos.sh` adds missing ones shallowly.
 * Submodules pin an exact commit. `git submodule update --remote` moves the pin, so it
   is a deliberate act, never something to slip into an unrelated change.
@@ -138,11 +121,17 @@ Notes:
 * The section 24.2 target `yuval-kahan/youchords-local` is deliberately absent: its URL
   returns **HTTP 404** (checked 2026-09-23). The former `Esysc/magic-chords-project`
   entry is not registered either.
-* Removed after investigation (2026-09-24), per the cleanup rule above: `chord-extractor` and
-  `Chord-recognition` (superseded by chordify's cleaner native pipeline), `scales-chords`
-  (an Obsidian plugin, off scope) and `chordscope` (its core beat/chord engine is madmom,
-  already rejected; the worth-keeping ideas are recorded in `docs/DEPENDENCY_MATRIX.md`
-  §13.5). Verdicts for every investigation live in that document's §13.
+* Removed after investigation (2026-09-24), per the cleanup rule above — verdicts in
+  `docs/DEPENDENCY_MATRIX.md` §13:
+  * block 1: `chord-extractor` and `Chord-recognition` (superseded by chordify's
+    cleaner native pipeline), `scales-chords` (an Obsidian plugin, off scope) and
+    `chordscope` (its core beat/chord engine is madmom, already rejected; the
+    worth-keeping ideas are recorded in §13.5);
+  * block 2: ten course projects and notebooks, eight of them without any licence
+    file, plus the GPL-3.0 thesis whose MedleyDB dependency is not redistributable
+    (§13.8);
+  * block 3: all five, including `muscriptor` (code MIT, **weights CC BY-NC 4.0**) —
+    the same non-commercial-weights pattern that rejected madmom and Essentia (§13.9).
 * `ChordMiniApp` publishes model checkpoints through Git LFS and upstream has exceeded
   its LFS budget, so the large objects cannot be downloaded (observed 2026-09-24). The
   code is fully readable without them; the clone was repaired with

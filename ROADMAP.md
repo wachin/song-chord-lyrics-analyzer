@@ -968,15 +968,18 @@ Extract architectural ideas and implement clean adapters where legally and techn
 
 # [ ] 24. GitHub Project Investigation
 
-*Status (2026-09-23): partial — 24.1 (`chordify`) and 24.6 (MOSS-Music) were inventoried during phase 1;
-24.2-24.5 have not been investigated yet.*
+*Status (2026-09-24): partial — 24.1, 24.4 and 24.5 were investigated on 2026-09-24 and their verdicts are
+recorded in `docs/DEPENDENCY_MATRIX.md` §13; 24.2 is unresolved (the listed URL returns HTTP 404); 24.6
+remains inventoried only.*
 
 *Reference clones (2026-09-24): the section 24 repositories, plus extra study material for instrument
 recognition, transcription, audio identification and cross-cutting music libraries, are registered as
 read-only git submodules under `external/` in four blocks (chords, practice tools and visualization /
 instrument recognition and detection / transcription, audio and other / cross-cutting libraries) -
-32 repositories as of 2026-09-24. They are study material only - never imported, packaged, installed,
-linted, tested or copied from; see `external/README.md` and `AGENTS.md`.*
+28 repositories as of 2026-09-24. They are study material only - never imported, packaged, installed,
+linted, tested or copied from; see `external/README.md` and `AGENTS.md`. Block 1 was investigated on
+2026-09-24; four superseded or off-scope submodules were removed after their verdicts were recorded
+(`docs/DEPENDENCY_MATRIX.md` §13).*
 
 *Cleanup rule: `external/` is a temporary research pool and must shrink, not grow. After each
 repository has been investigated and its verdict recorded (`docs/DEPENDENCY_MATRIX.md`, and
@@ -992,6 +995,9 @@ Repository:
 ```text
 https://github.com/1ucas/chordify
 ```
+
+*Verdict (2026-09-24): investigated in depth against the registered clone; every bullet below is
+answered in `docs/DEPENDENCY_MATRIX.md` §13.1. Kept as the primary architectural reference.*
 
 Investigate:
 
@@ -1013,22 +1019,51 @@ Investigate:
 
 Repository: `https://github.com/yuval-kahan/youchords-local` - returns **HTTP 404**
 (checked 2026-09-23). The section stays open until the roadmap points at the right
-repository. Several other repositories by the same author (`Chords.py`,
-`chord-extractor`, `Chord-recognition`, `scales-chords`) are registered under
-`external/` in the meantime.
-
-
+repository. One other repository by the same author (`Chords.py`) is registered
+under `external/` in the meantime; the author's `chord-extractor` and
+`Chord-recognition` were investigated and removed on 2026-09-24 with their verdicts
+recorded (`docs/DEPENDENCY_MATRIX.md` §13.2, §13.3).
 
 ---
 
+## [ ] 24.3 magic-chords-project
 
-## [ ] 24.4 ChordScope
+Repository:
+
+```text
+https://github.com/Esysc/magic-chords-project
+```
+
+Investigate:
+
+* chord detection
+* lyrics
+* transcription
+* key
+* tempo
+* MIDI
+* MusicXML
+* Madmom
+* Whisper
+* Essentia
+* architecture
+* license
+
+---
+
+## [*] (2026-09-24) 24.4 ChordScope
 
 Repository:
 
 ```text
 https://github.com/okamyuji/chordscope
 ```
+
+Investigated 2026-09-24 against the registered clone; the verdict is recorded in
+`docs/DEPENDENCY_MATRIX.md` §13.5 (its beat/chord core is madmom, already rejected,
+while its windowed modulation tracking and tempo-curve classification are worth
+re-implementing as original code). The submodule was removed after the verdict was
+recorded, per the `external/` cleanup rule.
 
 Investigate:
 
@@ -1043,13 +1078,20 @@ Investigate:
 
 ---
 
-## [ ] 24.5 Research Chord Recognition
+## [*] (2026-09-24) 24.5 Research Chord Recognition
 
 Repository:
 
 ```text
 https://github.com/orchidas/Chord-Recognition
 ```
+
+Investigated 2026-09-24 against the registered clone; the verdict is recorded in
+`docs/DEPENDENCY_MATRIX.md` §13.6 (it implements exactly the pipeline diagram below:
+hand-written CQT chroma, binary JSON triad templates, Gaussian-emission HMM with an
+explicit Viterbi over a nested circle-of-fifths transition matrix). The clone is
+unlicensed; it is kept for now as the research baseline and is the next candidate for
+the `external/` cleanup rule.
 
 Investigate:
 

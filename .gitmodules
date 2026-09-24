@@ -1,21 +1,9 @@
-[submodule "external/chord-extractor"]
-	path = external/chord-extractor
-	url = https://github.com/yuval-kahan/chord-extractor
-[submodule "external/Chord-recognition"]
-	path = external/Chord-recognition
-	url = https://github.com/yuval-kahan/Chord-recognition
 [submodule "external/chordify"]
 	path = external/chordify
 	url = https://github.com/1ucas/chordify
 [submodule "external/MOSS-Music"]
 	path = external/MOSS-Music
 	url = https://github.com/OpenMOSS/MOSS-Music
-[submodule "external/scales-chords"]
-	path = external/scales-chords
-	url = https://github.com/yuval-kahan/scales-chords
-[submodule "external/chordscope"]
-	path = external/chordscope
-	url = https://github.com/okamyuji/chordscope
 [submodule "external/orchidas-Chord-Recognition"]
 	path = external/orchidas-Chord-Recognition
 	url = https://github.com/orchidas/Chord-Recognition

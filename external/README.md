@@ -14,7 +14,7 @@ exclusions are configured in `pyproject.toml` on purpose. The binding rules are 
 
 ## Remove what does not survive the research
 
-Thirty-two repositories are registered (2026-09-24). That is a temporary research
+Twenty-eight repositories are registered (2026-09-24). That is a temporary research
 pool, not a permanent part of this repository — it is too many to keep, and submodules
 are not free: every clone pays for them, every `git status` walks them, and every stale
 pin is maintenance debt.
@@ -43,18 +43,14 @@ Licences below were read from each clone's `LICENSE` file (or README where noted
 `docs/LICENSE_AUDIT.md`. "no licence file" means the clone contains no licence — treat
 the code as fully reserved and never copy from it.
 
-### Block 1 — chords, practice tools and visualization (12)
+### Block 1 — chords, practice tools and visualization (8)
 
 | Submodule | Upstream | What it is | Licence |
 | --- | --- | --- | --- |
 | `Chords.py` | <https://github.com/yuval-kahan/Chords.py> | chord recognition experiments (Python, Keras models, jim2012Chords features) with a Windows C# demo app | no licence file |
-| `chord-extractor` | <https://github.com/yuval-kahan/chord-extractor> | Python library that extracts chord sequences from sound files, with multiprocessing for batch extraction | GPL-2.0 (LICENSE file) |
-| `Chord-recognition` | <https://github.com/yuval-kahan/Chord-recognition> | university ML course project: chord decoding from WAV files with machine learning | no licence file |
-| `chordify` | <https://github.com/1ucas/chordify> | CQT/CENS chroma, triad templates, bass-aware Viterbi, key/palette priors (§24.1) | MIT (verified 2026-09-23) |
+| `chordify` | <https://github.com/1ucas/chordify> | CQT/CENS chroma, triad templates, bass-aware Viterbi, key/palette priors (§24.1). **Investigated 2026-09-24** — kept as the primary architectural reference (`docs/DEPENDENCY_MATRIX.md` §13.1) | MIT (verified 2026-09-23) |
 | `MOSS-Music` | <https://github.com/OpenMOSS/MOSS-Music> | music/audio foundation model; feasibility on commodity CPU untested (§24.6) | Apache-2.0 per README (models); no top-level LICENSE file |
-| `scales-chords` | <https://github.com/yuval-kahan/scales-chords> | plugin that embeds guitar/piano chord diagrams (images from scales-chords.com) in fenced code blocks | MIT (LICENSE file) |
-| `chordscope` | <https://github.com/okamyuji/chordscope> | CLI: Madmom + librosa + music21, modulation and tempo-curve analysis (§24.4) | MIT (LICENSE file) |
-| `orchidas-Chord-Recognition` | <https://github.com/orchidas/Chord-Recognition> | automatic chord recognition from monophonic/polyphonic audio via Pitch Class Profile features (§24.5) | no licence file |
+| `orchidas-Chord-Recognition` | <https://github.com/orchidas/Chord-Recognition> | automatic chord recognition via Pitch Class Profile features: hand-written CQT, JSON triad templates, Gaussian HMM + Viterbi (§24.5). **Investigated 2026-09-24** — kept for now as the research baseline (`docs/DEPENDENCY_MATRIX.md` §13.6) | no licence file |
 | `ChordVisualizer` | <https://github.com/manh9011/ChordVisualizer> | interactive browser-based tool for real-time chord detection, circle-of-fifths visualization and music notation rendering | MIT (LICENSE file) |
 | `musicpractice` | <https://github.com/atinm/musicpractice> | minimal practice app: analyze, loop and practice with audio tracks — real-time analysis, stem separation, waveform visualization; recommends Vamp Chordino for chord/key/beat accuracy | MIT (LICENSE file) |
 | `Guitariz` | <https://github.com/Guitariz/Guitariz> | Guitariz Studio: full-stack music learning platform with AI-powered chord detection, stem isolation and interactive theory tools | MIT (LICENSE file) |
@@ -142,6 +138,11 @@ Notes:
 * The section 24.2 target `yuval-kahan/youchords-local` is deliberately absent: its URL
   returns **HTTP 404** (checked 2026-09-23). The former `Esysc/magic-chords-project`
   entry is not registered either.
+* Removed after investigation (2026-09-24), per the cleanup rule above: `chord-extractor` and
+  `Chord-recognition` (superseded by chordify's cleaner native pipeline), `scales-chords`
+  (an Obsidian plugin, off scope) and `chordscope` (its core beat/chord engine is madmom,
+  already rejected; the worth-keeping ideas are recorded in `docs/DEPENDENCY_MATRIX.md`
+  §13.5). Verdicts for every investigation live in that document's §13.
 * `ChordMiniApp` publishes model checkpoints through Git LFS and upstream has exceeded
   its LFS budget, so the large objects cannot be downloaded (observed 2026-09-24). The
   code is fully readable without them; the clone was repaired with

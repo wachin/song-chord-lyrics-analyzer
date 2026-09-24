@@ -21,13 +21,11 @@ cd "$ROOT"
 # transcription, audio and other / cross-cutting libraries.
 REPOS=(
   # block 1: chords, practice tools and visualization
+  # (chord-extractor, Chord-recognition, scales-chords and chordscope were removed on
+  # 2026-09-24 after their investigation; verdicts in docs/DEPENDENCY_MATRIX.md §13)
   "Chords.py|https://github.com/yuval-kahan/Chords.py"
-  "chord-extractor|https://github.com/yuval-kahan/chord-extractor"
-  "Chord-recognition|https://github.com/yuval-kahan/Chord-recognition"
   "chordify|https://github.com/1ucas/chordify"
   "MOSS-Music|https://github.com/OpenMOSS/MOSS-Music"
-  "scales-chords|https://github.com/yuval-kahan/scales-chords"
-  "chordscope|https://github.com/okamyuji/chordscope"
   "orchidas-Chord-Recognition|https://github.com/orchidas/Chord-Recognition"
   "ChordVisualizer|https://github.com/manh9011/ChordVisualizer"
   "musicpractice|https://github.com/atinm/musicpractice"

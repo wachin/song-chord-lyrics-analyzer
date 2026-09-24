@@ -36,6 +36,7 @@ engine working.
 | **Reject for integration** | madmom (does not build on current Python; non-commercial weights), Essentia (AGPL library + non-commercial models + no Windows support) |
 | **Never bundle, execute only** | FFmpeg/ffprobe, Sonic Annotator, Chordino/NNLS Chroma |
 | **Never bundle weights** | Demucs (code MIT, weights licence unresolved) |
+| **Reference clones investigated (2026-09-24, roadmap §24)** | 1ucas/chordify kept as the architectural reference; chordscope investigated and removed after recording; chord-extractor, Chord-recognition and scales-chords removed as superseded/off-scope; orchidas/Chord-Recognition investigated and kept for now — see §13 |
 
 ## 1. Core package
 
@@ -252,3 +253,124 @@ Phase 1 is therefore **complete for the candidates needed by the first analysis
 phases** (audio, lyrics, chords, beats; each has an installable, licence-cleared
 option with Linux runtime evidence) and **deliberately still open** for the heavy
 ML options and for every platform other than Linux.
+
+## 13. Reference clone investigation — block 1 chords (roadmap section 24)
+
+**Recorded on 2026-09-24**, reading the clones under `external/` (read-only
+submodules; nothing was imported, executed or copied out). Licences were read from
+each clone's `LICENSE` file. These are verdicts about *study repositories*, not
+dependencies — none of them enters the dependency set, and per the `external/`
+cleanup rule the submodule is deleted once its verdict is recorded.
+
+### 13.1 1ucas/chordify — §24.1 (MIT, verified 2026-09-23)
+
+**Verdict: keep. Primary architectural reference for the chord engine and the
+lyrics-alignment formatter.** All eleven §24.1 bullets were answered by reading
+`chordify/detector.py`, `transcriber.py`, `formatter.py`, `separation.py` and
+`notation.py`:
+
+| §24.1 bullet | What the code does |
+| --- | --- |
+| chord extraction | CQT/CENS chroma → equal-weight major/minor triad templates → Viterbi over beat-synchronous segments |
+| chroma/CQT | harmonic component after HPSS (`margin=3.0`), tuning estimated with `librosa.estimate_tuning` and corrected; two `chroma_cqt` extractions (full range from C2 over 5 octaves, bass-focused over 3 octaves) plus `chroma_cens`, blended 0.7 CENS / 0.3 raw CQT and re-normalized per frame |
+| chord templates | 24 triads (12 major + 12 minor with flat aliases) plus a no-chord "N" state; **equal root/third/fifth weights on purpose** — root-heavy templates mis-voted toward whichever chord matched the loudest (bass) pitch class; non-chord-tone energy penalized (weight 0.5) |
+| temporal decoding | Viterbi over beat-synchronous segments (beat-tracked boundaries, short segments absorbed up to 0.25 s), chord-change penalty 0.18, extra penalty for entering/leaving "N"; a **second Viterbi pass** re-runs after a song-palette prior (chords below 2.5% share penalized) and isolated single-segment flickers are suppressed |
+| key estimation | song-level chroma vs Krumhansl-Schmuckler major/minor profiles; used only as a **soft prior** (±0.05 diatonic bonus, −0.12 non-diatonic penalty), never as a hard rule; also drives flat/sharp respelling |
+| bass analysis | separate low-octave chroma scores the root: +0.15 root boost, +0.10 prominence boost; a penalty applies **only when the bass favors a dominant non-chord tone** (pop bass alternates root and fifth, so a chord-tone bass is never evidence against the chord); slash chords displayed only above a 0.20 bass margin |
+| Demucs | optional `--isolate-instrumental` (`htdemucs_ft`): keeps bass + other, drops vocals and drums before chroma analysis; opt-in dependency, significantly slower |
+| Whisper/Parakeet | lyrics transcription with word-level timestamps, backend user-selectable (`transcriber.py`) |
+| timestamp alignment | chords mapped onto words by character offsets within each lyric line (`formatter.py`); sharp/flat respelling and `--capo` transposition at display time |
+| offline processing | everything runs locally except the YouTube downloader (yt-dlp), which is out of scope for this project |
+| licensing | MIT (`LICENSE`: "Copyright (c) 2026 Lucas Maciel"), already recorded in §3.2 |
+
+Upstream reports 0.98 mean frame accuracy on its own six-song **synthetically
+rendered** benchmark suite; that is their measurement on their own generated
+material and transfers nowhere — this project makes no accuracy claim from it.
+The benchmark idea itself (render pop-style arrangements from known progressions
+and score frame-by-frame) is worth reusing for our phase 12 metrics, with our own
+implementation.
+
+### 13.2 yuval-kahan/chord-extractor — removed
+
+**Verdict: removed 2026-09-24 (superseded).** It orchestrates Chordino (the
+GPL-2.0 Vamp plugin) through the `vamp` PyPI wrapper — the exact stack phase 1
+already classified as *external executable only, never bundled*, with an
+abandoned wrapper and platform-specific installation. It offers no technique
+chordify does not cover with a cleaner native-Python pipeline. Licence recorded:
+GPL-2.0 (`LICENSE` file).
+
+### 13.3 yuval-kahan/Chord-recognition — removed
+
+**Verdict: removed 2026-09-24 (superseded, unlicensed).** A university ML course
+project (KNN/SVM/DecisionTree/AdaBoost over PCP features). No `LICENSE` file in
+the clone — treat as fully reserved. Every technique it demonstrates is covered
+better by chordify (templates + Viterbi) and orchidas (the §24.5 baseline).
+
+### 13.4 yuval-kahan/scales-chords — removed
+
+**Verdict: removed 2026-09-24 (off scope).** An Obsidian plugin that inserts
+links to chord-diagram images from scales-chords.com for fenced tab blocks. It
+could not be more tangential: rendering/embedding concern, zero audio analysis.
+MIT (`LICENSE` file).
+
+### 13.5 okamyuji/chordscope — §24.4 — investigated, then removed
+
+**Verdict: §24.4 investigation complete 2026-09-24; submodule removed after
+recording.** MIT (`LICENSE` file). A typer/rich CLI with a pydantic model layer
+and per-area analyzers, built on librosa, music21, numpy, scipy, soundfile and
+matplotlib:
+
+* **beat/downbeat**: madmom `RNNBeatProcessor` + `DBNDownBeatTrackingProcessor`
+  — exactly the madmom stack this project **rejected** in §3.1 (no Python 3.13
+  build; CC BY-NC-SA weights). Its `_compat.py` monkey-patches madmom's
+  inhomogeneous-shape bug on numpy ≥ 1.24, which confirms the maintenance
+  situation rather than fixing it.
+* **modulation**: re-applies Krumhansl-Schmuckler over a 16 s sliding window
+  with 4 s hop, emitting key segments and from→to changes, with multi-pass
+  smoothing and short-segment merging to suppress flap. **This windowed,
+  smoothed key-segment idea is worth re-implementing in our own key engine.**
+* **tempo curve**: local BPM from median beat-interval deltas, segments
+  classified against the global tempo (±5%), linear regression for the trend
+  (stable/accelerando/ritardando/variable).
+* **chords**: also delegates to madmom's `DeepChromaChordRecognitionProcessor`.
+
+The two ideas worth keeping (windowed modulation tracking; tempo-curve
+classification) are now recorded here; the repository itself is not needed to
+implement them, and its core engine is one we cannot adopt.
+
+### 13.6 orchidas/Chord-Recognition — §24.5 — investigated, kept for now
+
+**Verdict: §24.5 investigation complete 2026-09-24; submodule kept for now as the
+§24.5 research baseline.** No `LICENSE` file — treat as fully reserved; never
+copy from it. Since the verdict is recorded, it is also the next candidate for
+the `external/` cleanup rule: the baseline idea lives here, not in the clone.
+It implements precisely the §24.5 pipeline diagram, in six small files:
+
+* `chromagram.py`: a hand-written constant-Q transform (spectral kernel built
+  by FFT, per Kyogu Lee's *Enhanced Pitch Class Profile* paper) producing the
+  12-dimensional chroma;
+* `create_templates.py`: **binary** 24-triad templates (1.0 on the three chord
+  tones) stored as JSON;
+* `hmm.py`: HMM with multivariate-Gaussian emissions and a transition matrix
+  derived from a nested circle-of-fifths layout, plus an explicit `viterbi()`;
+* `main.py`: wires them together over WAV input.
+
+As the research baseline §24.5 asked for, it has served its purpose: our own
+implementation will follow the chroma → templates → HMM/Viterbi idea with
+original code, informed more by chordify's refinements (§13.1) than by this
+codebase.
+
+### 13.7 Remaining block-1 clones
+
+* **yuval-kahan/Chords.py**: kept for now — Keras CNN over PCP features with
+  bundled `my_model.h5` weights of undocumented provenance (never copy the
+  weights); tied to the §24.2 author ecosystem, whose correct target is still
+  unresolved (HTTP 404). Revisit when §24.2 has a decision.
+* **MOSS-Music**: unchanged — still the §3.2 candidate (phases 3/10), pending a
+  feasibility check.
+* **ChordVisualizer, musicpractice, Guitariz, ChordMiniApp**: outside §24 (they
+  are apps/tools, not engines); kept as GUI/visualization reading for phase 15
+  discussions. ChordMiniApp additionally embeds Beat-Transformer,
+  Chord-CNN-LSTM and SongFormer models, which may deserve their own §24-style
+  investigation if the roadmap grows a chord-model comparison area.
+

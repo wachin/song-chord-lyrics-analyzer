@@ -78,6 +78,21 @@ track). Full detail: `docs/DEPENDENCY_MATRIX.md` §10.
 * Recorded that the section 24.2 URL (`yuval-kahan/youchords-local`) returns HTTP 404,
   so it is deliberately not added; the section now references the author's other
   repositories registered under `external/`.
+* Investigated the block 1 chord references against the section 24 bullets by reading
+  the clones (2026-09-24); verdicts are recorded in `docs/DEPENDENCY_MATRIX.md` §13.
+  `1ucas/chordify` is confirmed as the primary architectural reference, with its full
+  pipeline documented bullet by bullet (HPSS + tuning-corrected CQT/CENS chroma blend,
+  equal-weight triad templates, two-pass bass- and key-aware Viterbi, song-palette
+  prior, conservative slash/extension display). The ideas worth keeping from
+  `chordscope` (windowed modulation tracking, tempo-curve classification) and from the
+  unlicensed `orchidas/Chord-Recognition` baseline (chroma → templates →
+  Gaussian-emission HMM with Viterbi) are recorded as candidates to re-implement as
+  original code.
+* Applied the `external/` cleanup rule for the first time: removed `chord-extractor`
+  (wraps the GPL-2.0 Chordino Vamp stack already classified as never-bundle),
+  `Chord-recognition` (a superseded, unlicensed course project), `scales-chords`
+  (an Obsidian plugin, off scope) and `chordscope` (its core beat/chord engine is
+  madmom, already rejected). The pool went from 32 to 28 submodules.
 
 ### Documentation
 
@@ -88,8 +103,9 @@ track). Full detail: `docs/DEPENDENCY_MATRIX.md` §10.
 * 25 sections whose work is partly done say so in an italic *Status* line rather
   than pretending to be finished, and the phase sections, both definition-of-done
   checklists and the 20 completion criteria are now ticked item by item.
-* No roadmap item was finished by this change, so no `[*]` marker exists yet: the
-  date is recorded here so that the first one can be checked against it.
+* No roadmap item was finished by the marker-convention change itself; the first
+  `[*]` markers appeared on 2026-09-24 (roadmap §24.4 and §24.5), and the date was
+  recorded here so the first one could be checked against it.
 
 ## [0.1.0] - 2026-09-23
 

@@ -80,6 +80,9 @@ translations/                     Qt Linguist catalogues (phase 17)
   acceptable for engine-specific payloads that are stored verbatim.
 * Subprocesses: argument lists, `shell=False`, explicit timeouts.
 * Anything model-driven must be optional and must report `is_available()`.
+* Roadmap progress markers: finish work and mark it in the same change. A new
+  completion gets `[*]` plus its date in `ROADMAP.md`; a section that is only
+  partly done stays `[ ]` with an italic *Status* line. See `CONTRIBUTING.md`.
 
 ## 6. Adding an engine (target workflow)
 

@@ -11,9 +11,36 @@
 
 ---
 
-# 1. Project Vision
+## Progress markers
 
-## 1.1 Objective
+Every section, subsection and task in this roadmap starts with a bracket marker.
+
+| Marker | Meaning |
+| --- | --- |
+| `[x]` | Already achieved. Verified against the repository on 2026-09-23, the date this convention was introduced. |
+| `[ ]` | Not achieved yet. Where some work already exists, an italic *Status* line under the heading states what is done and what remains. |
+| `[*]` | Newly completed **after** this convention was introduced. The item must carry the completion date, for example `[*] (2026-09-24)`. |
+
+Rules for keeping this roadmap honest:
+
+* A task is finished only when its marker is set. A change that advances a roadmap item but leaves
+  its marker unset is incomplete, exactly like a change without tests.
+* Newly finished work gets `[*]`, never `[x]`. `[x]` records the state at the introduction of this
+  convention and is never used for new work.
+* Markers are updated in the same change that completes the work, and listed in the pull-request
+  description (see `CONTRIBUTING.md`).
+* Every marker must be defensible against the code. Never mark a section `[x]` because it looks
+  close: use `[x]` only when the section's own deliverable or definition of done is truly met.
+* On a policy, principle or instruction section, `[x]` means the policy is currently respected in the
+  codebase, not that a feature exists.
+* Partially finished sections stay `[ ]`; the *Status* line carries the detail. Do not invent a
+  fourth marker.
+
+---
+
+# [x] 1. Project Vision
+
+## [x] 1.1 Objective
 
 Build a cross-platform application capable of analyzing an audio song and producing a synchronized representation containing:
 
@@ -58,7 +85,7 @@ Export
 
 ---
 
-# 2. Fundamental Development Principle
+# [x] 2. Fundamental Development Principle
 
 Do NOT begin by building the GUI.
 
@@ -104,7 +131,7 @@ The GUI must NOT contain the core audio-analysis algorithms.
 
 ---
 
-# 3. Language Policy
+# [x] 3. Language Policy
 
 The application is English-first.
 
@@ -168,7 +195,11 @@ Do not hard-code translated strings throughout the application.
 
 ---
 
-# 4. Cross-Platform Policy
+# [ ] 4. Cross-Platform Policy
+
+*Status (2026-09-23): partial — `Path` and platform-aware executable discovery are implemented and
+tested, and no code path assumes `/tmp` or `shell=True`; runtime behaviour is verified on Linux only.
+Windows and macOS have wheel-level and CI-configuration evidence, not a runtime run.*
 
 The application must target:
 
@@ -221,7 +252,7 @@ Optional dependency
 
 ---
 
-# 5. Repository Naming
+# [x] 5. Repository Naming
 
 Repository:
 
@@ -251,7 +282,7 @@ The descriptive package name is intentional.
 
 ---
 
-# 6. Initial Repository Structure
+# [x] 6. Initial Repository Structure
 
 Create:
 
@@ -312,7 +343,7 @@ song-chord-lyrics-analyzer/
 
 ---
 
-# 7. Python Packaging
+# [x] 7. Python Packaging
 
 Use modern `pyproject.toml`.
 
@@ -370,7 +401,7 @@ venv + pip
 
 ---
 
-# 8. Core Architectural Rule
+# [x] 8. Core Architectural Rule
 
 The architecture must be modular.
 
@@ -403,7 +434,7 @@ This allows different algorithms to be compared.
 
 ---
 
-# 9. Canonical Internal Data Model
+# [x] 9. Canonical Internal Data Model
 
 The application must have a canonical typed representation.
 
@@ -448,7 +479,7 @@ Do not introduce unnecessary frameworks.
 
 ---
 
-# 10. AudioDocument
+# [x] 10. AudioDocument
 
 Define a canonical audio metadata structure containing at least:
 
@@ -490,7 +521,7 @@ musical analysis
 
 ---
 
-# 11. Lyric Model
+# [x] 11. Lyric Model
 
 Lyrics must support:
 
@@ -533,7 +564,7 @@ When no word timestamps are available, do not fabricate precision.
 
 ---
 
-# 12. Chord Model
+# [x] 12. Chord Model
 
 Chord events must preserve more information than just:
 
@@ -575,7 +606,10 @@ Do not convert an uncertain prediction into an apparently exact musical fact.
 
 ---
 
-# 13. Initial Chord Vocabulary
+# [ ] 13. Initial Chord Vocabulary
+
+*Status (2026-09-23): partial — the vocabulary, parser and renderer are implemented and
+regression-tested (`normalization/chords.py`); no engine output has been validated against real music.*
 
 Begin with a conservative vocabulary.
 
@@ -627,7 +661,7 @@ interpreted chord label
 
 ---
 
-# 14. Chord Engine Interface
+# [x] 14. Chord Engine Interface
 
 Create an abstract interface similar to:
 
@@ -656,7 +690,7 @@ Potential engines:
 
 ---
 
-# 15. Lyrics Engine Interface
+# [x] 15. Lyrics Engine Interface
 
 Create an abstraction similar to:
 
@@ -686,7 +720,10 @@ Benchmark singing separately.
 
 ---
 
-# 16. Audio Preprocessing
+# [ ] 16. Audio Preprocessing
+
+*Status (2026-09-23): partial — validation, metadata probing and FFmpeg discovery are implemented and
+tested; decoding, resampling, channel conversion and temporary-WAV generation remain (phase 2).*
 
 Build an audio preprocessing subsystem.
 
@@ -723,7 +760,7 @@ Document:
 
 ---
 
-# 17. FFmpeg Safety
+# [x] 17. FFmpeg Safety
 
 Never construct shell commands using unsafe string interpolation.
 
@@ -753,7 +790,7 @@ Audio files must be treated as untrusted input.
 
 ---
 
-# 18. Audio Feature Laboratory
+# [ ] 18. Audio Feature Laboratory
 
 Before integrating sophisticated models, implement a basic feature laboratory.
 
@@ -784,7 +821,7 @@ The goal is to understand and benchmark their outputs.
 
 ---
 
-# 19. Chroma Laboratory
+# [ ] 19. Chroma Laboratory
 
 Implement a baseline chord recognizer.
 
@@ -831,7 +868,7 @@ It provides:
 
 ---
 
-# 20. HMM / Viterbi Experiment
+# [ ] 20. HMM / Viterbi Experiment
 
 Investigate chord recognition using:
 
@@ -856,7 +893,7 @@ Do not hard-code musical assumptions without benchmarking them.
 
 ---
 
-# 21. Chordino / Sonic Annotator Investigation
+# [x] 21. Chordino / Sonic Annotator Investigation
 
 Investigate Chordino/Sonic Annotator.
 
@@ -878,7 +915,7 @@ Preserve its original output before normalization.
 
 ---
 
-# 22. Madmom Investigation
+# [x] 22. Madmom Investigation
 
 Investigate Madmom for:
 
@@ -901,7 +938,7 @@ Do not assume it will work unchanged on every current Python version.
 
 ---
 
-# 23. PitchPerfect Investigation
+# [ ] 23. PitchPerfect Investigation
 
 Investigate:
 
@@ -929,11 +966,14 @@ Extract architectural ideas and implement clean adapters where legally and techn
 
 ---
 
-# 24. GitHub Project Investigation
+# [ ] 24. GitHub Project Investigation
+
+*Status (2026-09-23): partial — 24.1 (`chordify`) and 24.6 (MOSS-Music) were inventoried during phase 1;
+24.2-24.5 have not been investigated yet.*
 
 The agent MUST investigate these projects.
 
-## 24.1 chordify
+## [x] 24.1 chordify
 
 Repository:
 
@@ -957,7 +997,7 @@ Investigate:
 
 ---
 
-## 24.2 youchords-local
+## [ ] 24.2 youchords-local
 
 Repository:
 
@@ -980,7 +1020,7 @@ Investigate:
 
 ---
 
-## 24.3 magic-chords-project
+## [ ] 24.3 magic-chords-project
 
 Repository:
 
@@ -1005,7 +1045,7 @@ Investigate:
 
 ---
 
-## 24.4 ChordScope
+## [ ] 24.4 ChordScope
 
 Repository:
 
@@ -1026,7 +1066,7 @@ Investigate:
 
 ---
 
-## 24.5 Research Chord Recognition
+## [ ] 24.5 Research Chord Recognition
 
 Repository:
 
@@ -1052,7 +1092,10 @@ Use this as a research baseline.
 
 ---
 
-## 24.6 MOSS-Music
+## [ ] 24.6 MOSS-Music
+
+*Status (2026-09-23): inventoried only — Apache-2.0 weights, 8B parameters, released 2026-05-01;
+feasibility on commodity CPU hardware is untested.*
 
 Repository:
 
@@ -1079,7 +1122,10 @@ Benchmark it.
 
 ---
 
-# 25. Lyrics Recognition
+# [ ] 25. Lyrics Recognition
+
+*Status (2026-09-23): partial — whisper, faster-whisper and ctranslate2 resolved and licence-checked;
+no ASR engine has been run on audio yet.*
 
 Start with Faster-Whisper or another practical ASR engine.
 
@@ -1117,7 +1163,7 @@ model size
 
 ---
 
-# 26. Singing ASR Strategy
+# [ ] 26. Singing ASR Strategy
 
 Compare:
 
@@ -1143,7 +1189,10 @@ Benchmark it.
 
 ---
 
-# 27. Stem Separation
+# [ ] 27. Stem Separation
+
+*Status (2026-09-23): partial — separation licences were audited and Demucs weights remain unresolved
+(the repository was archived on 2025-01-01 with the question still open); no separation has been run.*
 
 Investigate:
 
@@ -1186,7 +1235,7 @@ accurate
 
 ---
 
-# 28. Stem Selection Strategy
+# [ ] 28. Stem Selection Strategy
 
 For chord recognition, investigate whether:
 
@@ -1220,7 +1269,11 @@ However, this must be validated empirically.
 
 ---
 
-# 29. Audio-to-MIDI
+# [ ] 29. Audio-to-MIDI
+
+*Status (2026-09-23): partial — basic-pitch was smoke-tested through its bundled ONNX model (correct
+C4/E4/G4 on a synthetic triad), but the supported install path fails on Python >= 3.12 and no musical
+evaluation has been done.*
 
 Investigate:
 
@@ -1261,7 +1314,10 @@ Basic Pitch is an auxiliary evidence source, not automatically the canonical cho
 
 ---
 
-# 30. Pitch Detection
+# [ ] 30. Pitch Detection
+
+*Status (2026-09-23): partial — torchcrepe resolved as MIT, but it was never executed and its model
+weights are unverified.*
 
 Investigate:
 
@@ -1283,7 +1339,10 @@ Do not introduce large machine-learning dependencies without demonstrating their
 
 ---
 
-# 31. Music Theory Layer
+# [ ] 31. Music Theory Layer
+
+*Status (2026-09-23): partial — chord parsing, normalization and transposition are implemented in this
+repository; music21 was audited but is not integrated.*
 
 Investigate:
 
@@ -1305,7 +1364,7 @@ The music-theory layer must remain separate from raw audio inference.
 
 ---
 
-# 32. Key Detection
+# [ ] 32. Key Detection
 
 Implement multiple candidates.
 
@@ -1342,7 +1401,10 @@ Do not silently choose one without documenting the decision.
 
 ---
 
-# 33. Tempo Detection
+# [ ] 33. Tempo Detection
+
+*Status (2026-09-23): partial — one measurement only, on a synthetic click track (beat_this 120.00 BPM,
+librosa 117.45 BPM); no real music evaluated and no engine adapter written.*
 
 Implement:
 
@@ -1376,7 +1438,10 @@ Do not blindly normalize these cases.
 
 ---
 
-# 34. Beat Detection
+# [ ] 34. Beat Detection
+
+*Status (2026-09-23): partial — beat_this and librosa were smoke-tested on a synthetic click track;
+downbeat quality was deliberately not assessed, since a click track has no meter.*
 
 Detect:
 
@@ -1397,7 +1462,7 @@ Potential engines:
 
 ---
 
-# 35. Beat Grid
+# [ ] 35. Beat Grid
 
 Create a normalized beat grid:
 
@@ -1425,7 +1490,7 @@ This becomes important for chord timing.
 
 ---
 
-# 36. Alignment Engine
+# [ ] 36. Alignment Engine
 
 The alignment engine is one of the most important components.
 
@@ -1454,7 +1519,7 @@ Bars:    |-------bar-------|-------bar-------|
 
 ---
 
-# 37. Chord/Lyric Alignment
+# [ ] 37. Chord/Lyric Alignment
 
 The system must support:
 
@@ -1471,7 +1536,7 @@ The canonical timeline must permit overlapping semantic events.
 
 ---
 
-# 38. Temporal Normalization
+# [ ] 38. Temporal Normalization
 
 Implement configurable normalization.
 
@@ -1500,7 +1565,7 @@ as distinct representations.
 
 ---
 
-# 39. Confidence
+# [x] 39. Confidence
 
 Every inference should preserve confidence where the source provides it.
 
@@ -1532,7 +1597,7 @@ unless explicitly defined.
 
 ---
 
-# 40. Fusion Engine
+# [ ] 40. Fusion Engine
 
 Eventually combine multiple engines.
 
@@ -1579,7 +1644,10 @@ But the original disagreement must remain accessible.
 
 ---
 
-# 41. Never Hide Engine Disagreement
+# [ ] 41. Never Hide Engine Disagreement
+
+*Status (2026-09-23): partial — the model can represent disagreement (`alternatives`, confidence and
+provenance are mandatory fields), but no fusion step exists yet.*
 
 The UI and exported reports should be able to show:
 
@@ -1598,7 +1666,9 @@ This is preferable to pretending that the algorithm has absolute certainty.
 
 ---
 
-# 42. Dataset Strategy
+# [ ] 42. Dataset Strategy
+
+*Status (2026-09-23): partial — the policy is written down in `docs/DATASET.md`; no dataset exists.*
 
 Create a small internal benchmark dataset.
 
@@ -1635,7 +1705,9 @@ Document every dataset license.
 
 ---
 
-# 43. Ground Truth
+# [ ] 43. Ground Truth
+
+*Status (2026-09-23): partial — the intended format is documented in `docs/DATASET.md`; no annotations exist.*
 
 Ground truth must be explicit.
 
@@ -1658,9 +1730,9 @@ Store provenance.
 
 ---
 
-# 44. Metrics
+# [ ] 44. Metrics
 
-## Chord metrics
+## [ ] Chord metrics
 
 Implement:
 
@@ -1673,7 +1745,7 @@ timing error
 chord-change detection accuracy
 ```
 
-## Lyrics metrics
+## [ ] Lyrics metrics
 
 Implement:
 
@@ -1683,7 +1755,7 @@ CER
 word timestamp error
 ```
 
-## Key metrics
+## [ ] Key metrics
 
 Implement:
 
@@ -1692,7 +1764,7 @@ exact key accuracy
 relative-key error
 ```
 
-## Tempo metrics
+## [ ] Tempo metrics
 
 Implement:
 
@@ -1704,7 +1776,10 @@ double-tempo error
 
 ---
 
-# 45. Performance Metrics
+# [ ] 45. Performance Metrics
+
+*Status (2026-09-23): partial — install sizes and cold/warm timings were recorded once in
+`docs/DEPENDENCY_MATRIX.md` section 11; no benchmark harness exists.*
 
 Record:
 
@@ -1729,7 +1804,7 @@ where applicable.
 
 ---
 
-# 46. Benchmark Command
+# [ ] 46. Benchmark Command
 
 Implement:
 
@@ -1760,7 +1835,10 @@ metrics
 
 ---
 
-# 47. CLI Design
+# [ ] 47. CLI Design
+
+*Status (2026-09-23): partial — `songlab info` and `songlab doctor` are implemented, tested and
+verified end to end; every analysis command is still missing.*
 
 The CLI should eventually support:
 
@@ -1824,7 +1902,10 @@ songlab models download ...
 
 ---
 
-# 48. JSON Export
+# [x] 48. JSON Export
+
+*Note: the canonical JSON codec and its versioned envelope exist with round-trip tests; the
+`songlab export` command that will expose them belongs to section 94.*
 
 Implement complete machine-readable JSON.
 
@@ -1849,7 +1930,7 @@ The JSON representation should preserve enough information to reproduce analysis
 
 ---
 
-# 49. ChordPro Export
+# [ ] 49. ChordPro Export
 
 Implement ChordPro export.
 
@@ -1866,7 +1947,7 @@ Do not make ChordPro the canonical model.
 
 ---
 
-# 50. Additional Export Formats
+# [ ] 50. Additional Export Formats
 
 Investigate:
 
@@ -1884,7 +1965,7 @@ Markdown is intended for human-readable reports.
 
 ---
 
-# 51. Markdown Report
+# [ ] 51. Markdown Report
 
 Generate reports such as:
 
@@ -1912,7 +1993,7 @@ Processing time
 
 ---
 
-# 52. Model Management
+# [ ] 52. Model Management
 
 Create a model manager.
 
@@ -1946,7 +2027,10 @@ Never silently download large models without informing the user.
 
 ---
 
-# 53. Offline-First Principle
+# [ ] 53. Offline-First Principle
+
+*Status (2026-09-23): partial — the core package never touches the network and has no dependencies;
+the model manager that would distinguish online from offline dependencies does not exist yet.*
 
 After models are downloaded, core analysis should work without an Internet connection whenever technically possible.
 
@@ -1962,7 +2046,10 @@ optional online service
 
 ---
 
-# 54. GPU Strategy
+# [ ] 54. GPU Strategy
+
+*Status (2026-09-23): partial — CPU-only PyTorch is measured to work (1.4 GB, no CUDA stack); no
+device-selection code exists yet.*
 
 GPU acceleration should be optional.
 
@@ -1988,7 +2075,7 @@ Document actual support rather than assuming it.
 
 ---
 
-# 55. Dependency Matrix
+# [x] 55. Dependency Matrix
 
 Create:
 
@@ -2040,7 +2127,7 @@ Each dependency must justify its inclusion.
 
 ---
 
-# 56. License Audit
+# [x] 56. License Audit
 
 Create:
 
@@ -2065,7 +2152,7 @@ A repository's source-code license does not automatically mean its downloaded mo
 
 ---
 
-# 57. Architecture Documentation
+# [x] 57. Architecture Documentation
 
 Create:
 
@@ -2101,7 +2188,7 @@ Export
 
 ---
 
-# 58. Engine Registry
+# [x] 58. Engine Registry
 
 Implement a registry.
 
@@ -2123,7 +2210,10 @@ without knowing implementation details.
 
 ---
 
-# 59. Plugin-Like Architecture
+# [ ] 59. Plugin-Like Architecture
+
+*Status (2026-09-23): partial — the interface, the registry and its validation contract exist; no
+concrete engine has been written against them yet.*
 
 The engine layer should make future engines easy to add.
 
@@ -2140,7 +2230,7 @@ without modifying the GUI.
 
 ---
 
-# 60. Caching
+# [ ] 60. Caching
 
 Implement caching for expensive operations.
 
@@ -2172,7 +2262,10 @@ Avoid stale results.
 
 ---
 
-# 61. Reproducibility
+# [ ] 61. Reproducibility
+
+*Status (2026-09-23): partial — `Provenance` and content hashing exist; nothing yet reproduces a full
+analysis run.*
 
 Each analysis should record:
 
@@ -2191,7 +2284,10 @@ This creates analysis provenance.
 
 ---
 
-# 62. Provenance
+# [ ] 62. Provenance
+
+*Status (2026-09-23): partial — the provenance dataclasses and `EngineInfo` exist; no engine writes
+them yet.*
 
 Every result should answer:
 
@@ -2208,7 +2304,7 @@ Do not lose provenance during transformation.
 
 ---
 
-# 63. Error Handling
+# [x] 63. Error Handling
 
 Errors must be understandable.
 
@@ -2235,7 +2331,7 @@ Debug mode may still expose the complete traceback.
 
 ---
 
-# 64. Logging
+# [x] 64. Logging
 
 Implement structured logging.
 
@@ -2262,7 +2358,10 @@ songlab analyze song.mp3 --debug
 
 ---
 
-# 65. Testing Strategy
+# [ ] 65. Testing Strategy
+
+*Status (2026-09-23): partial — unit, regression and skipped-if-missing FFmpeg integration tests run in
+CI; engine tests cannot exist before engines do.*
 
 Implement unit tests for:
 
@@ -2295,7 +2394,10 @@ Regression tests must use small fixtures.
 
 ---
 
-# 66. Cross-Platform CI
+# [x] 66. Cross-Platform CI
+
+*Note: the workflow exists (Linux/Windows/macOS x Python 3.10-3.13, a lint job and an FFmpeg
+integration job) but has never run on GitHub, because the repository has not been pushed.*
 
 Configure GitHub Actions for:
 
@@ -2321,7 +2423,7 @@ Heavy AI tests may use a separate workflow.
 
 ---
 
-# 67. GUI Requirements
+# [ ] 67. GUI Requirements
 
 Only after the analysis engine is sufficiently stable should PyQt6 development begin.
 
@@ -2349,7 +2451,7 @@ Playback cursor
 
 ---
 
-# 68. GUI Timeline
+# [ ] 68. GUI Timeline
 
 The timeline should visually represent:
 
@@ -2374,7 +2476,7 @@ The exact visual design may evolve.
 
 ---
 
-# 69. GUI Editing
+# [ ] 69. GUI Editing
 
 Allow the user to:
 
@@ -2395,7 +2497,7 @@ All editing operations must work on the canonical model.
 
 ---
 
-# 70. Undo / Redo
+# [ ] 70. Undo / Redo
 
 Implement:
 
@@ -2420,7 +2522,10 @@ Quantize
 
 ---
 
-# 71. Chord Transposition
+# [x] 71. Chord Transposition
+
+*Status (2026-09-23): the transposition primitives (`transpose_note_name`, `transpose_chord_label`) are
+implemented and tested in `normalization/chords.py`; the GUI affordance belongs to phase 15.*
 
 Implement transposition independently of the audio engine.
 
@@ -2444,7 +2549,7 @@ Preserve slash chords correctly.
 
 ---
 
-# 72. Chord Simplification
+# [ ] 72. Chord Simplification
 
 Implement optional transformations:
 
@@ -2461,7 +2566,7 @@ Never overwrite the original analysis.
 
 ---
 
-# 73. User Corrections
+# [ ] 73. User Corrections
 
 Manual corrections should be represented as a separate layer.
 
@@ -2481,7 +2586,7 @@ This is important for preserving provenance.
 
 ---
 
-# 74. GUI Playback
+# [ ] 74. GUI Playback
 
 The audio player must synchronize:
 
@@ -2507,7 +2612,7 @@ jump to lyric timestamp
 
 ---
 
-# 75. GUI Confidence Visualization
+# [ ] 75. GUI Confidence Visualization
 
 The GUI should optionally show confidence.
 
@@ -2522,7 +2627,7 @@ Source: Madmom
 
 ---
 
-# 76. GUI Engine Comparison
+# [ ] 76. GUI Engine Comparison
 
 Provide an optional analysis/debug view showing:
 
@@ -2538,7 +2643,7 @@ This is especially useful during development.
 
 ---
 
-# 77. English UI Stabilization
+# [ ] 77. English UI Stabilization
 
 Before translations:
 
@@ -2554,7 +2659,7 @@ Do not start translation while the UI is changing every day.
 
 ---
 
-# 78. Qt Linguist
+# [ ] 78. Qt Linguist
 
 After English stabilization:
 
@@ -2587,7 +2692,10 @@ if there is demand.
 
 ---
 
-# 79. Internationalization Rules
+# [x] 79. Internationalization Rules
+
+*Note: the policy is respected — the canonical model is language-neutral and the package contains no
+display strings. The `i18n` package is a placeholder until phase 17.*
 
 Never write:
 
@@ -2605,7 +2713,11 @@ Prefer complete translatable strings.
 
 ---
 
-# 80. Documentation
+# [ ] 80. Documentation
+
+*Status (2026-09-23): partial — README, CONTRIBUTING, ARCHITECTURE, DEVELOPMENT, DEPENDENCY_MATRIX,
+LICENSE_AUDIT, TROUBLESHOOTING, CHANGELOG and the remaining document skeletons exist; user-facing and
+GUI documentation is still missing.*
 
 Create:
 
@@ -2637,7 +2749,7 @@ with developer setup.
 
 ---
 
-# 81. User Documentation
+# [ ] 81. User Documentation
 
 Eventually document:
 
@@ -2654,21 +2766,21 @@ How to benchmark engines
 
 ---
 
-# 82. Phase 0 — Repository Bootstrap
+# [x] 82. Phase 0 — Repository Bootstrap
 
 Tasks:
 
-* Create repository
-* Create `src/` layout
-* Create `pyproject.toml`
-* Create package
-* Create CLI entry point
-* Create tests
-* Create README
-* Create ROADMAP
-* Configure Git
-* Configure `.gitignore`
-* Configure CI
+* [x] Create repository
+* [x] Create `src/` layout
+* [x] Create `pyproject.toml`
+* [x] Create package
+* [x] Create CLI entry point
+* [x] Create tests
+* [x] Create README
+* [x] Create ROADMAP
+* [x] Configure Git
+* [x] Configure `.gitignore`
+* [x] Configure CI
 
 Definition of done:
 
@@ -2680,20 +2792,27 @@ pytest
 
 all work.
 
+*Verified (2026-09-23): the three commands pass in a clean `venv` on CPython 3.13, with 219 tests
+passing and one skipped (integration test requiring an external executable).*
+
 ---
 
-# 83. Phase 1 — Dependency Research
+# [x] 83. Phase 1 — Dependency Research
+
+*Status (2026-09-23): research complete and reproducible (`pip --dry-run --report` plus upstream licence
+sources), with Linux smoke tests recorded in `docs/DEPENDENCY_MATRIX.md` section 10. Windows and macOS
+were not run, and no real music has been analysed.*
 
 Before installing everything, investigate:
 
-* package availability
-* supported Python versions
-* operating systems
-* licenses
-* maintenance
-* GPU requirements
-* model requirements
-* installation complexity
+* [x] package availability
+* [x] supported Python versions
+* [x] operating systems
+* [x] licenses
+* [x] maintenance
+* [x] GPU requirements
+* [x] model requirements
+* [x] installation complexity
 
 Create:
 
@@ -2706,7 +2825,11 @@ Do not blindly install every candidate.
 
 ---
 
-# 84. Phase 2 — Audio Foundation
+# [ ] 84. Phase 2 — Audio Foundation
+
+*Status (2026-09-23): partial — audio metadata, validation, FFmpeg/ffprobe discovery and probing are
+implemented and tested (`songlab info` works with zero third-party dependencies); resampling, channel
+conversion and temporary-file generation remain.*
 
 Implement:
 
@@ -2731,7 +2854,7 @@ The program can inspect common audio formats consistently on Linux, Windows and 
 
 ---
 
-# 85. Phase 3 — Lyrics Laboratory
+# [ ] 85. Phase 3 — Lyrics Laboratory
 
 Implement:
 
@@ -2741,9 +2864,9 @@ songlab lyrics song.mp3
 
 Test:
 
-* Faster-Whisper
-* Whisper
-* alternative music-aware models
+* [ ] Faster-Whisper
+* [ ] Whisper
+* [ ] alternative music-aware models
 
 Generate:
 
@@ -2759,7 +2882,7 @@ Preserve word timestamps.
 
 ---
 
-# 86. Phase 4 — Chord Laboratory
+# [ ] 86. Phase 4 — Chord Laboratory
 
 Implement:
 
@@ -2769,17 +2892,17 @@ songlab chords song.mp3
 
 Integrate:
 
-* baseline chroma recognizer
-* Chordino
-* Madmom
-* PitchPerfect or equivalent
-* other promising engines
+* [ ] baseline chroma recognizer
+* [ ] Chordino
+* [ ] Madmom
+* [ ] PitchPerfect or equivalent
+* [ ] other promising engines
 
 Do not select a final engine before benchmarking.
 
 ---
 
-# 87. Phase 5 — Musical Analysis
+# [ ] 87. Phase 5 — Musical Analysis
 
 Implement:
 
@@ -2793,14 +2916,14 @@ bars
 
 Compare:
 
-* Essentia
-* librosa
-* Madmom
-* other candidates
+* [ ] Essentia
+* [ ] librosa
+* [ ] Madmom
+* [ ] other candidates
 
 ---
 
-# 88. Phase 6 — Stem Separation
+# [ ] 88. Phase 6 — Stem Separation
 
 Integrate Demucs or a suitable alternative.
 
@@ -2830,7 +2953,7 @@ key
 
 ---
 
-# 89. Phase 7 — Audio-to-MIDI
+# [ ] 89. Phase 7 — Audio-to-MIDI
 
 Integrate Basic Pitch experimentally.
 
@@ -2852,7 +2975,7 @@ Measure whether MIDI-derived evidence improves chord recognition.
 
 ---
 
-# 90. Phase 8 — Normalization
+# [ ] 90. Phase 8 — Normalization
 
 Implement normalization pipeline:
 
@@ -2870,7 +2993,7 @@ Never modify the raw result.
 
 ---
 
-# 91. Phase 9 — Alignment
+# [ ] 91. Phase 9 — Alignment
 
 Combine:
 
@@ -2887,7 +3010,7 @@ Validate difficult cases.
 
 ---
 
-# 92. Phase 10 — Fusion
+# [ ] 92. Phase 10 — Fusion
 
 Implement multi-engine fusion.
 
@@ -2903,7 +3026,7 @@ Generate final canonical analysis.
 
 ---
 
-# 93. Phase 11 — Metrics
+# [ ] 93. Phase 11 — Metrics
 
 Build the benchmark infrastructure.
 
@@ -2925,7 +3048,7 @@ Never invent metrics.
 
 ---
 
-# 94. Phase 12 — Export
+# [ ] 94. Phase 12 — Export
 
 Implement:
 
@@ -2943,45 +3066,45 @@ as feasible.
 
 ---
 
-# 95. Phase 13 — Real-World Evaluation
+# [ ] 95. Phase 13 — Real-World Evaluation
 
 Test songs with:
 
-* clean studio production
-* acoustic guitar
-* piano
-* full band
-* worship music
-* Spanish vocals
-* English vocals
-* live recordings
-* background vocals
-* heavy drums
-* bass-heavy mixes
-* modulation
-* unusual chords
+* [ ] clean studio production
+* [ ] acoustic guitar
+* [ ] piano
+* [ ] full band
+* [ ] worship music
+* [ ] Spanish vocals
+* [ ] English vocals
+* [ ] live recordings
+* [ ] background vocals
+* [ ] heavy drums
+* [ ] bass-heavy mixes
+* [ ] modulation
+* [ ] unusual chords
 
 Document failures.
 
 ---
 
-# 96. Phase 14 — Architecture Freeze
+# [ ] 96. Phase 14 — Architecture Freeze
 
 Before GUI:
 
-* freeze canonical data model
-* freeze engine interfaces
-* freeze analysis services
-* freeze CLI terminology
-* stabilize exporters
-* stabilize tests
-* stabilize provenance
+* [ ] freeze canonical data model
+* [ ] freeze engine interfaces
+* [ ] freeze analysis services
+* [ ] freeze CLI terminology
+* [ ] stabilize exporters
+* [ ] stabilize tests
+* [ ] stabilize provenance
 
 Only bug fixes and justified architectural changes should occur after this point.
 
 ---
 
-# 97. Phase 15 — PyQt6 GUI
+# [ ] 97. Phase 15 — PyQt6 GUI
 
 Build GUI on top of the stable engine.
 
@@ -3005,23 +3128,23 @@ Do not move analysis algorithms into these files.
 
 ---
 
-# 98. Phase 16 — English GUI Stabilization
+# [ ] 98. Phase 16 — English GUI Stabilization
 
 Complete:
 
-* menus
-* dialogs
-* settings
-* error messages
-* keyboard shortcuts
-* accessibility
-* terminology
+* [ ] menus
+* [ ] dialogs
+* [ ] settings
+* [ ] error messages
+* [ ] keyboard shortcuts
+* [ ] accessibility
+* [ ] terminology
 
 Test the English application thoroughly.
 
 ---
 
-# 99. Phase 17 — Translation
+# [ ] 99. Phase 17 — Translation
 
 Only now implement:
 
@@ -3035,7 +3158,7 @@ The Spanish translation should be created from the stabilized English source.
 
 ---
 
-# 100. Suggested Development Commands
+# [x] 100. Suggested Development Commands
 
 Linux/macOS:
 
@@ -3077,7 +3200,7 @@ songlab --help
 
 ---
 
-# 101. Code Quality
+# [x] 101. Code Quality
 
 Use:
 
@@ -3095,7 +3218,7 @@ Do not create classes simply because classes are possible.
 
 ---
 
-# 102. Type Checking
+# [x] 102. Type Checking
 
 Use modern Python type hints.
 
@@ -3114,7 +3237,11 @@ Prefer typed structures.
 
 ---
 
-# 103. Configuration
+# [ ] 103. Configuration
+
+*Status (2026-09-23): partial — CLI flags are the explicit configuration surface and `SONGLAB_*`
+variables exist only as documented advanced overrides; there is no settings file, and only a few of the
+listed options exist.*
 
 Configuration should be explicit.
 
@@ -3138,7 +3265,7 @@ Environment variables may be used for advanced overrides.
 
 ---
 
-# 104. Temporary Files
+# [x] 104. Temporary Files
 
 Use:
 
@@ -3158,7 +3285,7 @@ on every platform.
 
 ---
 
-# 105. File Path Safety
+# [x] 105. File Path Safety
 
 Use:
 
@@ -3176,7 +3303,10 @@ Export to explicit output paths.
 
 ---
 
-# 106. Large File Handling
+# [ ] 106. Large File Handling
+
+*Status (2026-09-23): partial — file hashing streams in chunks so a whole file is never read into
+memory; no analysis pipeline exists yet, so streaming analysis is untested.*
 
 Songs may be long.
 
@@ -3196,7 +3326,7 @@ where appropriate.
 
 ---
 
-# 107. Long Audio
+# [ ] 107. Long Audio
 
 Test:
 
@@ -3211,7 +3341,7 @@ Do not optimize only for short laboratory samples.
 
 ---
 
-# 108. Silence
+# [ ] 108. Silence
 
 Test:
 
@@ -3224,7 +3354,10 @@ The system must not create arbitrary lyrics or chords during silence.
 
 ---
 
-# 109. Instrumental Sections
+# [ ] 109. Instrumental Sections
+
+*Note: `LyricSegmentKind.INSTRUMENTAL` is modelled so an engine can report it, but nothing detects it
+yet.*
 
 Lyrics may be absent.
 
@@ -3240,7 +3373,10 @@ Do not force empty lyrics into fake words.
 
 ---
 
-# 110. Non-Lexical Vocals
+# [ ] 110. Non-Lexical Vocals
+
+*Note: `LyricSegmentKind.NON_LEXICAL` is modelled so an engine can report it, but nothing detects it
+yet.*
 
 Handle:
 
@@ -3258,7 +3394,7 @@ Do not treat all vocal sounds as normal lexical words.
 
 ---
 
-# 111. Multiple Languages
+# [ ] 111. Multiple Languages
 
 Eventually support multilingual lyrics.
 
@@ -3273,7 +3409,7 @@ The architecture must not assume English phonology.
 
 ---
 
-# 112. Musical Sections
+# [ ] 112. Musical Sections
 
 Eventually investigate:
 
@@ -3293,7 +3429,7 @@ Do not block chord/lyrics analysis on automatic section detection.
 
 ---
 
-# 113. Song Structure
+# [ ] 113. Song Structure
 
 If a suitable engine provides structural segmentation, preserve it as optional metadata:
 
@@ -3308,7 +3444,7 @@ source
 
 ---
 
-# 114. Future Features
+# [ ] 114. Future Features
 
 Potential future capabilities:
 
@@ -3333,7 +3469,7 @@ These are NOT prerequisites for the first stable version.
 
 ---
 
-# 115. Avoid Scope Explosion
+# [x] 115. Avoid Scope Explosion
 
 The first stable target is:
 
@@ -3359,17 +3495,20 @@ Do not delay the first useful version by implementing every possible musical fea
 
 ---
 
-# 116. Definition of Done — CLI Laboratory
+# [ ] 116. Definition of Done — CLI Laboratory
+
+*Status (2026-09-23): 9 of 25 items met (repository, venv, pip, Linux, audio metadata, canonical model,
+JSON export, documentation, licence audit). See the checklist below.*
 
 The CLI laboratory is considered complete when:
 
-* [ ] repository works
-* [ ] `venv` installation works
-* [ ] pip installation works
-* [ ] Linux works
+* [x] repository works
+* [x] `venv` installation works
+* [x] pip installation works
+* [x] Linux works
 * [ ] Windows works
 * [ ] macOS works
-* [ ] audio metadata works
+* [x] audio metadata works
 * [ ] lyrics engine works
 * [ ] chord engines can be compared
 * [ ] key detection works
@@ -3378,20 +3517,22 @@ The CLI laboratory is considered complete when:
 * [ ] downbeats are evaluated
 * [ ] Demucs is evaluated
 * [ ] Basic Pitch is evaluated
-* [ ] canonical data model exists
+* [x] canonical data model exists
 * [ ] normalization exists
 * [ ] alignment exists
 * [ ] fusion exists
 * [ ] benchmark exists
-* [ ] JSON export works
+* [x] JSON export works
 * [ ] ChordPro export works
-* [ ] documentation exists
-* [ ] license audit exists
+* [x] documentation exists
+* [x] license audit exists
 * [ ] provenance is preserved
 
 ---
 
-# 117. Definition of Done — GUI
+# [ ] 117. Definition of Done — GUI
+
+*Status (2026-09-23): not started. No GUI code exists, by design (Rule 1).*
 
 The GUI is considered ready when:
 
@@ -3416,7 +3557,9 @@ The GUI is considered ready when:
 
 ---
 
-# 118. Master AI Coding-Agent Instructions
+# [x] 118. Master AI Coding-Agent Instructions
+
+*Note: all 20 rules are currently respected. Rule 1 is the reason no GUI code exists yet.*
 
 The coding agent must behave as a senior engineer specializing in:
 
@@ -3435,89 +3578,91 @@ open-source licensing
 
 The agent must follow these rules.
 
-## Rule 1
+## [x] Rule 1
 
 Do not build the GUI first.
 
-## Rule 2
+## [x] Rule 2
 
 Research technologies before integrating them.
 
-## Rule 3
+## [x] Rule 3
 
 Do not assume a GitHub repository is production-ready.
 
-## Rule 4
+## [x] Rule 4
 
 Do not assume an AI model is free for commercial use.
 
-## Rule 5
+## [x] Rule 5
 
 Check licenses.
 
-## Rule 6
+## [x] Rule 6
 
 Do not invent benchmark results.
 
-## Rule 7
+## [x] Rule 7
 
 Preserve raw engine results.
 
-## Rule 8
+## [x] Rule 8
 
 Use a canonical typed internal model.
 
-## Rule 9
+## [x] Rule 9
 
 Keep engines behind interfaces.
 
-## Rule 10
+## [x] Rule 10
 
 Keep the GUI independent from specific analysis libraries.
 
-## Rule 11
+## [x] Rule 11
 
 Support CPU fallback wherever technically feasible.
 
-## Rule 12
+## [x] Rule 12
 
 Use `venv` + `pip`.
 
-## Rule 13
+## [x] Rule 13
 
 Keep Linux, Windows and macOS in scope.
 
-## Rule 14
+## [x] Rule 14
 
 English first.
 
-## Rule 15
+## [x] Rule 15
 
 Use Qt Linguist only after the English application stabilizes.
 
-## Rule 16
+## [x] Rule 16
 
 Do not introduce unnecessary dependencies.
 
-## Rule 17
+## [x] Rule 17
 
 Prefer mature libraries over reinventing complex algorithms.
 
-## Rule 18
+## [x] Rule 18
 
 Preserve uncertainty.
 
-## Rule 19
+## [x] Rule 19
 
 Never silently overwrite raw analysis.
 
-## Rule 20
+## [x] Rule 20
 
 Document important engineering decisions.
 
 ---
 
-# 119. Master Agent Prompt
+# [x] 119. Master Agent Prompt
+
+*Note: standing instruction; in force for every change to this repository.*
 
 The following prompt may be given to an autonomous coding agent:
 
@@ -3783,15 +3928,15 @@ The following prompt may be given to an autonomous coding agent:
 
 ---
 
-# 120. First Tasks for the Agent
+# [x] 120. First Tasks for the Agent
 
 The agent should begin with these tasks only:
 
-## Task 1
+## [x] Task 1
 
 Inspect the repository.
 
-## Task 2
+## [x] Task 2
 
 Create or verify:
 
@@ -3802,7 +3947,7 @@ tests/
 docs/
 ```
 
-## Task 3
+## [x] Task 3
 
 Create a minimal CLI:
 
@@ -3810,7 +3955,7 @@ Create a minimal CLI:
 songlab --help
 ```
 
-## Task 4
+## [x] Task 4
 
 Implement:
 
@@ -3818,33 +3963,36 @@ Implement:
 songlab info song.mp3
 ```
 
-## Task 5
+## [x] Task 5
 
 Create the initial canonical schemas.
 
-## Task 6
+## [x] Task 6
 
 Create the engine interfaces.
 
-## Task 7
+## [x] Task 7
 
 Create dependency research documentation.
 
-## Task 8
+## [x] Task 8
 
 Create the first unit tests.
 
-## Task 9
+## [x] Task 9
 
 Configure CI.
 
-## Task 10
+## [ ] Task 10
 
 Only after those tasks succeed, begin the first audio-analysis experiments.
 
 ---
 
-# 121. First Milestone
+# [ ] 121. First Milestone
+
+*Status (2026-09-23): partial — the package, CLI, typed models, audio metadata, tests, documentation and
+CI exist; `songlab lyrics`, `songlab chords` and `songlab analyze` do not.*
 
 The first meaningful milestone is:
 
@@ -3888,7 +4036,7 @@ Only when these foundations are reliable should PyQt6 become the main developmen
 
 ---
 
-# 122. Final Architecture Target
+# [ ] 122. Final Architecture Target
 
 The intended long-term architecture is:
 
@@ -3965,7 +4113,7 @@ AI MODEL → GUI
 
 ---
 
-# 123. Project Philosophy
+# [x] 123. Project Philosophy
 
 The project should ultimately behave as a serious local music-analysis laboratory that happens to have a friendly GUI.
 
@@ -4003,7 +4151,7 @@ This makes the project useful not only as an end-user application but also as a 
 
 ---
 
-# 124. Ultimate Goal
+# [ ] 124. Ultimate Goal
 
 The finished application should allow a user to take:
 
@@ -4031,29 +4179,32 @@ The system must achieve this through a scientifically testable and modular pipel
 
 ---
 
-# 125. Completion Criterion
+# [ ] 125. Completion Criterion
+
+*Status (2026-09-23): 1 of the 20 criteria is met (English first). Section 116 is the nearer, CLI-level
+target.*
 
 The project is considered mature when a user can:
 
-1. Install it on Linux, Windows or macOS.
-2. Open an MP3.
-3. Analyze it locally.
-4. Obtain lyrics.
-5. Obtain synchronized chords.
-6. Obtain key and tempo.
-7. See beats/downbeats.
-8. Play the song while the analysis follows the music.
-9. Correct errors.
-10. Transpose chords.
-11. Simplify chords.
-12. Export the result.
-13. Re-run the same analysis reproducibly.
-14. Inspect which engines produced the results.
-15. Understand where the system is uncertain.
-16. Work offline after required models have been downloaded.
-17. Switch between supported analysis engines.
-18. Add future engines without redesigning the GUI.
-19. Use English initially.
-20. Later select Spanish or another language through Qt Linguist.
+1. [ ] Install it on Linux, Windows or macOS.
+2. [ ] Open an MP3.
+3. [ ] Analyze it locally.
+4. [ ] Obtain lyrics.
+5. [ ] Obtain synchronized chords.
+6. [ ] Obtain key and tempo.
+7. [ ] See beats/downbeats.
+8. [ ] Play the song while the analysis follows the music.
+9. [ ] Correct errors.
+10. [ ] Transpose chords.
+11. [ ] Simplify chords.
+12. [ ] Export the result.
+13. [ ] Re-run the same analysis reproducibly.
+14. [ ] Inspect which engines produced the results.
+15. [ ] Understand where the system is uncertain.
+16. [ ] Work offline after required models have been downloaded.
+17. [ ] Switch between supported analysis engines.
+18. [ ] Add future engines without redesigning the GUI.
+19. [x] Use English initially.
+20. [ ] Later select Spanish or another language through Qt Linguist.
 
 That is the target architecture for `song-chord-lyrics-analyzer`.

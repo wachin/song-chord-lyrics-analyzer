@@ -19,6 +19,30 @@ specification; the roadmap wins over convenience.
    explicit timeouts.
 10. Do not introduce a dependency that is not needed.
 
+## Roadmap progress markers
+
+[`ROADMAP.md`](ROADMAP.md) is both the specification and the progress tracker.
+Every section, subsection and task carries a bracket marker:
+
+* `[x]` — already achieved when the convention was introduced (2026-09-23).
+* `[ ]` — not achieved yet. An italic *Status* line states what exists and what
+  is still missing.
+* `[*]` — **newly completed**. Anything finished after 2026-09-23 is marked with
+  `[*]` plus the completion date, for example `[*] (2026-09-24)`.
+
+Rules:
+
+1. Work completed in a change must be marked in that same change. A change that
+   advances a roadmap item but leaves its marker unset is incomplete, exactly
+   like a change with no tests.
+2. Newly finished work is marked `[*]`, never `[x]`. `[x]` records the state at
+   the introduction of the convention; it is not a moving target.
+3. Markers must be defensible against the code. Never mark something `[x]`
+   because it looks close: only when the section's own deliverable is truly met.
+4. A partially finished section stays `[ ]`; the *Status* line carries the
+   detail. Do not invent a fourth marker.
+5. Name the roadmap sections you changed in the pull-request description.
+
 ## Development setup
 
 ```bash
@@ -40,6 +64,9 @@ songlab --help          # CLI still starts
 
 All four must pass. CI runs them on Linux, Windows and macOS for Python 3.10 to
 3.13.
+
+Roadmap progress markers must be updated in the same change: mark what you
+finished with `[*]` and its date, as described above.
 
 ## Adding an analysis engine
 

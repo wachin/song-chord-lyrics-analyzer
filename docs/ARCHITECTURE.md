@@ -178,3 +178,8 @@ Only WAV files can be inspected without FFmpeg.
 | Phase 5 key/tempo/beats | models done; engines pending |
 | Phases 6-14 | not started |
 | Phase 15+ GUI | not started (by design) |
+
+`ROADMAP.md` is the authoritative progress view: every section carries a bracket
+marker (`[x]` achieved on 2026-09-23, `[ ]` open, `[*]` finished afterwards with
+its date), and sections whose work is partly done carry an italic *Status* line.
+This table summarises that state and must never disagree with it.

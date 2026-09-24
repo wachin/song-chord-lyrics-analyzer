@@ -130,6 +130,10 @@ ruff check . && ruff format --check .
 python -m mypy
 ```
 
+Finished roadmap work must be marked in the same change: a new completion gets a
+`[*]` marker with its date in [`ROADMAP.md`](ROADMAP.md); see
+[`CONTRIBUTING.md`](CONTRIBUTING.md).
+
 See [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) for setup conventions and how to
 add an engine, [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the layering,
 and [`docs/DEPENDENCY_MATRIX.md`](docs/DEPENDENCY_MATRIX.md) +
@@ -140,7 +144,7 @@ before any engine becomes a dependency.
 
 | Document | Contents |
 | --- | --- |
-| [`ROADMAP.md`](ROADMAP.md) | the specification and phase plan |
+| [`ROADMAP.md`](ROADMAP.md) | the specification, phase plan and live progress tracker (`[x]` / `[ ]` / `[*]` markers) |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | layering, model, error codes, status |
 | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | setup, conventions, adding an engine |
 | [`docs/DEPENDENCY_MATRIX.md`](docs/DEPENDENCY_MATRIX.md) | candidate dependencies and their verification status |

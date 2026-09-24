@@ -53,6 +53,18 @@ track). Full detail: `docs/DEPENDENCY_MATRIX.md` §10.
   No accuracy claim is made: a click track and a synthetic triad are not a
   benchmark.
 
+### Documentation
+
+* `ROADMAP.md` now tracks its own progress with bracket markers: `[x]` for work
+  already achieved when the convention was introduced (2026-09-23), `[ ]` for
+  work still open, and `[*]` for work completed afterwards, which must carry its
+  completion date. Every section, subsection and task carries a marker.
+* 25 sections whose work is partly done say so in an italic *Status* line rather
+  than pretending to be finished, and the phase sections, both definition-of-done
+  checklists and the 20 completion criteria are now ticked item by item.
+* No roadmap item was finished by this change, so no `[*]` marker exists yet: the
+  date is recorded here so that the first one can be checked against it.
+
 ## [0.1.0] - 2026-09-23
 
 Phase 0 (repository bootstrap) plus the first tasks from the roadmap. No

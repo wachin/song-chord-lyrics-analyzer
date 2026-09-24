@@ -10,10 +10,12 @@ and key** — with confidence and provenance attached to every inference.
 * **Licence:** GPL-3.0-or-later
 * **Status:** phase 0 complete and phase 1 dependency research done — repository,
   CLI, canonical model, engine interfaces, audio metadata, tests and CI. No
-  analysis engine is integrated yet: the candidate engines have been resolved,
-  licence-audited and either adopted, deferred or rejected, but nothing has been
-  installed or benchmarked. See the [roadmap](ROADMAP.md) for the order of work
-  and [`docs/DEPENDENCY_MATRIX.md`](docs/DEPENDENCY_MATRIX.md) for the findings.
+  analysis engine is integrated yet: candidates were resolved, licence-audited,
+  adopted/deferred/rejected, and the adopted ones were smoke-tested in a
+  throw-away environment on Linux (no real music, no accuracy numbers, and
+  runtime verified on Linux only). See the [roadmap](ROADMAP.md) for the order of
+  work and [`docs/DEPENDENCY_MATRIX.md`](docs/DEPENDENCY_MATRIX.md) for the
+  findings.
 
 ## Why
 

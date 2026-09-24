@@ -28,7 +28,8 @@ engine working.
 
 | Verdict | Packages |
 | --- | --- |
-| **Adopt** (as optional extras, when their phase arrives) | numpy, scipy, librosa, soundfile, music21, faster-whisper, basic-pitch, beat_this |
+| **Adopt** (as optional extras, when their phase arrives) | numpy, scipy, librosa, soundfile, music21, faster-whisper, beat_this |
+| **Adopt with a documented condition** | basic-pitch — Apache-2.0 and functionally verified, but its official install path is broken on Python >= 3.12 (see §6 and §10) |
 | **Adopt for the GUI (phase 15)** | PyQt6 (GPL-3.0-or-later compatible); PySide6 recorded as the permissive alternative |
 | **Candidate — measure before trusting** | MOSS-Music, torchcrepe, openai-whisper, spleeter, audio-separator |
 | **Defer (heavy, only if a phase needs it)** | torch, torchaudio |
@@ -100,7 +101,7 @@ verified here**; the CI matrix will surface them when the extras land.
 
 | Candidate | Latest resolved | Licence (verified) | Notes | Verdict |
 | --- | --- | --- | --- | --- |
-| **basic-pitch** (Spotify) | 0.4.0 | **Apache-2.0** (`LICENSE`: "Copyright 2022 Spotify AB"). The model ships inside the same Apache-2.0 repository, so code and weights share one licence. | Pure `py2.py3-none-any` wheel, no declared `Requires-Python`; classifiers still list only Python 3.8-3.11 (metadata is stale relative to 0.4.0) and Linux/MacOS X/Windows. The upstream README's Python-3.10 note is not a hard limit for 0.4.0, but this must be smoke-tested before adoption. | adopt (phase 7), measured against no-MIDI |
+| **basic-pitch** (Spotify) | 0.4.0 | **Apache-2.0** (`LICENSE`: "Copyright 2022 Spotify AB"). The model ships **inside the same wheel** (all four formats: `nmp.onnx`, `nmp.tflite`, `saved_model.pb`, `model.mlmodel`), so code and weights share one licence and no separate model download happens. | Pure `py2.py3-none-any` wheel, no declared `Requires-Python`. **Verified blocker:** it requires `tensorflow<2.15.1` for `python_version >= "3.11"` on non-Darwin, while PyPI only offers TensorFlow >= 2.20 for Python 3.13, so `pip install basic-pitch` **fails on Python 3.12 and 3.13**. See §10 for the verified ONNX workaround. | adopt with a condition (phase 7); see §10 |
 
 ## 7. Heavy ML runtimes
 
@@ -123,14 +124,85 @@ verified here**; the CI matrix will surface them when the extras land.
 | --- | --- | --- |
 | **FFmpeg / ffprobe** | ffmpeg.org/legal.html: "FFmpeg is licensed under the GNU Lesser General Public License (LGPL) version 2.1 or later. However, FFmpeg incorporates several optional parts and optimizations that are covered by the GNU General Public License (GPL) version 2 or later. If those parts get used the GPL applies to all of FFmpeg." | The program only **executes** an already-installed binary. If a future installer ever bundles FFmpeg, the page's LGPL compliance checklist (configure without `--enable-gpl`/`--enable-nonfree`, dynamic linking, ship matching source, about-box and EULA notices) becomes mandatory. |
 
-## 10. Installation complexity and hardware
+## 10. Smoke test results
+
+Run on **2026-09-23**, Linux x86_64 (Debian, glibc), CPython **3.13.5**, pip
+26.2.1, in a **throw-away virtual environment** (`.venv-smoke`) so the project's
+own environment stayed dependency-free. All audio was generated in-process: the
+project's `tests/fixtures/audio.py` for the plain tone, plus in-script generators
+for a C major triad and a 120 BPM click track. No real music, no copyrighted
+material, no GPU, no network except where noted.
+
+### 10.1 Results
+
+| Package | Install | Import | Functional check | Measured |
+| --- | --- | --- | --- | --- |
+| **soundfile 0.14.0** | OK — 5 packages (`cffi`, `numpy`, `pycparser`, `typing_extensions`) | OK | `sf.info`/`sf.read` on a generated WAV: 44100 Hz, 2 ch, 44100 frames, `WAV/PCM_16`; WAV→FLAC→read round trip is sample-exact (`np.allclose`) | 8.9 ms for info + read + write + read |
+| **librosa 1.0.0** | OK — 26 packages (`numba`, `llvmlite`, `scikit-learn`, `scipy`, `soxr`, `pooch`, ...); environment 498 MB | OK | `chroma_cqt` on a C major triad ranks **C, E, G** as the three strongest pitch classes (C = 1.000); `beat_track` on a 120 BPM click track returns **117.45 BPM**, 14 of 16 beats | `chroma_cqt` 1524 ms cold → **107-119 ms warm**; `beat_track` 1849 ms cold → **48-55 ms warm** (numba JIT warm-up) |
+| **beat_this 1.1.0** | OK — 3.7 s on top of CPU-only torch; environment 1.4 GB with torch | OK | On a 120 BPM click track: 16 beats, median interval exactly 0.5000 s → **120.00 BPM**; 0.70-0.83 s of CPU time for 8 s of audio (≈10× real time) | 81.1 MB checkpoint auto-downloaded to `~/.cache/torch/hub/checkpoints/beat_this-final0.ckpt`; 11.7 s on first use |
+| **basic-pitch 0.4.0** | **FAILS**: `pip install basic-pitch` on Python 3.13 ends in `Failed to build 'numpy'` because `tensorflow<2.15.1` cannot be satisfied (PyPI offers TensorFlow >= 2.20 for 3.13). Workaround: `pip install --no-deps basic-pitch` plus `onnxruntime`, `resampy<0.4.3`, `pretty-midi`, `mir-eval` | OK (`ONNX_PRESENT=True`, `TF_PRESENT=False`) | `predict()` on the **bundled `nmp.onnx`** found exactly **C4/E4/G4** on a C major triad (6 note events: the three pitches plus repeats from the decay tail) | 0.31 s for 2 s of audio |
+
+### 10.2 What the checks do and do not say
+
+* The click track and the synthetic triad are self-written signals, not
+  benchmarks. **No accuracy claim follows from them.**
+* librosa's 117.45 BPM against a nominal 120 BPM is a recorded measurement, not a
+  judgement; real music may differ.
+* librosa emitted `n_fft=1024 is too large for input signal of length=690` on a
+  very short segment. Engine adapters must treat warnings as diagnostics, not as
+  failures.
+* beat_this reported 12 "downbeats" for 16 beats. A uniform click track carries
+  no real meter cue, so **downbeat quality is explicitly not assessed** here.
+* basic-pitch's duplicate events on a decaying tone are normal model behaviour,
+  not a defect claim.
+
+### 10.3 Cross-platform availability (wheel level)
+
+Metadata-only resolution for **CPython 3.13** (`--no-deps --only-binary :all:`),
+so this is "an artifact exists", **not** "it runs there":
+
+| Package | Linux | Windows | macOS arm64 |
+| --- | --- | --- | --- |
+| soundfile 0.14.0 | `manylinux_2_28_x86_64` | `win_amd64` | `macosx_11_0_arm64` |
+| librosa 1.0.0 | `py3-none-any` | `py3-none-any` | `py3-none-any` |
+| beat-this 1.1.0 | `py3-none-any` | `py3-none-any` | `py3-none-any` |
+| basic-pitch 0.4.0 | `py2.py3-none-any` | `py2.py3-none-any` | `py2.py3-none-any` |
+| numpy 2.5.3 / scipy 1.18.1 | cp313 manylinux | cp313 `win_amd64` | numpy `macosx_11_0_arm64`, scipy `macosx_14_0_arm64` |
+| torch 2.14.0 (CPU index) | `manylinux_2_28_x86_64` | `2.14.0+cpu win_amd64` | `macosx_14_0_arm64` |
+
+Runtime behaviour was verified **on Linux only**. Windows and macOS are
+unverified beyond wheel availability, and must be re-checked on real machines
+before any cross-platform claim (roadmap rule: never claim platform support that
+was not tested).
+
+### 10.4 Integration findings that change our design
+
+1. **beat_this writes its checkpoint to `~/.cache/torch/hub/checkpoints`, not to
+   our cache.** The adapter must redirect `TORCH_HOME` or pass an explicit
+   checkpoint path so the file lands in `SONGLAB_CACHE_DIR` and can be listed and
+   hashed by `songlab models` (roadmap section 52).
+2. **That download is silent** apart from a progress bar. Our adapter must
+   announce it, and record size + SHA-256 before use, since it is an 81 MB
+   network fetch.
+3. **`pip install beat-this` from the default index pulls the CUDA stack.** The
+   CPU path is `--index-url https://download.pytorch.org/whl/cpu`, verified to
+   serve Linux, Windows (`+cpu`) and macOS arm64 wheels.
+4. **basic-pitch ships every model format inside the wheel**, so it needs no
+   separate model download — genuinely offline-friendly *once the Python version
+   conflict is solved*.
+5. **Measured install sizes:** soundfile + librosa alone 498 MB
+   (numba/llvmlite/scikit-learn dominate); adding CPU torch brings the
+   environment to 1.4 GB. CPU torch installed in 95 s, and the PyTorch index did
+   return transient connection resets before succeeding.
+
+## 11. Installation complexity and hardware
 
 | Package | Install | CPU/GPU | Notes on complexity |
 | --- | --- | --- | --- |
 | numpy / scipy / librosa / soundfile / music21 | `pip install <name>` | CPU | wheels for all three platforms; soundfile bundles libsndfile |
 | faster-whisper | `pip install faster-whisper` | CPU or CUDA; CPU fallback exists | pulls ctranslate2 (native wheel); model files are downloaded separately and are not small |
 | openai-whisper | `pip install openai-whisper` | CPU or CUDA | no wheel (sdist only), pulls PyTorch, needs FFmpeg |
-| basic-pitch | `pip install basic-pitch` | CPU-friendly | pure wheel, no declared Python floor |
+| basic-pitch | `pip install basic-pitch` — **fails on Python >= 3.12**, see §10.1 | CPU-friendly | pure wheel; models bundled; `tensorflow<2.15.1` pin blocks 3.12/3.13 |
 | beat_this | `pip install beat-this` | CPU or GPU | pure wheel, but verified resolution pulls **39 packages**: `torch 2.14.0`, `torchaudio 2.11.0`, `rotary-embedding-torch`, `soxr`, `numpy`, and the CUDA runtime packages from §7. Use the PyTorch CPU index for CPU-only installs. |
 | torch / torchaudio | `pip install torch torchaudio` | CPU wheels exist; CUDA is opt-in | very large downloads; the default index pulls CUDA packages (§7), so pin the CPU build for CI |
 | torchcrepe | `pip install torchcrepe` | CPU or CUDA | depends on the torch stack |
@@ -145,23 +217,38 @@ Model downloads are never silent: the model manager (roadmap section 52) must
 report name, version, source, licence, size, SHA-256 and hardware requirements
 before anything is fetched.
 
-## 11. Still open
+## 12. Still open
 
-These are the honest gaps in this research:
+These are the honest gaps remaining after the phase 1 research and the smoke
+tests:
 
-1. **No smoke test has been run.** Only resolution, licence and wheel availability
-   were verified. `pip download`-level confidence is not "it works".
-2. **Weights not individually verified** for torchcrepe/CREPE conversions,
+1. **Runtime verified on Linux only.** Windows and macOS have wheel-level
+   evidence (see §10.3) but no runtime evidence. Anyone claiming cross-platform
+   support for an engine must test it on that platform first.
+2. **No real music has been analysed.** No accuracy, WER, key or tempo metric
+   exists, and none may be quoted until `songlab benchmark` produces them
+   (roadmap rules 6 and 13).
+3. **The basic-pitch Python-version conflict needs a decision:** either pin that
+   feature's extra to Python <= 3.11, ship the documented ONNX workaround
+   (`--no-deps` + `onnxruntime`), or defer it to phase 7 and revisit. The ONNX
+   path is verified to run, but it is *not* the upstream-supported install.
+4. **Weights not individually verified** for torchcrepe/CREPE conversions,
    Spleeter, and the UVR model zoo used by `audio-separator`.
-3. **GPL-2.0 "only" vs "or later"** for NNLS Chroma and Sonic Annotator is not
+5. **beat_this checkpoint licence** is MIT per the project; the downloaded file
+   itself has not been inspected, and its fetch must be routed through our cache
+   and model manager.
+6. **GPL-2.0 "only" vs "or later"** for NNLS Chroma and Sonic Annotator is not
    stated in `COPYING`; read the source headers before *combining* anything. This
    does not affect executing them as separate programs.
-4. **Python 3.10/3.11 resolutions** of numpy/scipy/librosa were not verified (pip
-   will select older releases).
-5. **Parakeet packaging** (NeMo vs MLX ports) has not been researched.
-6. **MOSS-Music** needs a VRAM/CPU feasibility check before it can be considered
+7. **Python 3.10/3.11 resolutions** of numpy/scipy/librosa were not verified (pip
+   will select older releases; only 3.13 was exercised).
+8. **Parakeet packaging** (NeMo vs MLX ports) has not been researched.
+9. **MOSS-Music** needs a VRAM/CPU feasibility check before it can be considered
    an engine rather than a demo.
+10. **No memory measurement** beyond environment disk size: peak RAM per engine
+    belongs to `songlab benchmark` (roadmap section 45), not to this document.
 
-Phase 1 is therefore **complete for the candidates needed before the first
-analysis phases** (audio, lyrics, chords, beats) and **deliberately still open**
-for the heavy ML options that later phases may or may not need.
+Phase 1 is therefore **complete for the candidates needed by the first analysis
+phases** (audio, lyrics, chords, beats; each has an installable, licence-cleared
+option with Linux runtime evidence) and **deliberately still open** for the heavy
+ML options and for every platform other than Linux.

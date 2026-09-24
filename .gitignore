@@ -23,11 +23,13 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-# Virtual environments
+# Virtual environments (including throw-away smoke-test environments)
 .venv/
+.venv*/
 venv/
 env/
 ENV/
+.smoke-target/
 
 # Testing / coverage
 .pytest_cache/

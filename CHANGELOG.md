@@ -12,9 +12,10 @@ the project uses [semantic versioning](https://semver.org/).
   first analysis phases, with each fact sourced (package metadata, upstream
   `LICENSE`/`COPYING`, model card, or vendor licence page) and dated.
 * **Adopted** (as optional extras, when their phase arrives): numpy, scipy,
-  librosa, soundfile, music21, faster-whisper, basic-pitch, beat_this. **PyQt6**
-  confirmed compatible with GPL-3.0-or-later for phase 15, with PySide6 recorded
-  as the permissive alternative.
+  librosa, soundfile, music21, faster-whisper, beat_this. **PyQt6** confirmed
+  compatible with GPL-3.0-or-later for phase 15, with PySide6 recorded as the
+  permissive alternative. **basic-pitch** is adopted with a condition: it is
+  Apache-2.0 and works, but its official install path is broken on Python 3.12+.
 * **Rejected**: madmom (the PyPI release does not build on Python 3.13, and its
   model files are CC BY-NC-SA 4.0) and Essentia (AGPL-3.0-only library, MTG
   models CC BY-NC-SA 4.0, no Windows support).
@@ -23,9 +24,34 @@ the project uses [semantic versioning](https://semver.org/).
   (GPL-2.0 external executables).
 * Recorded that current numpy/scipy/librosa releases require Python >= 3.12, so
   DSP extras effectively raise the floor above the core's 3.10.
-* Remaining open questions are listed explicitly: no smoke tests yet, unverified
-  weights (torchcrepe, Spleeter, UVR), and the GPL-2.0 "only" vs "or later"
-  question for the Vamp plugins.
+* Remaining open questions are listed explicitly: Windows/macOS runtime is
+  unverified, no real music has been analysed, unverified weights (torchcrepe,
+  Spleeter, UVR), and the GPL-2.0 "only" vs "or later" question for the Vamp
+  plugins.
+
+### Smoke-tested
+
+Each adopted dependency was installed in a throw-away virtual environment and
+exercised with generated audio (a tone, a C major triad and a 120 BPM click
+track). Full detail: `docs/DEPENDENCY_MATRIX.md` §10.
+
+* **soundfile 0.14.0** — metadata, read, and a sample-exact WAV->FLAC->read round
+  trip in 8.9 ms.
+* **librosa 1.0.0** — `chroma_cqt` ranks C/E/G correctly on a C major triad;
+  `beat_track` reports 117.45 BPM on a 120 BPM click track. Cold calls carry a
+  numba JIT cost (`chroma_cqt` 1524 ms cold vs ~110 ms warm).
+* **beat_this 1.1.0** — exactly 120.00 BPM and 16/16 beats, 0.7-0.8 s of CPU for
+  8 s of audio, on CPU-only torch. Its 81 MB checkpoint auto-downloads to
+  `~/.cache/torch/hub`, so the adapter must redirect `TORCH_HOME` into our cache
+  and announce the download.
+* **basic-pitch 0.4.0** — the documented install **fails on Python 3.12/3.13**
+  (`tensorflow<2.15.1` is unsatisfiable there). The model bundled in the wheel
+  was run through ONNX instead (`--no-deps` + `onnxruntime`) and detected exactly
+  C4/E4/G4.
+* Cross-platform **wheel availability** for Python 3.13 was verified for Linux,
+  Windows and macOS arm64; **runtime stays Linux-only** and is reported as such.
+  No accuracy claim is made: a click track and a synthetic triad are not a
+  benchmark.
 
 ## [0.1.0] - 2026-09-23
 

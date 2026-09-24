@@ -55,15 +55,24 @@ track). Full detail: `docs/DEPENDENCY_MATRIX.md` §10.
 
 ### Reference repositories
 
-* Added `external/`, holding the section 24 projects as read-only git submodules, plus
+* Added `external/`, holding third-party study references as read-only git submodules, plus
   `scripts/add_external_repos.sh` to add or refresh them. They are study material:
   never imported, packaged, installed, linted, type-checked or tested, which is now
   enforced by exclusions in `pyproject.toml` (verified by planting a lint-broken file
   and a failing test in `external/` and confirming the gates stay green).
 * Added `AGENTS.md` and `external/README.md`, whose first rule is that `external/` is
   a set of reference repositories and not a library of this project.
-* Recorded that one of the six URLs in section 24 (`yuval-kahan/youchords-local`)
-  returns HTTP 404, so it is deliberately not added; the other five were reached.
+* Expanded the pool to 24 repositories (2026-09-24) in three blocks — 8 chord
+  recognition projects, 11 instrument-recognition projects and 5 transcription/audio
+  identification projects — with the last one (`yuval-kahan/Chords.py`) added after the
+  first batch missed it. Licences were read from each clone's licence file and are
+  recorded as observations (not audits) in `external/README.md`.
+* Established the cleanup rule: `external/` is a temporary research pool that must
+  shrink, not grow — after a repository is investigated and its verdict recorded, the
+  submodule is deleted unless still needed.
+* Recorded that the section 24.2 URL (`yuval-kahan/youchords-local`) returns HTTP 404,
+  so it is deliberately not added; the section now references the author's other
+  repositories registered under `external/`.
 
 ### Documentation
 

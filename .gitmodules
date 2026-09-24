@@ -67,3 +67,6 @@
 [submodule "external/Ear"]
 	path = external/Ear
 	url = https://github.com/Kaidorespy/Ear
+[submodule "external/Chords.py"]
+	path = external/Chords.py
+	url = https://github.com/yuval-kahan/Chords.py

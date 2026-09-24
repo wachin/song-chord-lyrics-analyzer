@@ -971,9 +971,16 @@ Extract architectural ideas and implement clean adapters where legally and techn
 *Status (2026-09-23): partial — 24.1 (`chordify`) and 24.6 (MOSS-Music) were inventoried during phase 1;
 24.2-24.5 have not been investigated yet.*
 
-*Reference clones (2026-09-23): the projects below can be cloned as read-only git submodules under
-`external/` with `scripts/add_external_repos.sh`. They are study material only - never imported,
-packaged, installed, linted, tested or copied from; see `external/README.md` and `AGENTS.md`.*
+*Reference clones (2026-09-24): the section 24 repositories, plus extra study material for instrument
+recognition, transcription and audio identification, are registered as read-only git submodules under
+`external/` in three blocks (chords / instrument recognition / transcription, audio and other) -
+24 repositories as of 2026-09-24. They are study material only - never imported, packaged, installed,
+linted, tested or copied from; see `external/README.md` and `AGENTS.md`.*
+
+*Cleanup rule: `external/` is a temporary research pool and must shrink, not grow. After each
+repository has been investigated and its verdict recorded (`docs/DEPENDENCY_MATRIX.md`, and
+`docs/LICENSE_AUDIT.md` before anything is copied out), DELETE the submodule unless it is still
+actively needed. The removal commands and the repository inventory live in `external/README.md`.*
 
 The agent MUST investigate these projects.
 
@@ -1001,7 +1008,13 @@ Investigate:
 
 ---
 
-## [ ] 24.2 
+## [ ] 24.2 youchords-local
+
+Repository: `https://github.com/yuval-kahan/youchords-local` - returns **HTTP 404**
+(checked 2026-09-23). The section stays open until the roadmap points at the right
+repository. Several other repositories by the same author (`Chords.py`,
+`chord-extractor`, `Chord-recognition`, `scales-chords`) are registered under
+`external/` in the meantime.
 
 
 

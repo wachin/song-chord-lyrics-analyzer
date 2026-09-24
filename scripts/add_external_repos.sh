@@ -15,18 +15,45 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-# "path<TAB>url" pairs. Keep in sync with ROADMAP.md section 24 and
-# external/README.md.
+# "path<TAB>url" pairs. Keep in sync with .gitmodules (the authoritative list)
+# and external/README.md. Grouped in the same three blocks as external/README.md:
+# chords / instrument recognition / transcription, audio and other.
 REPOS=(
+  # block 1: chords
+  "Chords.py|https://github.com/yuval-kahan/Chords.py"
+  "chord-extractor|https://github.com/yuval-kahan/chord-extractor"
+  "Chord-recognition|https://github.com/yuval-kahan/Chord-recognition"
   "chordify|https://github.com/1ucas/chordify"
-  "magic-chords-project|https://github.com/Esysc/magic-chords-project"
-  "chordscope|https://github.com/okamyuji/chordscope"
-  "Chord-Recognition|https://github.com/orchidas/Chord-Recognition"
   "MOSS-Music|https://github.com/OpenMOSS/MOSS-Music"
+  "scales-chords|https://github.com/yuval-kahan/scales-chords"
+  "chordscope|https://github.com/okamyuji/chordscope"
+  "orchidas-Chord-Recognition|https://github.com/orchidas/Chord-Recognition"
+  # block 2: instrument recognition
+  "Music-Instrument-Recognition|https://github.com/dhivyasreedhar/Music-Instrument-Recognition"
+  "music-instrument-classifier|https://github.com/IvyZX/music-instrument-classifier"
+  "Musical-Instrument-Recognition-by-XGBoost|https://github.com/Jay-Codeman/Musical-Instrument-Recognition-by-XGBoost"
+  "babaktr-musical-instrument-recognition|https://github.com/babaktr/musical-instrument-recognition"
+  "instrument-prediction|https://github.com/biboamy/instrument-prediction"
+  "Instrument-Recognition-with-CNNs|https://github.com/bt-s/Instrument-Recognition-with-CNNs"
+  "predominant-instrument-recognition|https://github.com/nii-yamagishilab/predominant-instrument-recognition"
+  "bronzelion-musical-instrument-recognition|https://github.com/bronzelion/musical-instrument-recognition"
+  "instrument-recognition-polyphonic|https://github.com/vskadandale/instrument-recognition-polyphonic"
+  "instrument-recogniton|https://github.com/vk-mittal14/instrument-recogniton"
+  "instrument-classifier|https://github.com/LMicol/instrument-classifier"
+  # block 3: transcription, audio identification and other
+  "muscriptor|https://github.com/muscriptor/muscriptor"
+  "presto|https://github.com/skulklabs/presto"
+  "shazam-build|https://github.com/Danztee/shazam-build"
+  "audd-go|https://github.com/AudDMusic/audd-go"
+  "Ear|https://github.com/Kaidorespy/Ear"
 )
 # Roadmap section 24.2 lists https://github.com/yuval-kahan/youchords-local, which
 # returned HTTP 404 on 2026-09-23. It is intentionally not added until the roadmap
 # points at the correct repository.
+#
+# This pool is temporary: after a repository has been investigated and its verdict
+# recorded, REMOVE it (git submodule deinit -f external/<name> && git rm -f
+# external/<name> && rm -rf .git/modules/external/<name>). See external/README.md.
 
 mode="add"
 case "${1:-}" in

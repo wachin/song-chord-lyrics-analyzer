@@ -25,7 +25,8 @@ anywhere.
 
 `external/` contains third-party Git repositories registered as **git submodules**.
 They are kept so that a human or an agent can *read* implementations while
-researching a roadmap area (section 24). They are **not** a library this project uses,
+researching a roadmap area (section 24, plus adjacent study areas such as instrument
+recognition and audio transcription). They are **not** a library this project uses,
 **not** a dependency, and **not** part of the build.
 
 An agent working here MUST NOT:

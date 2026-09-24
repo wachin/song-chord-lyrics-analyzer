@@ -14,7 +14,7 @@ exclusions are configured in `pyproject.toml` on purpose. The binding rules are 
 
 ## Remove what does not survive the research
 
-Twenty-four repositories are registered (2026-09-24). That is a temporary research
+Thirty-two repositories are registered (2026-09-24). That is a temporary research
 pool, not a permanent part of this repository — it is too many to keep, and submodules
 are not free: every clone pays for them, every `git status` walks them, and every stale
 pin is maintenance debt.
@@ -43,7 +43,7 @@ Licences below were read from each clone's `LICENSE` file (or README where noted
 `docs/LICENSE_AUDIT.md`. "no licence file" means the clone contains no licence — treat
 the code as fully reserved and never copy from it.
 
-### Block 1 — chords (8)
+### Block 1 — chords, practice tools and visualization (12)
 
 | Submodule | Upstream | What it is | Licence |
 | --- | --- | --- | --- |
@@ -55,8 +55,12 @@ the code as fully reserved and never copy from it.
 | `scales-chords` | <https://github.com/yuval-kahan/scales-chords> | plugin that embeds guitar/piano chord diagrams (images from scales-chords.com) in fenced code blocks | MIT (LICENSE file) |
 | `chordscope` | <https://github.com/okamyuji/chordscope> | CLI: Madmom + librosa + music21, modulation and tempo-curve analysis (§24.4) | MIT (LICENSE file) |
 | `orchidas-Chord-Recognition` | <https://github.com/orchidas/Chord-Recognition> | automatic chord recognition from monophonic/polyphonic audio via Pitch Class Profile features (§24.5) | no licence file |
+| `ChordVisualizer` | <https://github.com/manh9011/ChordVisualizer> | interactive browser-based tool for real-time chord detection, circle-of-fifths visualization and music notation rendering | MIT (LICENSE file) |
+| `musicpractice` | <https://github.com/atinm/musicpractice> | minimal practice app: analyze, loop and practice with audio tracks — real-time analysis, stem separation, waveform visualization; recommends Vamp Chordino for chord/key/beat accuracy | MIT (LICENSE file) |
+| `Guitariz` | <https://github.com/Guitariz/Guitariz> | Guitariz Studio: full-stack music learning platform with AI-powered chord detection, stem isolation and interactive theory tools | MIT (LICENSE file) |
+| `ChordMiniApp` | <https://github.com/ptnghia-j/ChordMiniApp> | ChordMini: open-source web tool for chord recognition, beat tracking, piano visualization, guitar diagrams and lyrics synchronization | MIT (LICENSE file); LFS objects unfetchable upstream, see notes |
 
-### Block 2 — instrument recognition (11)
+### Block 2 — instrument recognition and detection (12)
 
 Extra study material: none of these is a target of section 24; they inform a possible
 future instrument/stem area of the roadmap.
@@ -74,6 +78,9 @@ future instrument/stem area of the roadmap.
 | `instrument-recognition-polyphonic` | <https://github.com/vskadandale/instrument-recognition-polyphonic> | master's thesis (UPF SMC): polyphonic instrument recognition trained on MedleyDB | GPL-3.0 (LICENSE file) |
 | `instrument-recogniton` | <https://github.com/vk-mittal14/instrument-recogniton> | string-instrument classification with machine learning | no licence file |
 | `instrument-classifier` | <https://github.com/LMicol/instrument-classifier> | instrument sound classification from mel spectrogram features | MIT (LICENSE file) |
+| `Musical-Instrument-Detection` | <https://github.com/KunalDhawan/Musical-Instrument-Detection> | DSP course project: instrument-family classification from temporal and spectral features over 10 orchestral instruments | no licence file |
+
+### Block 4 — cross-cutting libraries (3)
 
 ### Block 3 — transcription, audio identification and other (5)
 
@@ -86,6 +93,16 @@ Extra study material outside the current scope of section 24.
 | `shazam-build` | <https://github.com/Danztee/shazam-build> | from-scratch Shazam audio fingerprinting in Go (DSP pipeline, PostgreSQL fingerprint store, React frontend) | MIT (LICENSE file) |
 | `audd-go` | <https://github.com/AudDMusic/audd-go> | Go client for the AudD cloud music recognition API | MIT (LICENSE file) |
 | `Ear` | <https://github.com/Kaidorespy/Ear> | audio perception for LLMs: analyses a song and has an LLM write a grounded description of it | MIT (LICENSE file) |
+
+### Block 4 — cross-cutting libraries (3)
+
+Useful regardless of the analysis area being researched.
+
+| Submodule | Upstream | What it is | Licence |
+| --- | --- | --- | --- |
+| `libcantus` | <https://github.com/libraz/libcantus> | pure-TypeScript music theory for MIDI note events: recover the harmony from notes and write new parts against it; no runtime dependencies | Apache-2.0 (LICENSE file, with NOTICE) |
+| `basic-pitch` | <https://github.com/spotify/basic-pitch> | Spotify's Basic Pitch: lightweight-NN automatic music transcription (Python). Already researched as a dependency — adopted conditionally; see `docs/DEPENDENCY_MATRIX.md` | Apache-2.0 (LICENSE file, with NOTICE) |
+| `basic-pitch-ts` | <https://github.com/spotify/basic-pitch-ts> | TypeScript/npm sibling of Basic Pitch for browser and Node transcription | Apache-2.0 (LICENSE file) |
 
 ## Commands
 
@@ -125,3 +142,8 @@ Notes:
 * The section 24.2 target `yuval-kahan/youchords-local` is deliberately absent: its URL
   returns **HTTP 404** (checked 2026-09-23). The former `Esysc/magic-chords-project`
   entry is not registered either.
+* `ChordMiniApp` publishes model checkpoints through Git LFS and upstream has exceeded
+  its LFS budget, so the large objects cannot be downloaded (observed 2026-09-24). The
+  code is fully readable without them; the clone was repaired with
+  `GIT_LFS_SKIP_SMUDGE=1`, which checks the code out and leaves the checkpoints as
+  pointer files. Do not retry a full smudge until upstream restores the budget.

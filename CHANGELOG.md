@@ -62,11 +62,16 @@ track). Full detail: `docs/DEPENDENCY_MATRIX.md` §10.
   and a failing test in `external/` and confirming the gates stay green).
 * Added `AGENTS.md` and `external/README.md`, whose first rule is that `external/` is
   a set of reference repositories and not a library of this project.
-* Expanded the pool to 24 repositories (2026-09-24) in three blocks — 8 chord
-  recognition projects, 11 instrument-recognition projects and 5 transcription/audio
-  identification projects — with the last one (`yuval-kahan/Chords.py`) added after the
-  first batch missed it. Licences were read from each clone's licence file and are
-  recorded as observations (not audits) in `external/README.md`.
+* Expanded the pool to 32 repositories (2026-09-24) in four blocks — 12 chord,
+  practice-tool and visualization projects, 12 instrument-recognition and detection
+  projects, 5 transcription/audio identification projects and 3 cross-cutting music
+  libraries — with `yuval-kahan/Chords.py` added after the first batch missed it.
+  Licences were read from each clone's licence file and are recorded as observations
+  (not audits) in `external/README.md`.
+* Repaired the `ChordMiniApp` clone after its checkout failed: upstream's Git LFS
+  budget is exhausted, so its model checkpoints cannot be downloaded. The code was
+  checked out with `GIT_LFS_SKIP_SMUDGE=1` (checkpoints stay as pointer files) and the
+  limitation is documented in `external/README.md`.
 * Established the cleanup rule: `external/` is a temporary research pool that must
   shrink, not grow — after a repository is investigated and its verdict recorded, the
   submodule is deleted unless still needed.

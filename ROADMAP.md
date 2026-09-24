@@ -972,9 +972,10 @@ Extract architectural ideas and implement clean adapters where legally and techn
 24.2-24.5 have not been investigated yet.*
 
 *Reference clones (2026-09-24): the section 24 repositories, plus extra study material for instrument
-recognition, transcription and audio identification, are registered as read-only git submodules under
-`external/` in three blocks (chords / instrument recognition / transcription, audio and other) -
-24 repositories as of 2026-09-24. They are study material only - never imported, packaged, installed,
+recognition, transcription, audio identification and cross-cutting music libraries, are registered as
+read-only git submodules under `external/` in four blocks (chords, practice tools and visualization /
+instrument recognition and detection / transcription, audio and other / cross-cutting libraries) -
+32 repositories as of 2026-09-24. They are study material only - never imported, packaged, installed,
 linted, tested or copied from; see `external/README.md` and `AGENTS.md`.*
 
 *Cleanup rule: `external/` is a temporary research pool and must shrink, not grow. After each

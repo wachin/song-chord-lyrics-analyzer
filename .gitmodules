@@ -70,3 +70,27 @@
 [submodule "external/Chords.py"]
 	path = external/Chords.py
 	url = https://github.com/yuval-kahan/Chords.py
+[submodule "external/ChordVisualizer"]
+	path = external/ChordVisualizer
+	url = https://github.com/manh9011/ChordVisualizer
+[submodule "external/musicpractice"]
+	path = external/musicpractice
+	url = https://github.com/atinm/musicpractice
+[submodule "external/Guitariz"]
+	path = external/Guitariz
+	url = https://github.com/Guitariz/Guitariz
+[submodule "external/libcantus"]
+	path = external/libcantus
+	url = https://github.com/libraz/libcantus
+[submodule "external/Musical-Instrument-Detection"]
+	path = external/Musical-Instrument-Detection
+	url = https://github.com/KunalDhawan/Musical-Instrument-Detection
+[submodule "external/basic-pitch"]
+	path = external/basic-pitch
+	url = https://github.com/spotify/basic-pitch
+[submodule "external/basic-pitch-ts"]
+	path = external/basic-pitch-ts
+	url = https://github.com/spotify/basic-pitch-ts
+[submodule "external/ChordMiniApp"]
+	path = external/ChordMiniApp
+	url = https://github.com/ptnghia-j/ChordMiniApp

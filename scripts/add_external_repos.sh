@@ -16,10 +16,11 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 # "path<TAB>url" pairs. Keep in sync with .gitmodules (the authoritative list)
-# and external/README.md. Grouped in the same three blocks as external/README.md:
-# chords / instrument recognition / transcription, audio and other.
+# and external/README.md. Grouped in the same four blocks as external/README.md:
+# chords, practice tools and visualization / instrument recognition and detection /
+# transcription, audio and other / cross-cutting libraries.
 REPOS=(
-  # block 1: chords
+  # block 1: chords, practice tools and visualization
   "Chords.py|https://github.com/yuval-kahan/Chords.py"
   "chord-extractor|https://github.com/yuval-kahan/chord-extractor"
   "Chord-recognition|https://github.com/yuval-kahan/Chord-recognition"
@@ -28,7 +29,11 @@ REPOS=(
   "scales-chords|https://github.com/yuval-kahan/scales-chords"
   "chordscope|https://github.com/okamyuji/chordscope"
   "orchidas-Chord-Recognition|https://github.com/orchidas/Chord-Recognition"
-  # block 2: instrument recognition
+  "ChordVisualizer|https://github.com/manh9011/ChordVisualizer"
+  "musicpractice|https://github.com/atinm/musicpractice"
+  "Guitariz|https://github.com/Guitariz/Guitariz"
+  "ChordMiniApp|https://github.com/ptnghia-j/ChordMiniApp"
+  # block 2: instrument recognition and detection
   "Music-Instrument-Recognition|https://github.com/dhivyasreedhar/Music-Instrument-Recognition"
   "music-instrument-classifier|https://github.com/IvyZX/music-instrument-classifier"
   "Musical-Instrument-Recognition-by-XGBoost|https://github.com/Jay-Codeman/Musical-Instrument-Recognition-by-XGBoost"
@@ -40,12 +45,17 @@ REPOS=(
   "instrument-recognition-polyphonic|https://github.com/vskadandale/instrument-recognition-polyphonic"
   "instrument-recogniton|https://github.com/vk-mittal14/instrument-recogniton"
   "instrument-classifier|https://github.com/LMicol/instrument-classifier"
+  "Musical-Instrument-Detection|https://github.com/KunalDhawan/Musical-Instrument-Detection"
   # block 3: transcription, audio identification and other
   "muscriptor|https://github.com/muscriptor/muscriptor"
   "presto|https://github.com/skulklabs/presto"
   "shazam-build|https://github.com/Danztee/shazam-build"
   "audd-go|https://github.com/AudDMusic/audd-go"
   "Ear|https://github.com/Kaidorespy/Ear"
+  # block 4: cross-cutting libraries
+  "libcantus|https://github.com/libraz/libcantus"
+  "basic-pitch|https://github.com/spotify/basic-pitch"
+  "basic-pitch-ts|https://github.com/spotify/basic-pitch-ts"
 )
 # Roadmap section 24.2 lists https://github.com/yuval-kahan/youchords-local, which
 # returned HTTP 404 on 2026-09-23. It is intentionally not added until the roadmap

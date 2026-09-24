@@ -66,7 +66,14 @@ benchmark/                        generated benchmark reports
 results/                          generated analysis output (git-ignored)
 scripts/                          one-off maintenance helpers
 translations/                     Qt Linguist catalogues (phase 17)
+external/                         third-party reference submodules (never imported)
 ```
+
+`external/` holds the projects of roadmap section 24 as git submodules. They are study
+material only: never imported, packaged, installed, linted, type-checked, tested or
+copied from, and the exclusions are configured in `pyproject.toml` for that reason. See
+[`../AGENTS.md`](../AGENTS.md) and [`../external/README.md`](../external/README.md), and
+`scripts/add_external_repos.sh` to add or refresh them.
 
 ## 5. Conventions
 

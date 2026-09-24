@@ -971,6 +971,10 @@ Extract architectural ideas and implement clean adapters where legally and techn
 *Status (2026-09-23): partial — 24.1 (`chordify`) and 24.6 (MOSS-Music) were inventoried during phase 1;
 24.2-24.5 have not been investigated yet.*
 
+*Reference clones (2026-09-23): the projects below can be cloned as read-only git submodules under
+`external/` with `scripts/add_external_repos.sh`. They are study material only - never imported,
+packaged, installed, linted, tested or copied from; see `external/README.md` and `AGENTS.md`.*
+
 The agent MUST investigate these projects.
 
 ## [x] 24.1 chordify
@@ -997,53 +1001,12 @@ Investigate:
 
 ---
 
-## [ ] 24.2 youchords-local
+## [ ] 24.2 
 
-Repository:
 
-```text
-https://github.com/yuval-kahan/youchords-local
-```
-
-Investigate:
-
-* local-first architecture
-* Madmom
-* Chordino
-* Sonic Annotator
-* FFmpeg
-* Demucs
-* lyrics processing
-* caching
-* model handling
-* licensing
 
 ---
 
-## [ ] 24.3 magic-chords-project
-
-Repository:
-
-```text
-https://github.com/Esysc/magic-chords-project
-```
-
-Investigate:
-
-* chord detection
-* lyrics
-* transcription
-* key
-* tempo
-* MIDI
-* MusicXML
-* Madmom
-* Whisper
-* Essentia
-* architecture
-* license
-
----
 
 ## [ ] 24.4 ChordScope
 

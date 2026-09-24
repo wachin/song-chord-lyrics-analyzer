@@ -1,0 +1,69 @@
+[submodule "external/chord-extractor"]
+	path = external/chord-extractor
+	url = https://github.com/yuval-kahan/chord-extractor
+[submodule "external/Chord-recognition"]
+	path = external/Chord-recognition
+	url = https://github.com/yuval-kahan/Chord-recognition
+[submodule "external/chordify"]
+	path = external/chordify
+	url = https://github.com/1ucas/chordify
+[submodule "external/MOSS-Music"]
+	path = external/MOSS-Music
+	url = https://github.com/OpenMOSS/MOSS-Music
+[submodule "external/scales-chords"]
+	path = external/scales-chords
+	url = https://github.com/yuval-kahan/scales-chords
+[submodule "external/chordscope"]
+	path = external/chordscope
+	url = https://github.com/okamyuji/chordscope
+[submodule "external/orchidas-Chord-Recognition"]
+	path = external/orchidas-Chord-Recognition
+	url = https://github.com/orchidas/Chord-Recognition
+[submodule "external/Music-Instrument-Recognition"]
+	path = external/Music-Instrument-Recognition
+	url = https://github.com/dhivyasreedhar/Music-Instrument-Recognition
+[submodule "external/music-instrument-classifier"]
+	path = external/music-instrument-classifier
+	url = https://github.com/IvyZX/music-instrument-classifier
+[submodule "external/Musical-Instrument-Recognition-by-XGBoost"]
+	path = external/Musical-Instrument-Recognition-by-XGBoost
+	url = https://github.com/Jay-Codeman/Musical-Instrument-Recognition-by-XGBoost
+[submodule "external/babaktr-musical-instrument-recognition"]
+	path = external/babaktr-musical-instrument-recognition
+	url = https://github.com/babaktr/musical-instrument-recognition
+[submodule "external/instrument-prediction"]
+	path = external/instrument-prediction
+	url = https://github.com/biboamy/instrument-prediction
+[submodule "external/Instrument-Recognition-with-CNNs"]
+	path = external/Instrument-Recognition-with-CNNs
+	url = https://github.com/bt-s/Instrument-Recognition-with-CNNs
+[submodule "external/predominant-instrument-recognition"]
+	path = external/predominant-instrument-recognition
+	url = https://github.com/nii-yamagishilab/predominant-instrument-recognition
+[submodule "external/bronzelion-musical-instrument-recognition"]
+	path = external/bronzelion-musical-instrument-recognition
+	url = https://github.com/bronzelion/musical-instrument-recognition
+[submodule "external/instrument-recognition-polyphonic"]
+	path = external/instrument-recognition-polyphonic
+	url = https://github.com/vskadandale/instrument-recognition-polyphonic
+[submodule "external/instrument-recogniton"]
+	path = external/instrument-recogniton
+	url = https://github.com/vk-mittal14/instrument-recogniton
+[submodule "external/instrument-classifier"]
+	path = external/instrument-classifier
+	url = https://github.com/LMicol/instrument-classifier
+[submodule "external/muscriptor"]
+	path = external/muscriptor
+	url = https://github.com/muscriptor/muscriptor
+[submodule "external/presto"]
+	path = external/presto
+	url = https://github.com/skulklabs/presto
+[submodule "external/shazam-build"]
+	path = external/shazam-build
+	url = https://github.com/Danztee/shazam-build
+[submodule "external/audd-go"]
+	path = external/audd-go
+	url = https://github.com/AudDMusic/audd-go
+[submodule "external/Ear"]
+	path = external/Ear
+	url = https://github.com/Kaidorespy/Ear

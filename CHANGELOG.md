@@ -53,6 +53,18 @@ track). Full detail: `docs/DEPENDENCY_MATRIX.md` §10.
   No accuracy claim is made: a click track and a synthetic triad are not a
   benchmark.
 
+### Reference repositories
+
+* Added `external/`, holding the section 24 projects as read-only git submodules, plus
+  `scripts/add_external_repos.sh` to add or refresh them. They are study material:
+  never imported, packaged, installed, linted, type-checked or tested, which is now
+  enforced by exclusions in `pyproject.toml` (verified by planting a lint-broken file
+  and a failing test in `external/` and confirming the gates stay green).
+* Added `AGENTS.md` and `external/README.md`, whose first rule is that `external/` is
+  a set of reference repositories and not a library of this project.
+* Recorded that one of the six URLs in section 24 (`yuval-kahan/youchords-local`)
+  returns HTTP 404, so it is deliberately not added; the other five were reached.
+
 ### Documentation
 
 * `ROADMAP.md` now tracks its own progress with bracket markers: `[x]` for work

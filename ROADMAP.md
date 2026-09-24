@@ -968,9 +968,10 @@ Extract architectural ideas and implement clean adapters where legally and techn
 
 # [ ] 24. GitHub Project Investigation
 
-*Status (2026-09-24): partial — 24.1, 24.4 and 24.5 were investigated on 2026-09-24 and their verdicts are
-recorded in `docs/DEPENDENCY_MATRIX.md` §13; 24.2 is unresolved (the listed URL returns HTTP 404); 24.6
-remains inventoried only.*
+*Status (2026-09-24): this section lists exactly the repositories registered under `external/`
+(13 as of 2026-09-24). 24.1 and 24.5 were investigated that day and their verdicts are recorded in
+`docs/DEPENDENCY_MATRIX.md` §13; 24.6 remains inventoried only; the clones in 24.7 have not been
+investigated individually yet.*
 
 *Reference clones (2026-09-24): the section 24 repositories, plus extra study material for instrument
 recognition and cross-cutting music libraries, are registered as read-only git submodules under
@@ -1012,69 +1013,6 @@ Investigate:
 * timestamp alignment
 * offline processing
 * licensing
-
----
-
-## [ ] 24.2 youchords-local
-
-Repository: `https://github.com/yuval-kahan/youchords-local` - returns **HTTP 404**
-(checked 2026-09-23). The section stays open until the roadmap points at the right
-repository. One other repository by the same author (`Chords.py`) is registered
-under `external/` in the meantime; the author's `chord-extractor` and
-`Chord-recognition` were investigated and removed on 2026-09-24 with their verdicts
-recorded (`docs/DEPENDENCY_MATRIX.md` §13.2, §13.3).
-
----
-
-## [ ] 24.3 magic-chords-project
-
-Repository:
-
-```text
-https://github.com/Esysc/magic-chords-project
-```
-
-Investigate:
-
-* chord detection
-* lyrics
-* transcription
-* key
-* tempo
-* MIDI
-* MusicXML
-* Madmom
-* Whisper
-* Essentia
-* architecture
-* license
-
----
-
-## [*] (2026-09-24) 24.4 ChordScope
-
-Repository:
-
-```text
-https://github.com/okamyuji/chordscope
-```
-
-Investigated 2026-09-24 against the registered clone; the verdict is recorded in
-`docs/DEPENDENCY_MATRIX.md` §13.5 (its beat/chord core is madmom, already rejected,
-while its windowed modulation tracking and tempo-curve classification are worth
-re-implementing as original code). The submodule was removed after the verdict was
-recorded, per the `external/` cleanup rule.
-
-Investigate:
-
-* Madmom
-* librosa
-* music21
-* chord analysis
-* key
-* beat
-* tempo
-* output representation
 
 ---
 
@@ -1138,6 +1076,32 @@ Investigate its capabilities for:
 Do not assume it is superior to specialized modular engines.
 
 Benchmark it.
+
+---
+
+## [ ] 24.7 Remaining registered clones
+
+*Status (2026-09-24): keep/removal verdicts exist for the block 2 pair
+(`docs/DEPENDENCY_MATRIX.md` §13.8); the others have not been investigated individually yet.*
+
+These complete the set of repositories registered under `external/` (full inventory in
+`external/README.md`, verdicts recorded so far in `docs/DEPENDENCY_MATRIX.md` §13):
+
+| Submodule | What it is | Why it is still here |
+| --- | --- | --- |
+| `Chords.py` | Keras CNN over PCP features (jim2012Chords); unlicensed, weights of undocumented provenance | tied to the retired youchords-local lead, which was dropped on 2026-09-24 because its URL no longer exists on GitHub; investigate or remove in this section's pass |
+| `ChordVisualizer` | browser-based real-time chord detection and circle-of-fifths visualization (MIT) | GUI/visualization reading for phase 15 |
+| `musicpractice` | practice app: real-time analysis, stem separation, waveform visualization (MIT) | GUI/stem-UX reading; recommends the Vamp Chordino stack |
+| `Guitariz` | web platform: AI chord detection, stem isolation, theory tools (MIT) | GUI reading for phase 15 |
+| `ChordMiniApp` | web tool: chords, beats, piano visualization, lyrics sync (MIT; LFS checkpoints unfetchable upstream) | GUI reading; embeds Beat-Transformer, Chord-CNN-LSTM and SongFormer models worth a future §24-style investigation |
+| `instrument-prediction` | ISMIR 2018 frame-level instrument recognition (MIT) | kept paper-backed reference for a possible future instrument area (§13.8) |
+| `predominant-instrument-recognition` | APSIPA ASC 2023 NSynth-pretrained polyphonic instrument recognition (MIT) | kept paper-backed reference (§13.8) |
+| `libcantus` | pure-TypeScript music theory for MIDI note events (Apache-2.0) | cross-cutting theory reference |
+| `basic-pitch` | Spotify's Basic Pitch AMT (Apache-2.0) | already adopted as a conditional dependency (`docs/DEPENDENCY_MATRIX.md` §6, §10) |
+| `basic-pitch-ts` | TypeScript sibling of Basic Pitch (Apache-2.0) | browser/Node transcription reference |
+
+Investigate the clones that still lack a verdict with the same per-clone method used in
+`docs/DEPENDENCY_MATRIX.md` §13, and remove whatever does not earn its place.
 
 ---
 

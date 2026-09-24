@@ -118,9 +118,9 @@ Notes:
 * A plain `git clone` leaves the submodules empty until
   `git submodule update --init` is run. That is fine — the project builds, tests and
   installs without them.
-* The section 24.2 target `yuval-kahan/youchords-local` is deliberately absent: its URL
-  returns **HTTP 404** (checked 2026-09-23). The former `Esysc/magic-chords-project`
-  entry is not registered either.
+* `yuval-kahan/youchords-local` (formerly roadmap §24.2) was dropped on 2026-09-24: its
+  URL no longer exists on GitHub (HTTP 404, checked 2026-09-23). The former
+  `Esysc/magic-chords-project` entry is not registered either.
 * Removed after investigation (2026-09-24), per the cleanup rule above — verdicts in
   `docs/DEPENDENCY_MATRIX.md` §13:
   * block 1: `chord-extractor` and `Chord-recognition` (superseded by chordify's

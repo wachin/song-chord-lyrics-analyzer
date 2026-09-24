@@ -75,9 +75,12 @@ track). Full detail: `docs/DEPENDENCY_MATRIX.md` §10.
 * Established the cleanup rule: `external/` is a temporary research pool that must
   shrink, not grow — after a repository is investigated and its verdict recorded, the
   submodule is deleted unless still needed.
-* Recorded that the section 24.2 URL (`yuval-kahan/youchords-local`) returns HTTP 404,
-  so it is deliberately not added; the section now references the author's other
-  repositories registered under `external/`.
+* Recorded that the section 24.2 URL (`yuval-kahan/youchords-local`) returns HTTP 404
+  (checked 2026-09-23). On 2026-09-24 the section was dropped from the roadmap
+  entirely: the repository no longer exists on GitHub, and section 24 now lists
+  exactly the 13 repositories registered under `external/` — 24.1 (chordify), 24.5
+  (research baseline), 24.6 (MOSS-Music) and a new compact 24.7 table for the
+  remaining registered clones.
 * Investigated the block 1 chord references against the section 24 bullets by reading
   the clones (2026-09-24); verdicts are recorded in `docs/DEPENDENCY_MATRIX.md` §13.
   `1ucas/chordify` is confirmed as the primary architectural reference, with its full

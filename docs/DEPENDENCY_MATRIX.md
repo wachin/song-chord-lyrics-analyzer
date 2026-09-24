@@ -364,8 +364,9 @@ codebase.
 
 * **yuval-kahan/Chords.py**: kept for now — Keras CNN over PCP features with
   bundled `my_model.h5` weights of undocumented provenance (never copy the
-  weights); tied to the §24.2 author ecosystem, whose correct target is still
-  unresolved (HTTP 404). Revisit when §24.2 has a decision.
+  weights); tied to the now-retired youchords-local lead — the former §24.2 URL no
+  longer exists on GitHub, and the section was dropped on 2026-09-24. Investigate or
+  remove in the §24.7 pass over the remaining clones.
 * **MOSS-Music**: unchanged — still the §3.2 candidate (phases 3/10), pending a
   feasibility check.
 * **ChordVisualizer, musicpractice, Guitariz, ChordMiniApp**: outside §24 (they

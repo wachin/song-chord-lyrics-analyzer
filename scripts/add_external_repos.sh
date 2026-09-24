@@ -43,9 +43,9 @@ REPOS=(
   "basic-pitch|https://github.com/spotify/basic-pitch"
   "basic-pitch-ts|https://github.com/spotify/basic-pitch-ts"
 )
-# Roadmap section 24.2 lists https://github.com/yuval-kahan/youchords-local, which
-# returned HTTP 404 on 2026-09-23. It is intentionally not added until the roadmap
-# points at the correct repository.
+# https://github.com/yuval-kahan/youchords-local (formerly roadmap section 24.2) no
+# longer exists on GitHub (HTTP 404, checked 2026-09-23; dropped from the roadmap on
+# 2026-09-24) and is intentionally not registered.
 #
 # This pool is temporary: after a repository has been investigated and its verdict
 # recorded, REMOVE it (git submodule deinit -f external/<name> && git rm -f

@@ -1,7 +1,8 @@
 # Engine Comparison
 
 **Status: partially written (2026-09-25).** A first measured lyrics-ASR comparison
-(roadmap sections 25, 26 and 27) is recorded below. Chords, key and tempo comparisons do
+(roadmap sections 25, 26 and 27) is recorded below, on isolated vocals, on synthetic
+mixes, and on one real commercial mix. Chords, key and tempo comparisons do
 not exist yet — no chord/key/tempo engine has been integrated, so those rows stay empty
 rather than invented (roadmap rule 6).
 
@@ -108,9 +109,77 @@ out of the residual. But the **separated vocal is not the true vocal**:
 So the honest answer to roadmap 26 is: the *true* isolated vocal wins, but a *separated* one
 does not automatically — whether separation pays off is engine-dependent, and here it did not
 justify the cost for the faster engine. Note the caveat: the mixes are synthetic and
-`htdemucs` is trained on real music, so this may be pessimistic; real songs still need to be
-tested, and Demucs weights have an unresolved licence (used locally only, never bundled — see
-`docs/DEPENDENCY_MATRIX.md` §5 and `docs/LICENSE_AUDIT.md`).
+`htdemucs` is trained on real music, so this may be pessimistic — which is why the pass below
+was run on a real recording. Demucs weights also have an unresolved licence (used locally
+only, never bundled — see `docs/DEPENDENCY_MATRIX.md` §5 and `docs/LICENSE_AUDIT.md`).
+
+### Same comparison on a real commercial mix (roadmap 26, second pass, 2026-09-25)
+
+**Why.** The first pass used synthetic accompaniment, so its own caveat — "real songs still
+need to be tested" — was left open. This pass replaces the synthetic accompaniment with a
+real production.
+
+**Input.** A commercial MP3 supplied by the user for local analysis only. It lives in the
+gitignored `mp3/` directory and in the gitignored `.cache/real-song/`; **neither the audio nor
+its lyrics are committed** and no lyric text appears in this document. It is 272.04 s long,
+48 kHz stereo, 282 kbit/s. The file carries its own lyrics in an ID3 `lyrics-esp` tag — one
+verse plus the chorus, 12 lines and 51 tokens — and that tag is used as the evaluation
+reference. It is a **partial** reference, not a full verbatim transcript: the song repeats its
+text, so any whole-file error rate is inflated by those repeats. The repeat-insensitive token
+scores are therefore reported alongside and are the primary comparison.
+
+**Separation.** Demucs 4.1.0 `htdemucs`, four stems, CPU: **5 min 38 s for the 272 s song**
+(real-time factor 1.23). The `no_vocals` input is the sum of the drum, bass and `other` stems,
+which is exactly what `--two-stems=vocals` returns as the residual.
+
+**An integration finding first: the packaged ONNX Parakeet path cannot take a full song.**
+
+| Parakeet route | Output | Time |
+| --- | --- | ---: |
+| `recognize(path)` on the whole 272 s file | 8 garbled words (45 characters) | 124 s |
+| `with_vad(silero)` — the upstream long-audio route | **0 words**: the speech VAD finds no speech in singing | 4 s |
+| our own 20 s fixed-window chunking | 67 words, 10 of 12 known lines | 52 s |
+
+Long audio therefore needs our own chunking, and a *speech* VAD is the wrong tool for singing.
+This is an integration finding only: the section-25 numbers are unaffected, because those
+clips are 17–36 s.
+
+**Results.** Reference: 12 lines / 51 tokens / 24 unique tokens (partial).
+
+| Engine | Input | hyp tokens | unique tokens | unique-token F1 | multiset F1 | known lines found | WER* | CER* | RTF |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| faster-whisper `small` | raw mix | 139 | 26 | **0.960** | 0.537 | **12/12** | 1.726 | 1.717 | 0.59 |
+| faster-whisper `small` | Demucs `vocals` | 130 | 31 | 0.873 | **0.564** | 11/12 | 1.549 | 1.603 | 0.43 |
+| faster-whisper `small` | Demucs `no_vocals` | 6 | 1 | 0.000 | 0.000 | 0/12 | 1.000 | 0.945 | 0.18 |
+| Parakeet TDT 0.6B v3 (20 s chunks) | raw mix | 67 | 33 | **0.737** | **0.678** | **10/12** | 0.686 | 0.581 | 0.19 |
+| Parakeet TDT 0.6B v3 (20 s chunks) | Demucs `vocals` | 81 | 44 | 0.618 | 0.606 | 9/12 | 1.020 | 0.912 | 0.19 |
+| Parakeet TDT 0.6B v3 (20 s chunks) | Demucs `no_vocals` | 0 | 0 | 0.000 | 0.000 | 0/12 | — | — | 0.21 |
+
+\* WER/CER here are measured against the embedded *partial* lyrics, not against a full
+transcript, so they are inflated by the song's repeats and are **not** the ranking metric.
+
+**Reading it.**
+
+* The **raw mix wins or ties for both engines**, and wins clearly for Parakeet (unique-token
+  F1 0.737 vs 0.618, 10/12 vs 9/12 known lines, and a lower WER* despite the repeat inflation).
+* For faster-whisper the two views disagree — the separated stem is better on the
+  repeat-sensitive multiset F1 (0.564 vs 0.537) and on WER*, but worse on the repeat-insensitive
+  unique-token F1 (0.873 vs 0.960) and it loses one known line. That is a wash, not a gain.
+* The residual transcribes to 6 words for faster-whisper and to nothing for Parakeet, which
+  confirms the vocal really did leave it.
+* The input choice changes the output enormously: character-level similarity between the mix
+  and stem transcriptions is 0.43 (faster-whisper) and 0.14 (Parakeet).
+
+**So the synthetic conclusion does not transfer.** On the synthetic mixes separation helped
+Parakeet slightly and hurt faster-whisper; on this real production it hurts Parakeet and is a
+wash for faster-whisper. Both passes agree on the roadmap's own warning — never assume that
+the isolated vocal is the better input — and this pass is the stronger evidence of the two,
+because its mix is real.
+
+**Limits.** One song and one arrangement (n = 1): no statistical claim is made. The reference
+is the tag's partial lyrics and the song's repeats inflate any whole-file error rate. Backing
+vocals, reverb and the production style are uncontrolled. And this compares the mix with
+*Demucs' separated* vocal, not with the true vocal, which does not exist for commercial audio.
 
 ## Observations
 
@@ -131,14 +200,22 @@ tested, and Demucs weights have an unresolved licence (used locally only, never 
   faster-whisper (0.3244 vs 0.2505): the separated vocal is not the true vocal. The
   `no_vocals` residual transcribed to WER 1.0 for both engines, confirming the vocal really
   was moved out. Separation was ~72 s per ~30 s excerpt (real-time factor ≈ 1.9) on this CPU.
+  The real-song pass then **reversed the sign of the effect**, which is the point: separation
+  is not a free win and its benefit does not transfer between synthetic and real audio.
+* **Long audio is a packaging problem, not an accuracy problem.** Handed a whole 272 s song,
+  the packaged ONNX Parakeet path returned 8 garbled words, and the upstream VAD route returned
+  nothing at all (a speech VAD does not treat singing as speech). Only our own fixed-window
+  chunking worked.
 
 ## What this is not
 
 * Not a benchmark of mixed commercial music, backing vocals, reverb or live recordings —
   the roadmap 25 test list is only partly covered (isolated studio-ish solo vocals).
-* Not a separator benchmark on real music: the mixes are synthetic and only Demucs
-  `htdemucs` two-stem (`--two-stems=vocals`) was tried — no 6-stem, no UVR and no
-  `htdemucs_ft`. One synthetic-progression excerpt set is not enough to rank separators.
+* Not a separator benchmark: only Demucs `htdemucs` was tried, in a 4-stem split of a single
+  real song and a 2-stem split of synthetic mixes — no other separator, no `htdemucs_ft`, no
+  UVR and no 6-stem model. Two inputs are not enough to rank separators.
+* Not a full-transcript evaluation of the real song: its embedded lyrics are a partial
+  reference, so no whole-song WER against a verbatim transcript exists.
 * Not a claim that one engine should be adopted. It is a first data point to inform phase 3.
 
 ## Reproduction
@@ -148,6 +225,15 @@ live in the gitignored `.cache/lyrics-asr-investigation/` directory. The reposit
 (`.gitignore`) keeps `results/*.json|csv|md` and `benchmark/*` out of git, so the machine
 artifacts are regenerated locally, not committed; this document is the committed record.
 The committed `samples/vocadito_*.{wav,json}` excerpts are a small subset for spot-checking.
+
+The real-song pass lives in the gitignored `.cache/real-song/` (its harness, the Demucs
+stems and its own `summary.json`), and the input MP3 stays in the gitignored `mp3/`
+directory, which `.gitignore` documents as "Songs mp3". **Neither the commercial audio nor
+its embedded lyrics is committed, and neither can be redistributed**: the numbers above are
+the only durable output, which also means this pass cannot be reproduced by anyone who does
+not supply their own copy of the song. Its machine-readable results are also written to
+`results/lyrics_asr_real_song_{rows.csv,summary.json}`, which the repository keeps out of git
+like the rest of `results/`.
 
 ## What it will contain, per engine and per preprocessing strategy (still pending)
 

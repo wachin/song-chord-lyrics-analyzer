@@ -5,6 +5,10 @@ ground-truth sidecars are committed under `samples/` (`samples/README.md` has th
 The full 40-excerpt dataset and the synthetic mix conditions used by the lyrics-ASR investigation are
 kept in the gitignored `.cache/lyrics-asr-investigation/` and described in `docs/ENGINE_COMPARISON.md`.
 No commercial recording is committed, and the chord/key/tempo categories below are still uncollected.
+The 2026-09-25 real-music pass of the lyrics-ASR investigation used one commercial MP3 supplied
+by the user: it lives only in the gitignored `mp3/` directory (and the gitignored
+`.cache/real-song/`), is never committed or redistributed, and is a local check rather than a
+dataset entry — so it carries no sidecar and cannot be reproduced without the reader's own copy.
 
 ## Policy
 

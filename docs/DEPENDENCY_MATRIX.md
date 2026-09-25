@@ -87,7 +87,7 @@ verified here**; the CI matrix will surface them when the extras land.
 | --- | --- | --- | --- | --- | --- |
 | **faster-whisper** | 1.2.1 | `>=3.9` | **MIT** (`license` metadata + classifier) | Pure wheel. Native dependency **ctranslate2 4.8.2: MIT** (`LICENSE`: "Copyright (c) 2018- SYSTRAN"), classifiers Python 3.9-3.14, Production/Stable. Model `Systran/faster-whisper-large-v3` carries the **`license:mit`** tag on Hugging Face. | **primary candidate** (phase 3) |
 | **openai-whisper** | 20250625 | `>=3.8` | **MIT** (`LICENSE`: "Copyright (c) 2022 OpenAI") | **sdist only, no wheel**, pulls PyTorch, needs FFmpeg. | baseline for comparison |
-| **onnx-asr + Parakeet ONNX** | 0.12.0 | `>=3.10` | **MIT** (`onnx-asr` is MIT; its CPU runtime `onnxruntime` 1.30.0 is MIT). The converted checkpoint `istupakov/parakeet-tdt-0.6b-v3-onnx` is **CC-BY-4.0** (Hugging Face model card) | NVIDIA Parakeet TDT 0.6B v3 (multilingual, 25 languages incl. English and Spanish) via a small ONNX runtime instead of PyTorch/NeMo. No `nemo_toolkit`, no torch, no GPU. Chosen over NeMo because the PyPI `nemo_toolkit` pulls the full Lightning/torch stack; the ONNX path is the light CPU route. Installed and run on Linux CPU on 2026-09-25. | **primary Parakeet candidate** (phase 3); first measurements in `docs/ENGINE_COMPARISON.md` |
+| **onnx-asr + Parakeet ONNX** | 0.12.0 | `>=3.10` | **MIT** (`onnx-asr` is MIT; its CPU runtime `onnxruntime` 1.30.0 is MIT). The converted checkpoint `istupakov/parakeet-tdt-0.6b-v3-onnx` is **CC-BY-4.0** (Hugging Face model card) | NVIDIA Parakeet TDT 0.6B v3 (multilingual, 25 languages incl. English and Spanish) via a small ONNX runtime instead of PyTorch/NeMo. No `nemo_toolkit`, no torch, no GPU. Chosen over NeMo because the PyPI `nemo_toolkit` pulls the full Lightning/torch stack; the ONNX path is the light CPU route. Installed and run on Linux CPU on 2026-09-25. **Long audio is not handled by the package:** on a 272 s song `recognize()` returned 8 garbled words and the upstream `with_vad(silero)` route returned nothing at all, because a speech VAD does not treat singing as speech; only our own fixed 20 s window chunking worked. Any lyrics backend must therefore chunk long audio itself. | **primary Parakeet candidate** (phase 3); first measurements in `docs/ENGINE_COMPARISON.md` |
 | **MOSS-Music** | see §3.2 | — | Apache-2.0 (weights); code licence unclear | Music-aware, but a reasoning model rather than a timestamped transcriber, and CPU-infeasible (§13.11). | not adopted (CPU-infeasible, §13.11) |
 
 ## 5. Source separation
@@ -259,6 +259,13 @@ tests:
     only in a throwaway, gitignored environment. The weights licence is still
     unresolved (§5), so nothing is bundled and no separator is part of the
     dependency set.
+
+12. **Long-audio ASR is our problem, not the package's (2026-09-25).** Faster-Whisper
+    windows long audio itself; the packaged ONNX Parakeet path does not — on a 272 s
+    song it returned 8 garbled words, and the upstream VAD route returned nothing
+    because a speech VAD does not treat singing as speech. The working route was our
+    own fixed-window chunking. Roadmap section 25 needs this as a real code path, and
+    a lyrics backend must declare whether it chunks long audio when it registers.
 
 Phase 1 is therefore **complete for the candidates needed by the first analysis
 phases** (audio, lyrics, chords, beats; each has an installable, licence-cleared

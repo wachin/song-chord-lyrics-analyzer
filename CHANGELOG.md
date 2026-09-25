@@ -83,11 +83,23 @@ reference machine (Intel Core i3-7020U, 7.6 GiB RAM) and recorded in
   engine-dependent, not a free win, and the mixes are synthetic (a caveat, since
   `htdemucs` is trained on real music). Demucs weights were used locally only and never
   bundled — their licence is still unresolved.
+* **Long audio is a packaging problem (roadmap 25).** Given a whole 272 s song, the packaged
+  ONNX Parakeet path returned 8 garbled words and the upstream VAD route returned *nothing*,
+  because a speech VAD does not treat singing as speech; only our own fixed 20 s window
+  chunking produced a usable transcription. Faster-Whisper windows long audio itself.
+* **Real commercial mix, second pass (roadmap 26).** A user-supplied commercial MP3 (4 min
+  32 s, kept in the gitignored `mp3/` and never committed, with its embedded partial lyrics
+  as the reference) was separated with Demucs `htdemucs` (4 stems, 5 min 38 s) and transcribed
+  from the raw mix, the `vocals` stem and the `no_vocals` residual. The raw mix **won or tied
+  for both engines** — clearly for Parakeet (unique-token F1 0.737 vs 0.618), a wash for
+  Faster-Whisper — so the synthetic conclusion does not transfer to real audio. The residual
+  transcribed to 6 words for Faster-Whisper and to nothing for Parakeet, confirming the vocal
+  left it.
 * Not covered, and recorded as such: backing vocals, reverb, live recordings, heavy
   instrumentation, word-timestamp error (vocadito has no word-level ground truth), a
   larger Whisper (medium needed ~66 s per 30 s clip on this CPU and was stopped), the
-  `vocals + selected accompaniment` case, and 6-stem separation or `htdemucs_ft`/UVR
-  alternatives.
+  `vocals + selected accompaniment` case, a full verbatim transcript for the real song, and
+  6-stem separation or `htdemucs_ft`/UVR alternatives.
 
 ### Reference repositories
 

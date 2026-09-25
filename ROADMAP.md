@@ -1119,8 +1119,12 @@ in §13.10, and whatever did not earn its place was removed.
 *Status (2026-09-25): partial — first measured comparison done. Faster-Whisper (`small`, int8) and
 Parakeet TDT 0.6B v3 (`onnx-asr`, int8 ONNX) were run on all 40 vocadito excerpts (CC-BY-4.0,
 multilingual solo vocals); WER/CER, processing time, peak RAM and model size are recorded with the
-caveats in `docs/ENGINE_COMPARISON.md`. Still open: backing vocals, reverb, live recordings and heavy
-instrumentation; word timestamp error (vocadito has no word-level ground truth); and running the
+caveats in `docs/ENGINE_COMPARISON.md`. A long-audio finding was added the same day: on a full
+4 min 32 s commercial song the packaged ONNX Parakeet path returned 8 garbled words, the upstream
+VAD route returned nothing (a speech VAD does not treat singing as speech), and only our own fixed
+20 s window chunking produced a usable transcription. Still open: backing vocals, reverb, live
+recordings and heavy instrumentation; word timestamp error (vocadito has no word-level ground truth);
+chunked long-audio support as a real code path rather than a harness workaround; and running the
 comparison through `songlab benchmark` instead of the temporary harness.*
 
 Start with Faster-Whisper or another practical ASR engine.
@@ -1167,8 +1171,11 @@ degraded monotonically as the accompaniment grew. The same conditions were then 
 Demucs `htdemucs` two-stem separation**, and a *separated* vocal turned out not to be the true vocal:
 it helped Parakeet slightly (WER 0.2991 vs 0.3356 on the raw mix) but hurt faster-whisper (0.3244 vs
 0.2505), and the `no_vocals` residual gave WER 1.0 for both. See `docs/ENGINE_COMPARISON.md`. Still
-open: the `vocals + selected accompaniment` case, real (non-synthetic) music, and 6-stem or
-`htdemucs_ft` separators.*
+open: the `vocals + selected accompaniment` case and 6-stem or `htdemucs_ft` separators. A second
+pass on a **real commercial mix** (4 min 32 s, supplied locally and never committed) then reversed
+part of the synthetic result: the raw mix won or tied for both engines, clearly so for Parakeet
+(unique-token F1 0.737 vs 0.618 on the separated vocal), while faster-whisper was a wash. The
+synthetic conclusion does not transfer to real audio.*
 
 Compare:
 
@@ -1196,11 +1203,13 @@ Benchmark it.
 
 # [ ] 27. Stem Separation
 
-*Status (2026-09-25): partial — Demucs 4.1.0 `htdemucs` was actually run (CPU, `--two-stems=vocals`)
-on the synthetic mixes for the section-26 comparison, producing `vocals` and `no_vocals` stems. The
-licence question is still unresolved, so the weights were used locally only and never bundled. Still
-open: chord recognition on real stems (the `original` vs `vocals` / `other` / `bass+other` test below),
-6-stem separation, `htdemucs_ft` and UVR alternatives.*
+*Status (2026-09-25): partial — Demucs 4.1.0 `htdemucs` was actually run (CPU), first as a two-stem
+split of the synthetic mixes for the section-26 comparison and then as a full four-stem split of a
+real 272 s commercial song (5 min 38 s, real-time factor 1.23), producing `vocals`, `drums`, `bass`,
+`other` and a derived `no_vocals` residual. The licence question is still unresolved, so the weights
+were used locally only and never bundled. Still open: chord recognition on real stems (the `original`
+vs `vocals` / `other` / `bass+other` test below), 6-stem separation, `htdemucs_ft` and UVR
+alternatives.*
 
 Investigate:
 

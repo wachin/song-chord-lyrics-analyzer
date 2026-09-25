@@ -1,8 +1,9 @@
 # Benchmark
 
 **Status: planned for phase 11 — this command has not been implemented and no benchmark has been run
-through it yet.** A first *investigation* by a temporary harness (lyrics ASR on vocadito) is recorded in
-`docs/ENGINE_COMPARISON.md`; it is explicitly not a `songlab benchmark` run.
+through it yet.** A first *investigation* by a temporary harness (lyrics ASR on vocadito, then on
+synthetic mixes and on one real commercial mix) is recorded in `docs/ENGINE_COMPARISON.md`; it is
+explicitly not a `songlab benchmark` run.
 
 ## Planned command
 

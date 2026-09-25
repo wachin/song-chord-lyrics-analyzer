@@ -12,10 +12,12 @@ and key** — with confidence and provenance attached to every inference.
   CLI, canonical model, engine interfaces, audio metadata, tests and CI. No
   analysis engine is integrated yet: candidates were resolved, licence-audited,
   adopted/deferred/rejected, and the adopted ones were smoke-tested in a
-  throw-away environment on Linux (no real music, no accuracy numbers, and
-  runtime verified on Linux only). See the [roadmap](ROADMAP.md) for the order of
-  work and [`docs/DEPENDENCY_MATRIX.md`](docs/DEPENDENCY_MATRIX.md) for the
-  findings.
+  throw-away environment on Linux (runtime verified on Linux only, no accuracy
+  claim). The first lyrics-ASR measurements — isolated vocals, synthetic mixes and
+  one real commercial mix — are an investigation by a temporary harness, not
+  `songlab benchmark`; see [`docs/ENGINE_COMPARISON.md`](docs/ENGINE_COMPARISON.md)
+  for those and the [roadmap](ROADMAP.md) for the order of work, with
+  [`docs/DEPENDENCY_MATRIX.md`](docs/DEPENDENCY_MATRIX.md) for the findings.
 
 ## Why
 

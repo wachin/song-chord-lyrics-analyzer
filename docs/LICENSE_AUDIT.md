@@ -59,7 +59,7 @@ Weights are where the expensive mistakes live (roadmap rule 4).
 | --- | --- | --- |
 | Whisper (OpenAI) | MIT (upstream repository `LICENSE`) | verified for the reference release |
 | `Systran/faster-whisper-large-v3` | `license:mit` tag on the Hugging Face model card | verified |
-| MOSS-Music (`OpenMOSS-Team/MOSS-Music-8B-Instruct`) | `license:apache-2.0` tag on the model card, released 2026-05-01 | verified |
+| MOSS-Music (`OpenMOSS-Team/MOSS-Music-8B-Instruct`) | `license:apache-2.0` tag on the model card, released 2026-05-01; the GitHub repository itself has **no root `LICENSE` file**, so its code licence is unclear | verified (weights); code unclear — not adopted, see `DEPENDENCY_MATRIX.md` §13.11 |
 | Basic Pitch | Apache-2.0; **all four model formats ship inside the wheel** (`nmp.onnx`, `nmp.tflite`, `saved_model.pb`, `model.mlmodel`), so nothing is downloaded separately and code/weights share one licence | verified (smoke-tested, see `DEPENDENCY_MATRIX.md` §10) |
 | beat_this checkpoint | MIT per the project (JKU Linz); the downloaded `beat_this-final0.ckpt` file itself was not inspected | partially verified — its 81 MB auto-download must be routed through our cache and model manager |
 | **madmom models/data files** | **CC BY-NC-SA 4.0** — "If you want to include any of these files ... in a commercial product, please contact Gerhard Widmer." | verified; **non-commercial, conflicts with redistribution inside a GPL-3 work** |

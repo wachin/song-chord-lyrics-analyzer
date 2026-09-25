@@ -31,12 +31,12 @@ engine working.
 | **Adopt** (as optional extras, when their phase arrives) | numpy, scipy, librosa, soundfile, music21, faster-whisper, beat_this |
 | **Adopt with a documented condition** | basic-pitch — Apache-2.0 and functionally verified, but its official install path is broken on Python >= 3.12 (see §6 and §10) |
 | **Adopt for the GUI (phase 15)** | PyQt6 (GPL-3.0-or-later compatible); PySide6 recorded as the permissive alternative |
-| **Candidate — measure before trusting** | MOSS-Music, torchcrepe, openai-whisper, spleeter, audio-separator |
+| **Candidate — measure before trusting** | torchcrepe, openai-whisper, spleeter, audio-separator |
 | **Defer (heavy, only if a phase needs it)** | torch, torchaudio |
-| **Reject for integration** | madmom (does not build on current Python; non-commercial weights), Essentia (AGPL library + non-commercial models + no Windows support) |
+| **Reject for integration** | madmom (does not build on current Python; non-commercial weights), Essentia (AGPL library + non-commercial models + no Windows support), MOSS-Music (18.1 GB bf16 weights, no quantization path and CUDA-only runtime — not viable on the CPU target, §13.11) |
 | **Never bundle, execute only** | FFmpeg/ffprobe, Sonic Annotator, Chordino/NNLS Chroma |
 | **Never bundle weights** | Demucs (code MIT, weights licence unresolved) |
-| **Reference clones investigated (2026-09-24, roadmap §24)** | 1ucas/chordify kept as the architectural reference; chordscope investigated and removed after recording; chord-extractor, Chord-recognition and scales-chords removed as superseded/off-scope; orchidas/Chord-Recognition investigated and kept for now — see §13. Blocks 2 and 3 investigated the same day: 15 of 17 clones removed, 2 paper-backed MIT repositories kept (§13.8, §13.9). The §24.7 pass over the last five (§13.10) removed Chords.py, ChordVisualizer and ChordMiniApp and kept musicpractice (PySide6 app blueprint) and Guitariz (109-class CRNN + adaptive Viterbi), leaving 10 clones under `external/` |
+| **Reference clones investigated (2026-09-24, roadmap §24)** | 1ucas/chordify kept as the architectural reference; chordscope investigated and removed after recording; chord-extractor, Chord-recognition and scales-chords removed as superseded/off-scope; orchidas/Chord-Recognition investigated and kept for now — see §13. Blocks 2 and 3 investigated the same day: 15 of 17 clones removed, 2 paper-backed MIT repositories kept (§13.8, §13.9). The §24.7 pass over the last five (§13.10) removed Chords.py, ChordVisualizer and ChordMiniApp and kept musicpractice (PySide6 app blueprint) and Guitariz (109-class CRNN + adaptive Viterbi); §24.6 (MOSS-Music) was closed the same day as **not viable on commodity CPU** (§13.11) and its clone removed, leaving 9 clones under `external/` |
 
 ## 1. Core package
 
@@ -76,7 +76,7 @@ verified here**; the CI matrix will surface them when the extras land.
 | --- | --- | --- | --- | --- |
 | **beat_this** (CPJKU) | 1.1.0 | **MIT** (`LICENSE`: "Copyright (c) 2024 Institute of Computational Perception, JKU Linz") | Pure wheel, `Requires-Python >=3`. Discovered while investigating why madmom is not usable; it is the natural replacement for the madmom role (beats/downbeats/tempo). The dependency is approved, but it must still be benchmarked before being selected as the default beat engine. | adopt for phase 5 (benchmark first) |
 | **torchcrepe** | 0.0.24 | **MIT** (`license` metadata + classifier) | Pure wheel, no declared `Requires-Python`, depends on PyTorch. Weights are conversions of CREPE's "tiny"/"full" models; the CREPE repository is also MIT, but the converted weight files have **not** been individually verified. | candidate (phase 5/7) |
-| **MOSS-Music** | `OpenMOSS-Team/MOSS-Music-8B-Instruct` | **`license:apache-2.0`** (Hugging Face model tag) | 8B audio-language model, released 2026-05-01, `pipeline_tag: audio-text-to-text`, `architectures: ["MossMusicModel"]`, Instruct + Thinking variants. Upstream lists "musical captioning, lyrics ASR, structural analysis, chord/key/tempo reasoning". | candidate (phases 3/10) — 8B inference cost, reasoning-style output; do not assume it beats specialised engines. |
+| **MOSS-Music** | `OpenMOSS-Team/MOSS-Music-8B-Instruct` | **`license:apache-2.0`** (Hugging Face model tag; the GitHub code has **no `LICENSE` file**) | ~9.1 B audio-language model (Qwen3-8B + a 32-layer audio encoder), released 2026-05-01, `pipeline_tag: audio-text-to-text`, `architectures: ["MossMusicModel"]`, Instruct + Thinking variants. Upstream lists "musical captioning, lyrics ASR, structural analysis, chord/key/tempo reasoning". | **not adopted — not viable on commodity CPU**: 18.1 GB of bf16 weights, no quantization path, CUDA-only supported runtime, bandwidth-bound autoregressive decoding; timestamped chord/ASR benchmarks unpublished. See §13.11. |
 | **Chordino / NNLS Chroma** | not a Python package | **GPL-2.0** (`COPYING` is the GPLv2 text). The COPYING file does not say "only" or "or later"; the source headers must be read before any *combining* | Vamp plugin. Repository `c4dm/nnls-chroma`, 175 commits; no recent release activity observed (the Arch AUR package was last updated 2020). Needs a Vamp host (`sonic-annotator` or Sonic Visualiser). | external executable only, **never bundled** |
 | **Sonic Annotator** | not a Python package | **GPL-2.0** (`COPYING` verified: "GNU GENERAL PUBLIC LICENSE Version 2, June 1991") | Batch Vamp host, `vamp-plugins.org/sonic-annotator/`. Installed manually or from a distribution package; plugin discovery uses `VAMP_PATH`. | external executable only, **never bundled** |
 | **1ucas/chordify** | not a Python package | **MIT** (`LICENSE`: "Copyright (c) 2026 Lucas Maciel") | Not the historical "chordify" demo: it is now a local CLI that does librosa CQT/CENS chroma + major/minor triad templates, adaptive bar aggregation, **bass-aware Viterbi decoding**, key + song-palette priors, conservative slash/extension display, optional Demucs `htdemucs_ft` isolation (`bass + other`), and Whisper/Parakeet lyrics with word timestamps. | **architectural reference** (roadmap section 23). Read and re-implement cleanly; do not copy blindly. Its YouTube downloader is out of scope for this project. |
@@ -88,7 +88,7 @@ verified here**; the CI matrix will surface them when the extras land.
 | **faster-whisper** | 1.2.1 | `>=3.9` | **MIT** (`license` metadata + classifier) | Pure wheel. Native dependency **ctranslate2 4.8.2: MIT** (`LICENSE`: "Copyright (c) 2018- SYSTRAN"), classifiers Python 3.9-3.14, Production/Stable. Model `Systran/faster-whisper-large-v3` carries the **`license:mit`** tag on Hugging Face. | **primary candidate** (phase 3) |
 | **openai-whisper** | 20250625 | `>=3.8` | **MIT** (`LICENSE`: "Copyright (c) 2022 OpenAI") | **sdist only, no wheel**, pulls PyTorch, needs FFmpeg. | baseline for comparison |
 | **Parakeet-based** | not verified | — | — | `1ucas/chordify` reports using NVIDIA Parakeet with word-level timestamps; the specific packages (NeMo vs MLX ports) have not been researched. | unverified |
-| **MOSS-Music** | see §3.2 | — | Apache-2.0 (weights) | Music-aware, but a reasoning model rather than a timestamped transcriber. | candidate |
+| **MOSS-Music** | see §3.2 | — | Apache-2.0 (weights); code licence unclear | Music-aware, but a reasoning model rather than a timestamped transcriber, and CPU-infeasible (§13.11). | not adopted (CPU-infeasible, §13.11) |
 
 ## 5. Source separation
 
@@ -210,7 +210,7 @@ was not tested).
 | demucs | `pip install demucs` | CPU slow, GPU recommended | weights must be fetched separately and are **not** bundled (see §5) |
 | spleeter | `pip install spleeter` | CPU or GPU | `Requires-Python <4.0` upper bound; TF-era stack |
 | audio-separator | `pip install audio-separator` | CPU or GPU | per-model licence checks required |
-| MOSS-Music | `transformers` + Hugging Face model | GPU effectively required (8B) | feasibility not yet assessed |
+| MOSS-Music | `transformers` + Hugging Face model (~18.1 GB bf16 weights) | GPU-only in practice — no quantization path and CUDA-first install | assessed 2026-09-24: not viable on commodity CPU, see §13.11 |
 | PyQt6 / PySide6 | `pip install PyQt6` | CPU | abi3 wheels for Linux/Windows/macOS |
 | Sonic Annotator / Chordino | manual install, or a distribution package where it exists | CPU | plugin discovery via `VAMP_PATH`; no recent release activity observed |
 
@@ -244,8 +244,11 @@ tests:
 7. **Python 3.10/3.11 resolutions** of numpy/scipy/librosa were not verified (pip
    will select older releases; only 3.13 was exercised).
 8. **Parakeet packaging** (NeMo vs MLX ports) has not been researched.
-9. **MOSS-Music** needs a VRAM/CPU feasibility check before it can be considered
-   an engine rather than a demo.
+9. **MOSS-Music** was assessed on 2026-09-24 and is **not viable on commodity CPU**
+   (18.1 GB of bf16 weights, no quantization path, CUDA-only supported runtime,
+   bandwidth-bound autoregressive decoding) — see §13.11. It is no longer an engine
+   candidate unless a GPU path enters the project, quantized checkpoints are
+   published, and the timestamped chord/ASR benchmarks appear.
 10. **No memory measurement** beyond environment disk size: peak RAM per engine
     belongs to `songlab benchmark` (roadmap section 45), not to this document.
 
@@ -363,8 +366,8 @@ codebase.
 ### 13.7 Remaining block-1 clones
 
 * **yuval-kahan/Chords.py**: verdict recorded in §13.10 (removed 2026-09-24).
-* **MOSS-Music**: unchanged — still the §3.2 candidate (phases 3/10), pending a
-  feasibility check.
+* **MOSS-Music**: verdict recorded in §13.11 (removed 2026-09-24; not viable on
+  commodity CPU).
 * **ChordVisualizer, musicpractice, Guitariz, ChordMiniApp**: verdicts recorded in
   §13.10 (2026-09-24).
 
@@ -427,9 +430,9 @@ Removed (technical note + licence status):
   the CC BY-NC 4.0 licence, then authenticate with a token) and are therefore
   non-commercial — the same pattern that rejected madmom and Essentia (§3.1): they
   cannot ship inside a GPL-3 work. The project's transcription path is basic-pitch
-  (Apache-2.0, weights bundled in the wheel, §6); MOSS-Music remains the
-  large-model candidate (§3.2). Worth re-checking only if Kyutai ever relicenses
-  the weights.
+  (Apache-2.0, weights bundled in the wheel, §6); MOSS-Music was the large-model
+  candidate but was assessed as CPU-infeasible and closed (§13.11). Worth
+  re-checking only if Kyutai ever relicenses the weights.
 * **skulklabs/presto — MIT, Go — removed.** Identifies a song from a short clip by
   matching compact fingerprints against a persistent library (two fingerprinting
   algorithms, embedded-friendly). Identifying *unknown* songs is not this project's
@@ -554,4 +557,73 @@ the app shell for a cloud stack (Firebase + Gemini + Docker) that contradicts ou
 offline-first principle. The features are transcribed above and the models are
 separate public repositories that can be pulled directly if that study ever
 happens; the clone does not survive this pass: **removed after this record.**
+
+### 13.11 OpenMOSS/MOSS-Music — §24.6 — investigated; not viable on commodity CPU
+
+**Verdict (2026-09-24): §24.6 closed — do not adopt as an analysis engine for this
+CPU-first project; submodule removed after this record.** The clone was read
+(`README.md`, `infer.py`, `src/`, `pyproject.toml`) and the released weights were
+inspected through the Hugging Face API. **No benchmark was run**: the model cannot be
+executed here (no GPU, ~18 GB of weights, CUDA-only supported runtime, and the
+checkpoints are not fetched), so this is a feasibility finding, not a measured one.
+
+**What it is.** ~9.1 B parameters per the published `config.json`: a Qwen3-8B language
+model (`hidden_size` 4096, 36 layers, GQA 32/8 heads, `vocab_size` 151936, untied
+embeddings) plus a from-scratch 32-layer audio encoder (`d_model` 1280, windowed
+attention), a `GatedMLP` adapter and three DeepStack injection MLPs
+(`adapter_hidden_size` 8192). Audio is encoded at 12.5 Hz into the language model's
+embedding space. Upstream markets a single unified model for lyrics ASR with
+sentence/word timestamps, captioning and tagging, key/tempo/beat/downbeat analysis,
+timestamped chord transcription, structural segmentation and instrument/voice
+recognition.
+
+**Licence.** Only the *weights* carry the `license:apache-2.0` tag on Hugging Face. The
+GitHub clone has **no `LICENSE` file** at its root even though `pyproject.toml`
+declares `license = { file = "LICENSE" }` (only the vendored `sglang/` subtrees ship
+one), so the code itself is licence-unclear. Loading the checkpoint needs
+`trust_remote_code=True`, i.e. executing upstream code shipped with the model.
+
+**Why it is not viable on this project's target hardware (CPU-first):**
+
+* **Memory.** The four bf16 shards total **18.11 GB (16.86 GiB)** — the sum of the file
+  sizes the Hugging Face API reports for `MOSS-Music-8B-Instruct`. Loading them in bf16
+  therefore needs *at least* ~18.2 GB of RAM before activations; the KV cache adds
+  `2 × 36 layers × 8 kv_heads × 128 head_dim × 2 bytes ≈ 144 KiB per token` (from
+  `config.json`). A 32 GB machine is the practical floor for a demo; a 16 GB machine
+  cannot hold it.
+* **No quantization path.** The repository has no `bitsandbytes` / int8 / int4 / GPTQ /
+  AWQ support (a search of `src/`, `infer.py` and `pyproject.toml` finds none), so there
+  is no documented way to fit the model into less memory.
+* **Runtime is CUDA-first.** The documented install is `torch==2.9.1+cu128` with
+  `--extra-index-url https://download.pytorch.org/whl/cu128`, FlashAttention-2 as an
+  optional extra, and SGLang serving (NVIDIA-oriented). `infer.py` hard-codes
+  `device_map="cuda:0"`. Only `src/hf_inference.py:resolve_device()` offers a CPU
+  fallback, which upstream neither documents nor benchmarks.
+* **Decoding is memory-bandwidth bound.** It is autoregressive text generation
+  (`max_new_tokens=1024` in `infer.py`), not a fixed-size extractor: every generated
+  token streams the whole ~18 GB of weights from RAM, so CPU throughput is bounded by
+  DRAM bandwidth — a lower bound of `18.1 GB ÷ bandwidth` per token (an estimate, not a
+  measurement: ≈ 0.45 s/token at 40 GB/s) *before* the audio prefill. MOSS-Music's
+  answers (lyrics, word timestamps, a chord progression, sections) run to many hundreds
+  or thousands of tokens, so a single song would take many minutes to tens of minutes on
+  CPU.
+
+**Capability caveat.** Even on a GPU, the published headline numbers cover music QA
+(80.38 average over 8 benchmarks), captioning (GPT-5.4-as-a-judge) and lyrics ASR
+(15.88 % average WER/CER). The *timestamped* lyrics ASR and the **chord-transcription
+benchmarks are explicitly "to be released"** — unproven — and the output is free-form
+generated text (optionally with chain-of-thought in the Thinking variant), not
+structured timestamps we could consume directly. Per the §24.6 instruction ("do not
+assume it is superior to specialised engines"), there is no evidence here that it
+should replace chordify / basic-pitch / faster-whisper in this pipeline.
+
+**Worth reading, not adopting.** Two architecture ideas are kept as research notes:
+**DeepStack cross-layer feature injection** (early/intermediate encoder layers projected
+and injected into the language model's first layers to retain timbre, transients and
+rhythm) and **time-marker insertion** (explicit time tokens between the 12.5 Hz audio
+frames so "what happened when" becomes learnable). Both are relevant to timestamped
+chord/structure work, but neither needs the clone.
+
+**Revisit only if** a GPU path enters the project, quantized checkpoints are published,
+*and* the timestamped chord/ASR benchmarks appear.
 

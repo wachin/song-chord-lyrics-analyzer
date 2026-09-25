@@ -119,6 +119,16 @@ track). Full detail: `docs/DEPENDENCY_MATRIX.md` §10.
   Vue/WASM play-and-name theory toy with no audio analysis) and `ChordMiniApp` (a
   cloud Next.js/Firebase stack whose nested model submodules are uninitialized and
   whose LFS checkpoints are absent upstream). The pool went from 13 to 10 submodules.
+* Closed roadmap §24.6 (2026-09-24) with a **feasibility verdict instead of a benchmark**,
+  because MOSS-Music cannot be run here. Reading the clone and the released weights (via the
+  Hugging Face API) showed: ~9.1 B parameters (Qwen3-8B plus a 32-layer audio encoder), four
+  bf16 shards totalling **18.11 GB**, no quantization path, a CUDA-only supported runtime and
+  bandwidth-bound autoregressive decoding — so it is **not viable on commodity CPU** for this
+  CPU-first project. Its code also has no root `LICENSE` (only the weights are Apache-2.0) and
+  loading it requires `trust_remote_code=True`. The architecture ideas worth reading
+  (DeepStack cross-layer injection, time-marker insertion) are recorded in
+  `docs/DEPENDENCY_MATRIX.md` §13.11, and the submodule was removed. The pool went from 10 to
+  9 submodules.
 
 ### Documentation
 

@@ -23,9 +23,9 @@ REPOS=(
   # block 1: chords and practice tools
   # (chord-extractor, Chord-recognition, scales-chords and chordscope were removed on
   # 2026-09-24 after their investigation; Chords.py, ChordVisualizer and ChordMiniApp
-  # followed in the §24.7 pass the same day — verdicts in docs/DEPENDENCY_MATRIX.md §13)
+  # followed in the §24.7 pass, and MOSS-Music in the §24.6 pass the same day — verdicts
+  # in docs/DEPENDENCY_MATRIX.md §13)
   "chordify|https://github.com/1ucas/chordify"
-  "MOSS-Music|https://github.com/OpenMOSS/MOSS-Music"
   "orchidas-Chord-Recognition|https://github.com/orchidas/Chord-Recognition"
   "musicpractice|https://github.com/atinm/musicpractice"
   "Guitariz|https://github.com/Guitariz/Guitariz"

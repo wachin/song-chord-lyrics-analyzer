@@ -14,7 +14,7 @@ exclusions are configured in `pyproject.toml` on purpose. The binding rules are 
 
 ## Remove what does not survive the research
 
-Ten repositories are registered (2026-09-24, down from a peak of 32). That is a
+Nine repositories are registered (2026-09-24, down from a peak of 32). That is a
 temporary research pool, not a permanent part of this repository, and submodules are
 not free: every clone pays for them, every `git status` walks them, and every stale
 pin is maintenance debt.
@@ -34,7 +34,7 @@ rm -rf .git/modules/external/<name>
 ```
 
 A repository whose only justification is "might be useful someday" does not survive
-step 3. This is not hypothetical: 22 of the original 32 were removed on 2026-09-24
+step 3. This is not hypothetical: 23 of the original 32 were removed on 2026-09-24
 exactly this way, right after their verdicts were recorded.
 
 ## Repositories
@@ -44,12 +44,11 @@ Licences below were read from each clone's `LICENSE` file (or README where noted
 `docs/LICENSE_AUDIT.md`. "no licence file" means the clone contains no licence — treat
 the code as fully reserved and never copy from it.
 
-### Block 1 — chords and practice tools (5)
+### Block 1 — chords and practice tools (4)
 
 | Submodule | Upstream | What it is | Licence |
 | --- | --- | --- | --- |
 | `chordify` | <https://github.com/1ucas/chordify> | CQT/CENS chroma, triad templates, bass-aware Viterbi, key/palette priors (§24.1). **Investigated 2026-09-24** — kept as the primary architectural reference (`docs/DEPENDENCY_MATRIX.md` §13.1) | MIT (verified 2026-09-23) |
-| `MOSS-Music` | <https://github.com/OpenMOSS/MOSS-Music> | music/audio foundation model; feasibility on commodity CPU untested (§24.6) | Apache-2.0 per README (models); no top-level LICENSE file |
 | `orchidas-Chord-Recognition` | <https://github.com/orchidas/Chord-Recognition> | automatic chord recognition via Pitch Class Profile features: hand-written CQT, JSON triad templates, Gaussian HMM + Viterbi (§24.5). **Investigated 2026-09-24** — kept for now as the research baseline (`docs/DEPENDENCY_MATRIX.md` §13.6) | no licence file |
 | `musicpractice` | <https://github.com/atinm/musicpractice> | PySide6 desktop practice app on librosa: own maj/min/7th template + Viterbi chord engine, Krumhansl-Schmuckler key, Vamp/librosa beats, Demucs stems, Basic Pitch → LilyPond notation. **Investigated 2026-09-24 — kept** as the phase-15 GUI/integration blueprint (`docs/DEPENDENCY_MATRIX.md` §13.10) | MIT (LICENSE file) |
 | `Guitariz` | <https://github.com/Guitariz/Guitariz> | React/FastAPI platform; its `ml/` holds a from-scratch 109-class chord CRNN, shared CQT-chroma features, a synthetic-data generator and an adaptive-self-transition Viterbi. **Investigated 2026-09-24 — kept** as a chord-engine reference (`docs/DEPENDENCY_MATRIX.md` §13.10) | MIT (LICENSE file) |
@@ -129,6 +128,9 @@ Notes:
     play-and-name theory toy — no audio analysis) and `ChordMiniApp` (cloud stack;
     its nested model submodules are uninitialized and its LFS checkpoints are absent
     because upstream exhausted its LFS budget);
+  * §24.6 (§13.11): `MOSS-Music` — its ~18.1 GB of bf16 weights, missing quantization
+    path and CUDA-only runtime make it unviable on this CPU-first project's target
+    hardware;
   * block 2: ten course projects and notebooks, eight of them without any licence
     file, plus the GPL-3.0 thesis whose MedleyDB dependency is not redistributable
     (§13.8);

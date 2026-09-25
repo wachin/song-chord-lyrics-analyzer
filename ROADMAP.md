@@ -969,16 +969,16 @@ Extract architectural ideas and implement clean adapters where legally and techn
 # [ ] 24. GitHub Project Investigation
 
 *Status (2026-09-24): this section lists exactly the repositories registered under `external/`
-(10 as of 2026-09-24). 24.1, 24.5 and 24.7 were investigated that day and their verdicts are
-recorded in `docs/DEPENDENCY_MATRIX.md` §13; 24.6 remains inventoried only.*
+(9 as of 2026-09-24). 24.1, 24.5, 24.6 and 24.7 were investigated that day and their verdicts
+are recorded in `docs/DEPENDENCY_MATRIX.md` §13.*
 
 *Reference clones (2026-09-24): the section 24 repositories, plus extra study material for instrument
 recognition and cross-cutting music libraries, are registered as read-only git submodules under
 `external/` in three blocks (chords and practice tools / instrument recognition / cross-cutting
-libraries) - 10 repositories as of 2026-09-24, down from a peak of 32 after the cleanup rule was
+libraries) - 9 repositories as of 2026-09-24, down from a peak of 32 after the cleanup rule was
 applied to every investigated block. They are study material only - never imported, packaged,
 installed, linted, tested or copied from; see `external/README.md` and `AGENTS.md`. Every registered
-block was investigated on 2026-09-24; verdicts live in `docs/DEPENDENCY_MATRIX.md` §13, and 22
+block was investigated on 2026-09-24; verdicts live in `docs/DEPENDENCY_MATRIX.md` §13, and 23
 superseded, unlicensed or off-scope submodules were removed after their verdicts were recorded.*
 
 *Cleanup rule: `external/` is a temporary research pool and must shrink, not grow. After each
@@ -1048,16 +1048,24 @@ Use this as a research baseline.
 
 ---
 
-## [ ] 24.6 MOSS-Music
+## [*] (2026-09-24) 24.6 MOSS-Music
 
-*Status (2026-09-23): inventoried only — Apache-2.0 weights, 8B parameters, released 2026-05-01;
-feasibility on commodity CPU hardware is untested.*
+*Status (2026-09-24): closed — investigated against the registered clone and the released weights;
+verdict in `docs/DEPENDENCY_MATRIX.md` §13.11. **Not viable on commodity CPU**: the four bf16
+checkpoints total 18.11 GB, the repository has no quantization path, the supported runtime is
+CUDA-only (`torch +cu128`, SGLang) and decoding is bandwidth-bound autoregressive generation. The
+clone was removed after the record. No benchmark was possible on this hardware.*
 
 Repository:
 
 ```text
 https://github.com/OpenMOSS/MOSS-Music
 ```
+
+*Capability note (2026-09-24): the released headline results cover music QA, captioning and lyrics
+ASR; the timestamped lyrics ASR and chord-transcription benchmarks are still unpublished, and the
+output is free-form generated text rather than structured timestamps. Revisit only if a GPU path
+enters the project, quantized checkpoints appear, and those benchmarks are published.*
 
 Investigate its capabilities for:
 
@@ -1085,7 +1093,8 @@ verdict recorded in `docs/DEPENDENCY_MATRIX.md` §13.10. `Chords.py` (unlicensed
 undocumented `.h5` weights), `ChordVisualizer` (a Vue/WASM theory toy with no audio analysis) and
 `ChordMiniApp` (cloud stack whose nested model submodules are uninitialized and whose LFS checkpoints
 are absent) were removed; `musicpractice` (PySide6 app blueprint) and `Guitariz` (109-class chord
-CRNN) were kept. `external/` is now 10 repositories.*
+CRNN) were kept. `external/` is now 9 repositories (10 at the time of this pass, before
+MOSS-Music was closed in §24.6).*
 
 These complete the set of repositories registered under `external/` (full inventory in
 `external/README.md`, verdicts in `docs/DEPENDENCY_MATRIX.md` §13):

@@ -1,9 +1,6 @@
 [submodule "external/chordify"]
 	path = external/chordify
 	url = https://github.com/1ucas/chordify
-[submodule "external/MOSS-Music"]
-	path = external/MOSS-Music
-	url = https://github.com/OpenMOSS/MOSS-Music
 [submodule "external/orchidas-Chord-Recognition"]
 	path = external/orchidas-Chord-Recognition
 	url = https://github.com/orchidas/Chord-Recognition

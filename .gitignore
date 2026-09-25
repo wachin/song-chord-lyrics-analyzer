@@ -68,3 +68,6 @@ samples/private/
 models/
 *.qm
 !translations/*.qm
+
+# Songs mp3
+mp3/

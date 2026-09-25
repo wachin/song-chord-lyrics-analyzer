@@ -1,6 +1,10 @@
 # Dataset
 
-**Status: no dataset has been collected yet.**
+**Status: first samples added (2026-09-25).** Four CC-BY-4.0 `vocadito` excerpts with lyric
+ground-truth sidecars are committed under `samples/` (`samples/README.md` has the provenance table).
+The full 40-excerpt dataset and the synthetic mix conditions used by the lyrics-ASR investigation are
+kept in the gitignored `.cache/lyrics-asr-investigation/` and described in `docs/ENGINE_COMPARISON.md`.
+No commercial recording is committed, and the chord/key/tempo categories below are still uncollected.
 
 ## Policy
 

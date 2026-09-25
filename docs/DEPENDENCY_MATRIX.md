@@ -87,7 +87,7 @@ verified here**; the CI matrix will surface them when the extras land.
 | --- | --- | --- | --- | --- | --- |
 | **faster-whisper** | 1.2.1 | `>=3.9` | **MIT** (`license` metadata + classifier) | Pure wheel. Native dependency **ctranslate2 4.8.2: MIT** (`LICENSE`: "Copyright (c) 2018- SYSTRAN"), classifiers Python 3.9-3.14, Production/Stable. Model `Systran/faster-whisper-large-v3` carries the **`license:mit`** tag on Hugging Face. | **primary candidate** (phase 3) |
 | **openai-whisper** | 20250625 | `>=3.8` | **MIT** (`LICENSE`: "Copyright (c) 2022 OpenAI") | **sdist only, no wheel**, pulls PyTorch, needs FFmpeg. | baseline for comparison |
-| **Parakeet-based** | not verified | — | — | `1ucas/chordify` reports using NVIDIA Parakeet with word-level timestamps; the specific packages (NeMo vs MLX ports) have not been researched. | unverified |
+| **onnx-asr + Parakeet ONNX** | 0.12.0 | `>=3.10` | **MIT** (`onnx-asr` is MIT; its CPU runtime `onnxruntime` 1.30.0 is MIT). The converted checkpoint `istupakov/parakeet-tdt-0.6b-v3-onnx` is **CC-BY-4.0** (Hugging Face model card) | NVIDIA Parakeet TDT 0.6B v3 (multilingual, 25 languages incl. English and Spanish) via a small ONNX runtime instead of PyTorch/NeMo. No `nemo_toolkit`, no torch, no GPU. Chosen over NeMo because the PyPI `nemo_toolkit` pulls the full Lightning/torch stack; the ONNX path is the light CPU route. Installed and run on Linux CPU on 2026-09-25. | **primary Parakeet candidate** (phase 3); first measurements in `docs/ENGINE_COMPARISON.md` |
 | **MOSS-Music** | see §3.2 | — | Apache-2.0 (weights); code licence unclear | Music-aware, but a reasoning model rather than a timestamped transcriber, and CPU-infeasible (§13.11). | not adopted (CPU-infeasible, §13.11) |
 
 ## 5. Source separation
@@ -243,7 +243,7 @@ tests:
    does not affect executing them as separate programs.
 7. **Python 3.10/3.11 resolutions** of numpy/scipy/librosa were not verified (pip
    will select older releases; only 3.13 was exercised).
-8. **Parakeet packaging** (NeMo vs MLX ports) has not been researched.
+8. **Parakeet packaging is resolved (2026-09-25):** use `onnx-asr` + `onnxruntime` with the `istupakov/parakeet-tdt-0.6b-v3-onnx` conversion (MIT runtime, CC-BY-4.0 weights) rather than `nemo_toolkit` (which drags in the Lightning/torch stack) or the Apple-only MLX ports. See §4 and `docs/ENGINE_COMPARISON.md`.
 9. **MOSS-Music** was assessed on 2026-09-24 and is **not viable on commodity CPU**
    (18.1 GB of bf16 weights, no quantization path, CUDA-only supported runtime,
    bandwidth-bound autoregressive decoding) — see §13.11. It is no longer an engine

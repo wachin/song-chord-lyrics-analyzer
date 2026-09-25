@@ -1116,8 +1116,12 @@ in §13.10, and whatever did not earn its place was removed.
 
 # [ ] 25. Lyrics Recognition
 
-*Status (2026-09-23): partial — whisper, faster-whisper and ctranslate2 resolved and licence-checked;
-no ASR engine has been run on audio yet.*
+*Status (2026-09-25): partial — first measured comparison done. Faster-Whisper (`small`, int8) and
+Parakeet TDT 0.6B v3 (`onnx-asr`, int8 ONNX) were run on all 40 vocadito excerpts (CC-BY-4.0,
+multilingual solo vocals); WER/CER, processing time, peak RAM and model size are recorded with the
+caveats in `docs/ENGINE_COMPARISON.md`. Still open: backing vocals, reverb, live recordings and heavy
+instrumentation; word timestamp error (vocadito has no word-level ground truth); and running the
+comparison through `songlab benchmark` instead of the temporary harness.*
 
 Start with Faster-Whisper or another practical ASR engine.
 
@@ -1156,6 +1160,12 @@ model size
 ---
 
 # [ ] 26. Singing ASR Strategy
+
+*Status (2026-09-25): partial — the isolated-vocal vs mix comparison was run on eight vocadito excerpts
+using synthetic accompaniment at three vocal-to-accompaniment ratios (so there is no separation error);
+the isolated vocal was best for both engines and transcription degraded monotonically as the
+accompaniment grew. See `docs/ENGINE_COMPARISON.md`. Still open: real separation stems (Demucs/UVR,
+roadmap 27) and the `vocals + selected accompaniment` case.*
 
 Compare:
 

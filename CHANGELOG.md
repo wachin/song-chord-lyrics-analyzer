@@ -53,6 +53,32 @@ track). Full detail: `docs/DEPENDENCY_MATRIX.md` §10.
   No accuracy claim is made: a click track and a synthetic triad are not a
   benchmark.
 
+### Lyrics ASR investigation (roadmap 25/26)
+
+A first measured comparison of singing-voice recognition, run on the CPU-only
+reference machine (Intel Core i3-7020U, 7.6 GiB RAM) and recorded in
+`docs/ENGINE_COMPARISON.md`. It is an investigation by a temporary harness, not a
+`songlab benchmark` run.
+
+* Compared **Faster-Whisper 1.2.1** (`small`, int8) against **NVIDIA Parakeet TDT
+  0.6B v3** through **onnx-asr 0.12.0** + onnxruntime (int8 ONNX). The ONNX path is
+  the light CPU route and was chosen over `nemo_toolkit`; that resolves the open
+  Parakeet-packaging question in `docs/DEPENDENCY_MATRIX.md` §12.
+* Dataset: all 40 excerpts of **vocadito** (CC-BY-4.0, multilingual solo singing with
+  annotated lyrics). Four excerpts and their lyric sidecars are committed under
+  `samples/`; the rest stays in the gitignored `.cache/`.
+* On isolated vocals Parakeet reached WER 0.3722 / CER 0.1857 at a real-time factor of
+  0.20, versus Faster-Whisper `small` at WER 0.3799 / CER 0.2725 and a real-time factor
+  of 0.95 (peak RSS ~1.3–1.4 GiB each). Per-language results differ sharply: Parakeet
+  is far better on English, Faster-Whisper is better on Tagalog and the single Spanish
+  excerpt, and both fail on Mandarin.
+* Mix vs isolated vocal (roadmap 26): on eight excerpts with synthetic accompaniment at
+  three ratios, both engines degraded monotonically as the accompaniment grew, and the
+  isolated vocal was best. No separation error is involved, by construction.
+* Not covered, and recorded as such: backing vocals, reverb, live recordings, heavy
+  instrumentation, word-timestamp error (vocadito has no word-level ground truth), and a
+  larger Whisper (medium needed ~66 s per 30 s clip on this CPU and was stopped).
+
 ### Reference repositories
 
 * Added `external/`, holding third-party study references as read-only git submodules, plus

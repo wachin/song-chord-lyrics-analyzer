@@ -1,0 +1,25 @@
+{
+  "id": "vocadito_2",
+  "audio": "vocadito_2.wav",
+  "source": "vocadito: A dataset of solo vocals with f0, note, and lyric annotations",
+  "source_url": "https://zenodo.org/records/5578807",
+  "licence": "CC-BY-4.0",
+  "provenance": "Excerpt from vocadito.zip (md5 dea40fd18f14d899643c4ba221b33a46); lyrics annotated by trained musicians.",
+  "language": "Spanish",
+  "singer_id": "S2",
+  "duration_seconds": 35.208,
+  "lyrics_lines": [
+    "Cada vez que voy a arar",
+    "y estiro de los ramales",
+    "me acuerdo de mi moreno",
+    "que habita en los arrabales"
+  ],
+  "lyrics_text": "Cada vez que voy a arar y estiro de los ramales me acuerdo de mi moreno que habita en los arrabales",
+  "lyrics_normalized": "cada vez que voy a arar y estiro de los ramales me acuerdo de mi moreno que habita en los arrabales",
+  "word_timestamps": null,
+  "chords": null,
+  "key": null,
+  "tempo": null,
+  "beats": null,
+  "downbeats": null
+}

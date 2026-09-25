@@ -1,0 +1,27 @@
+{
+  "id": "vocadito_5",
+  "audio": "vocadito_5.wav",
+  "source": "vocadito: A dataset of solo vocals with f0, note, and lyric annotations",
+  "source_url": "https://zenodo.org/records/5578807",
+  "licence": "CC-BY-4.0",
+  "provenance": "Excerpt from vocadito.zip (md5 dea40fd18f14d899643c4ba221b33a46); lyrics annotated by trained musicians.",
+  "language": "Catalan/Valencian",
+  "singer_id": "S4",
+  "duration_seconds": 23.232,
+  "lyrics_lines": [
+    "Mon pare no té nas",
+    "mon pare no té nas",
+    "ma mare es chata",
+    "i un germanet que tinc",
+    "i un germanet que tinc",
+    "el nas li falta"
+  ],
+  "lyrics_text": "Mon pare no té nas mon pare no té nas ma mare es chata i un germanet que tinc i un germanet que tinc el nas li falta",
+  "lyrics_normalized": "mon pare no té nas mon pare no té nas ma mare es chata i un germanet que tinc i un germanet que tinc el nas li falta",
+  "word_timestamps": null,
+  "chords": null,
+  "key": null,
+  "tempo": null,
+  "beats": null,
+  "downbeats": null
+}

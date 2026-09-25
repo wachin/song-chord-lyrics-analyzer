@@ -59,6 +59,8 @@ Weights are where the expensive mistakes live (roadmap rule 4).
 | --- | --- | --- |
 | Whisper (OpenAI) | MIT (upstream repository `LICENSE`) | verified for the reference release |
 | `Systran/faster-whisper-large-v3` | `license:mit` tag on the Hugging Face model card | verified |
+| `Systran/faster-whisper-small` / `-medium` | `license: mit` in the model card front matter; both are CTranslate2 conversions of `openai/whisper-*` (MIT) | verified (2026-09-25) |
+| Parakeet TDT 0.6B v3 ONNX (`istupakov/parakeet-tdt-0.6b-v3-onnx`) | **CC-BY-4.0** (Hugging Face model card); the loader `onnx-asr` is MIT | verified (2026-09-25) — attribution required if the weights are redistributed |
 | MOSS-Music (`OpenMOSS-Team/MOSS-Music-8B-Instruct`) | `license:apache-2.0` tag on the model card, released 2026-05-01; the GitHub repository itself has **no root `LICENSE` file**, so its code licence is unclear | verified (weights); code unclear — not adopted, see `DEPENDENCY_MATRIX.md` §13.11 |
 | Basic Pitch | Apache-2.0; **all four model formats ship inside the wheel** (`nmp.onnx`, `nmp.tflite`, `saved_model.pb`, `model.mlmodel`), so nothing is downloaded separately and code/weights share one licence | verified (smoke-tested, see `DEPENDENCY_MATRIX.md` §10) |
 | beat_this checkpoint | MIT per the project (JKU Linz); the downloaded `beat_this-final0.ckpt` file itself was not inspected | partially verified — its 81 MB auto-download must be routed through our cache and model manager |

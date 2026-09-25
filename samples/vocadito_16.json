@@ -1,0 +1,26 @@
+{
+  "id": "vocadito_16",
+  "audio": "vocadito_16.wav",
+  "source": "vocadito: A dataset of solo vocals with f0, note, and lyric annotations",
+  "source_url": "https://zenodo.org/records/5578807",
+  "licence": "CC-BY-4.0",
+  "provenance": "Excerpt from vocadito.zip (md5 dea40fd18f14d899643c4ba221b33a46); lyrics annotated by trained musicians.",
+  "language": "Tagalog",
+  "singer_id": "S6",
+  "duration_seconds": 17.277,
+  "lyrics_lines": [
+    "tong, tong, tong, tong, pakitong-kitong",
+    "alimango sa dagat",
+    "malaki at masarap",
+    "mahirap hulihin",
+    "sapagkat nangangagat"
+  ],
+  "lyrics_text": "tong, tong, tong, tong, pakitong-kitong alimango sa dagat malaki at masarap mahirap hulihin sapagkat nangangagat",
+  "lyrics_normalized": "tong tong tong tong pakitong kitong alimango sa dagat malaki at masarap mahirap hulihin sapagkat nangangagat",
+  "word_timestamps": null,
+  "chords": null,
+  "key": null,
+  "tempo": null,
+  "beats": null,
+  "downbeats": null
+}

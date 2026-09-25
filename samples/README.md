@@ -18,9 +18,24 @@ Audio used for experiments, benchmarks and regression checks.
 
 ## Contents
 
+Four excerpts from **vocadito** (Bittner et al., 2021), a CC-BY-4.0 dataset of 40 solo,
+monophonic singing excerpts with lyric annotations. They are a small, checkable subset of the
+40 used by the lyrics-ASR investigation documented in `docs/ENGINE_COMPARISON.md`; each has a
+JSON sidecar with the annotated lyrics and provenance.
+
 | File | Source | Licence | Purpose |
 | --- | --- | --- | --- |
-| *(none yet)* | — | — | The first samples arrive with the phase 3/4 laboratories. |
+| `vocadito_6.wav` (+ `.json`) | vocadito, <https://zenodo.org/records/5578807> | CC-BY-4.0 | English solo singing; lyric ground truth |
+| `vocadito_2.wav` (+ `.json`) | vocadito | CC-BY-4.0 | Spanish solo singing; lyric ground truth |
+| `vocadito_5.wav` (+ `.json`) | vocadito | CC-BY-4.0 | Catalan/Valencian solo singing; lyric ground truth |
+| `vocadito_16.wav` (+ `.json`) | vocadito | CC-BY-4.0 | Tagalog solo singing; lyric ground truth |
+
+Attribution: Bittner, R., Pasalo, K., Bosch, J. J., Meseguer Brocal, G., & Rubinstein, D.
+(2021). *vocadito: A dataset of solo vocals with f0, note, and lyric annotations* (Version 2)
+[Data set]. Zenodo. <https://doi.org/10.5281/zenodo.5578807>. The excerpts are unmodified copies
+from the archive; the hash of the archive is recorded in each sidecar. No instrumental mix is
+committed — the mix conditions used in the investigation are generated locally and documented in
+`docs/ENGINE_COMPARISON.md`.
 
 ## Adding a sample
 

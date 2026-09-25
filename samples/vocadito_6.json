@@ -1,0 +1,27 @@
+{
+  "id": "vocadito_6",
+  "audio": "vocadito_6.wav",
+  "source": "vocadito: A dataset of solo vocals with f0, note, and lyric annotations",
+  "source_url": "https://zenodo.org/records/5578807",
+  "licence": "CC-BY-4.0",
+  "provenance": "Excerpt from vocadito.zip (md5 dea40fd18f14d899643c4ba221b33a46); lyrics annotated by trained musicians.",
+  "language": "English",
+  "singer_id": "S5",
+  "duration_seconds": 23.832,
+  "lyrics_lines": [
+    "and if I had to write a love song",
+    "it would be all about my little dog",
+    "he is cute, his is small",
+    "but he snores loud",
+    "he’s the best of ‘em all",
+    "my little pal"
+  ],
+  "lyrics_text": "and if I had to write a love song it would be all about my little dog he is cute, his is small but he snores loud he’s the best of ‘em all my little pal",
+  "lyrics_normalized": "and if i had to write a love song it would be all about my little dog he is cute his is small but he snores loud he s the best of em all my little pal",
+  "word_timestamps": null,
+  "chords": null,
+  "key": null,
+  "tempo": null,
+  "beats": null,
+  "downbeats": null
+}

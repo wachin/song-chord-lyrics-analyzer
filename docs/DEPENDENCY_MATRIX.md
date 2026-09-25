@@ -36,7 +36,7 @@ engine working.
 | **Reject for integration** | madmom (does not build on current Python; non-commercial weights), Essentia (AGPL library + non-commercial models + no Windows support) |
 | **Never bundle, execute only** | FFmpeg/ffprobe, Sonic Annotator, Chordino/NNLS Chroma |
 | **Never bundle weights** | Demucs (code MIT, weights licence unresolved) |
-| **Reference clones investigated (2026-09-24, roadmap §24)** | 1ucas/chordify kept as the architectural reference; chordscope investigated and removed after recording; chord-extractor, Chord-recognition and scales-chords removed as superseded/off-scope; orchidas/Chord-Recognition investigated and kept for now — see §13. Blocks 2 and 3 investigated the same day: 15 of 17 clones removed, 2 paper-backed MIT repositories kept (§13.8, §13.9) |
+| **Reference clones investigated (2026-09-24, roadmap §24)** | 1ucas/chordify kept as the architectural reference; chordscope investigated and removed after recording; chord-extractor, Chord-recognition and scales-chords removed as superseded/off-scope; orchidas/Chord-Recognition investigated and kept for now — see §13. Blocks 2 and 3 investigated the same day: 15 of 17 clones removed, 2 paper-backed MIT repositories kept (§13.8, §13.9). The §24.7 pass over the last five (§13.10) removed Chords.py, ChordVisualizer and ChordMiniApp and kept musicpractice (PySide6 app blueprint) and Guitariz (109-class CRNN + adaptive Viterbi), leaving 10 clones under `external/` |
 
 ## 1. Core package
 
@@ -362,18 +362,11 @@ codebase.
 
 ### 13.7 Remaining block-1 clones
 
-* **yuval-kahan/Chords.py**: kept for now — Keras CNN over PCP features with
-  bundled `my_model.h5` weights of undocumented provenance (never copy the
-  weights); tied to the now-retired youchords-local lead — the former §24.2 URL no
-  longer exists on GitHub, and the section was dropped on 2026-09-24. Investigate or
-  remove in the §24.7 pass over the remaining clones.
+* **yuval-kahan/Chords.py**: verdict recorded in §13.10 (removed 2026-09-24).
 * **MOSS-Music**: unchanged — still the §3.2 candidate (phases 3/10), pending a
   feasibility check.
-* **ChordVisualizer, musicpractice, Guitariz, ChordMiniApp**: outside §24 (they
-  are apps/tools, not engines); kept as GUI/visualization reading for phase 15
-  discussions. ChordMiniApp additionally embeds Beat-Transformer,
-  Chord-CNN-LSTM and SongFormer models, which may deserve their own §24-style
-  investigation if the roadmap grows a chord-model comparison area.
+* **ChordVisualizer, musicpractice, Guitariz, ChordMiniApp**: verdicts recorded in
+  §13.10 (2026-09-24).
 
 ### 13.8 Block 2 — instrument recognition and detection (12 clones)
 
@@ -451,4 +444,114 @@ Removed (technical note + licence status):
 * **Kaidorespy/Ear — MIT — removed.** Beta demo: analyzes a song, optionally adds
   lyrics, and has an LLM write a grounded description. A prompt pipeline around
   models, not an analysis engine; no technique to take at this stage.
+
+### 13.10 §24.7 remaining clones — Chords.py and the four GUI apps
+
+**Recorded on 2026-09-24, reading the clones.** These are the last repositories
+that still lacked an individual verdict. Two survive; three do not.
+
+#### yuval-kahan/Chords.py — removed
+
+No `LICENSE` file in the clone (verified 2026-09-24) — treat as fully reserved,
+never copy. A 2021 university intro-AI project: a `Dense(30)` MLP over a
+12-dimensional pitch-class profile, classifying **10 labels**
+(`c, d, dm, e, em, f, g, a, am, bm`) — five of them minor, all plain triads, no
+sevenths, no inversions, no temporal model. Pins are Keras 2.4.3 / TensorFlow
+2.4.1 / numpy 1.19.5, which do not resolve on current Python. It bundles ~20
+`.h5` Keras checkpoints plus ONNX drafts under `Chords.py/models/` whose training
+data is undocumented (the Readme says only "university project"; one file is
+named `paper.h5` with no provenance) — the same *never bundle weights* rule that
+already excludes Demucs. Its only idea (PCP → small classifier) is covered far
+better by chordify (24 triads + Viterbi, MIT, §13.1) and Guitariz's 109-class
+CRNN (MIT, below). It was also tied to the retired youchords-local lead (former
+§24.2, URL 404). It does not earn its place: **removed after this record.**
+
+#### manh9011/ChordVisualizer — removed
+
+MIT (`LICENSE`, "Copyright (c) 2026 Chord Visualizer Contributors"). A Vue 3 +
+TypeScript + Vite single-page app: computer-keyboard or Web-MIDI input → chord
+naming through `@tonaljs/tonal`, a canvas circle-of-fifths, Verovio staff
+notation, guitar voicings and soundfont playback. It performs **no audio
+analysis at all** — it is a play-and-name music-theory toy driven by note events,
+not an offline-audio engine. Its UI is Vue/TS (npm lockfile) against our planned
+Python Qt GUI, and adding an npm build tree to a read-only study pool works
+against the `external/` rules. Idea (circle-of-fifths + enharmonic candidates +
+notation) is a GUI concern we can re-derive when phase 15 arrives; the clone
+itself does not survive: **removed after this record.**
+
+#### atinm/musicpractice — kept
+
+MIT (`LICENSE`, "Copyright (c) 2025 atinm.dev@gmail.com"). The closest working
+reference we have for the phase-15 shape: a **PySide6** desktop app on librosa —
+PySide6 being the permissive Qt binding already recorded as our GUI alternative.
+What makes it worth keeping:
+
+* `chords.py` (1,825 lines) is a real template engine: L2-normalized
+  maj/min/dom7/maj7/min7 templates, cosine likelihoods, a self-biased
+  `viterbi()`, **Krumhansl-Schmuckler** key estimation with a cadence bias and a
+  relative-major flip, and flat/sharp spelling chosen from the detected key — the
+  same pieces our chord/key layer needs, in readable form.
+* Beat/downbeat prefers the QM BarBeatTracker **Vamp** plugin (via `vamphost`) and
+  falls back to librosa `beat_track` with an onset-energy downbeat-phase search —
+  consistent with our "execute Vamp plugins, never bundle" verdict (§2).
+* `stems.py` (Demucs), `notation.py` (Basic Pitch → LilyPond PDF in a separate
+  `.venv-basic-pitch`), `timestretch.py` (phase vocoder) map onto the stems and
+  notation study areas, and it uses Basic Pitch, which we already adopt
+  conditionally.
+
+Kept as the phase-15 GUI and end-to-end integration reading. It is small (2.4 MB)
+and MIT, so it is cheap to hold.
+
+#### Guitariz/Guitariz — kept
+
+MIT (`LICENSE`, "Copyright (c) 2026 Abhinav Vaidya"). A React/Vite front end +
+FastAPI/PyTorch backend, but the reason to keep it is `ml/`, a from-scratch,
+licence-clean chord stack (its own headers call it "100% Commercial-safe: ISC &
+BSD licensed"):
+
+* `chord_vocab.py`: **109 classes** = 12 roots × 9 qualities (`maj, min, 7,
+  maj7, min7, dim, aug, sus2, sus4`) + `N.C.`, with harmonic weighting and
+  explicit avoid-note penalties (a minor third is penalised inside major
+  chords) — a richer vocabulary than chordify's 24 triads.
+* `features.py`: one shared CQT-chroma extractor (6 octaves, 36 bins/octave,
+  hop 2048) used by both training and inference, guaranteeing parity.
+* `model.py` / `train.py` / `dataset.py`: a ~1.5 M-parameter **CRNN** (CNN pooling
+  on frequency only + 2-layer BiLSTM) with ONNX export, plus
+  `generate_synthetic_dataset.py`, which renders training data programmatically
+  (additive synthesis) to avoid any data-licence issue.
+* `viterbi.py`: an ergodic-HMM smoother with a **time-varying self-transition**
+  that relaxes toward a floor exactly where the classifier shows a sustained
+  change, plus confidence-aware minimum-duration merging — a concrete refinement
+  over chordify's fixed change penalty (§13.1) and worth re-implementing.
+* `chord_templates.py`: a zero-model DSP baseline (HPSS, mid/side centre-vocal
+  attenuation, C2–C6 log-CQT, RMS silence gating).
+
+Kept as the second chord-engine reference and the source of the adaptive-Viterbi
+idea. Distinct from chordify (which stays the primary architectural reference):
+Guitariz contributes the wider vocabulary, the trainable model and synthetic-data
+generation.
+
+#### ptnghia-j/ChordMiniApp — removed
+
+MIT (`LICENSE`, "Copyright (c) 2025 ChordMini Project"). A large
+Next.js + Flask + Firebase + Gemini + Docker web tool. Its *feature inventory* is
+the lasting value and is recorded here: beat/chord grid with Roman-numeral
+analysis, key-modulation signals, simplified notation and editable chord
+correction; song segmentation overlays; guitar diagrams from
+`@tombatossals/chords-db`; a piano-roll visualizer with MIDI export; and a
+Whisper/Gemini lead-sheet with lyrics sync. Its citation is
+<https://arxiv.org/abs/2602.19778> ("Enhancing Automatic Chord Recognition via
+Pseudo-Labeling and Knowledge Distillation").
+
+None of that analysis lives in this clone, though. The chord/beat engine is three
+nested model submodules — `python_backend/models/Beat-Transformer`,
+`Chord-CNN-LSTM` and `ChordMini` — and **none of them is checked out**
+(`git submodule status` shows all three uninitialized; observed 2026-09-24).
+SongFormer's checkpoints are 134–135 **byte Git-LFS pointer files**
+(`SongFormer/src/SongFormer/ckpts/*.safetensors`, `*.pt`) because upstream
+exceeded its LFS budget, so the weights are not present either. What remains is
+the app shell for a cloud stack (Firebase + Gemini + Docker) that contradicts our
+offline-first principle. The features are transcribed above and the models are
+separate public repositories that can be pulled directly if that study ever
+happens; the clone does not survive this pass: **removed after this record.**
 

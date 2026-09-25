@@ -107,6 +107,18 @@ track). Full detail: `docs/DEPENDENCY_MATRIX.md` §10.
   identification this offline-first project does not have, and `Ear` is an LLM demo.
   The pool went from 28 to 13 submodules; every removed pin remains recoverable
   from git history.
+* Closed roadmap §24.7 (2026-09-24) by investigating the last clones that still lacked
+  a verdict and applying the cleanup rule once more; the verdicts are in
+  `docs/DEPENDENCY_MATRIX.md` §13.10. **Kept** `musicpractice` (MIT, a PySide6 desktop
+  app whose `chords.py` is a readable template + Viterbi chord engine with
+  Krumhansl-Schmuckler key estimation, using Demucs and Basic Pitch — the closest
+  blueprint for phase 15) and `Guitariz` (MIT, whose `ml/` package is a from-scratch
+  109-class chord CRNN with a shared CQT-chroma extractor, a synthetic-data generator
+  and an adaptive-self-transition Viterbi). **Removed** `Chords.py` (unlicensed 2021
+  MLP, 10 classes, `.h5` weights of undocumented provenance), `ChordVisualizer` (a
+  Vue/WASM play-and-name theory toy with no audio analysis) and `ChordMiniApp` (a
+  cloud Next.js/Firebase stack whose nested model submodules are uninitialized and
+  whose LFS checkpoints are absent upstream). The pool went from 13 to 10 submodules.
 
 ### Documentation
 
@@ -118,8 +130,8 @@ track). Full detail: `docs/DEPENDENCY_MATRIX.md` §10.
   than pretending to be finished, and the phase sections, both definition-of-done
   checklists and the 20 completion criteria are now ticked item by item.
 * No roadmap item was finished by the marker-convention change itself; the first
-  `[*]` markers appeared on 2026-09-24 (roadmap §24.4 and §24.5), and the date was
-  recorded here so the first one could be checked against it.
+  `[*]` markers appeared on 2026-09-24 (roadmap §24.5, later followed by §24.7), and
+  the date was recorded here so the first one could be checked against it.
 
 ## [0.1.0] - 2026-09-23
 

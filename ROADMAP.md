@@ -969,17 +969,16 @@ Extract architectural ideas and implement clean adapters where legally and techn
 # [ ] 24. GitHub Project Investigation
 
 *Status (2026-09-24): this section lists exactly the repositories registered under `external/`
-(13 as of 2026-09-24). 24.1 and 24.5 were investigated that day and their verdicts are recorded in
-`docs/DEPENDENCY_MATRIX.md` §13; 24.6 remains inventoried only; the clones in 24.7 have not been
-investigated individually yet.*
+(10 as of 2026-09-24). 24.1, 24.5 and 24.7 were investigated that day and their verdicts are
+recorded in `docs/DEPENDENCY_MATRIX.md` §13; 24.6 remains inventoried only.*
 
 *Reference clones (2026-09-24): the section 24 repositories, plus extra study material for instrument
 recognition and cross-cutting music libraries, are registered as read-only git submodules under
-`external/` in three blocks (chords, practice tools and visualization / instrument recognition /
-cross-cutting libraries) - 13 repositories as of 2026-09-24, down from a peak of 32 after the cleanup
-rule was applied to every investigated block. They are study material only - never imported, packaged,
-installed, linted, tested or copied from; see `external/README.md` and `AGENTS.md`. All three original
-blocks were investigated on 2026-09-24; verdicts live in `docs/DEPENDENCY_MATRIX.md` §13, and 19
+`external/` in three blocks (chords and practice tools / instrument recognition / cross-cutting
+libraries) - 10 repositories as of 2026-09-24, down from a peak of 32 after the cleanup rule was
+applied to every investigated block. They are study material only - never imported, packaged,
+installed, linted, tested or copied from; see `external/README.md` and `AGENTS.md`. Every registered
+block was investigated on 2026-09-24; verdicts live in `docs/DEPENDENCY_MATRIX.md` §13, and 22
 superseded, unlicensed or off-scope submodules were removed after their verdicts were recorded.*
 
 *Cleanup rule: `external/` is a temporary research pool and must shrink, not grow. After each
@@ -1079,29 +1078,30 @@ Benchmark it.
 
 ---
 
-## [ ] 24.7 Remaining registered clones
+## [*] (2026-09-24) 24.7 Remaining registered clones
 
-*Status (2026-09-24): keep/removal verdicts exist for the block 2 pair
-(`docs/DEPENDENCY_MATRIX.md` §13.8); the others have not been investigated individually yet.*
+*Status (2026-09-24): closed. Every clone that still lacked a verdict was investigated and its
+verdict recorded in `docs/DEPENDENCY_MATRIX.md` §13.10. `Chords.py` (unlicensed 2021 MLP with
+undocumented `.h5` weights), `ChordVisualizer` (a Vue/WASM theory toy with no audio analysis) and
+`ChordMiniApp` (cloud stack whose nested model submodules are uninitialized and whose LFS checkpoints
+are absent) were removed; `musicpractice` (PySide6 app blueprint) and `Guitariz` (109-class chord
+CRNN) were kept. `external/` is now 10 repositories.*
 
 These complete the set of repositories registered under `external/` (full inventory in
-`external/README.md`, verdicts recorded so far in `docs/DEPENDENCY_MATRIX.md` §13):
+`external/README.md`, verdicts in `docs/DEPENDENCY_MATRIX.md` §13):
 
-| Submodule | What it is | Why it is still here |
+| Submodule | What it is | Verdict (2026-09-24) |
 | --- | --- | --- |
-| `Chords.py` | Keras CNN over PCP features (jim2012Chords); unlicensed, weights of undocumented provenance | tied to the retired youchords-local lead, which was dropped on 2026-09-24 because its URL no longer exists on GitHub; investigate or remove in this section's pass |
-| `ChordVisualizer` | browser-based real-time chord detection and circle-of-fifths visualization (MIT) | GUI/visualization reading for phase 15 |
-| `musicpractice` | practice app: real-time analysis, stem separation, waveform visualization (MIT) | GUI/stem-UX reading; recommends the Vamp Chordino stack |
-| `Guitariz` | web platform: AI chord detection, stem isolation, theory tools (MIT) | GUI reading for phase 15 |
-| `ChordMiniApp` | web tool: chords, beats, piano visualization, lyrics sync (MIT; LFS checkpoints unfetchable upstream) | GUI reading; embeds Beat-Transformer, Chord-CNN-LSTM and SongFormer models worth a future §24-style investigation |
+| `musicpractice` | PySide6 desktop practice app on librosa: own maj/min/7th template + Viterbi chord engine, Krumhansl-Schmuckler key, Vamp/librosa beats, Demucs stems, Basic Pitch notation (MIT) | **kept** — phase-15 GUI/integration blueprint (§13.10) |
+| `Guitariz` | React/FastAPI platform whose `ml/` is a from-scratch 109-class chord CRNN with synthetic-data generation and an adaptive-self-transition Viterbi (MIT) | **kept** — chord-engine reference (§13.10) |
 | `instrument-prediction` | ISMIR 2018 frame-level instrument recognition (MIT) | kept paper-backed reference for a possible future instrument area (§13.8) |
 | `predominant-instrument-recognition` | APSIPA ASC 2023 NSynth-pretrained polyphonic instrument recognition (MIT) | kept paper-backed reference (§13.8) |
 | `libcantus` | pure-TypeScript music theory for MIDI note events (Apache-2.0) | cross-cutting theory reference |
 | `basic-pitch` | Spotify's Basic Pitch AMT (Apache-2.0) | already adopted as a conditional dependency (`docs/DEPENDENCY_MATRIX.md` §6, §10) |
 | `basic-pitch-ts` | TypeScript sibling of Basic Pitch (Apache-2.0) | browser/Node transcription reference |
 
-Investigate the clones that still lack a verdict with the same per-clone method used in
-`docs/DEPENDENCY_MATRIX.md` §13, and remove whatever does not earn its place.
+Investigated with the same per-clone method used in `docs/DEPENDENCY_MATRIX.md` §13; the verdicts are
+in §13.10, and whatever did not earn its place was removed.
 
 ---
 

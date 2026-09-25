@@ -13,12 +13,6 @@
 [submodule "external/predominant-instrument-recognition"]
 	path = external/predominant-instrument-recognition
 	url = https://github.com/nii-yamagishilab/predominant-instrument-recognition
-[submodule "external/Chords.py"]
-	path = external/Chords.py
-	url = https://github.com/yuval-kahan/Chords.py
-[submodule "external/ChordVisualizer"]
-	path = external/ChordVisualizer
-	url = https://github.com/manh9011/ChordVisualizer
 [submodule "external/musicpractice"]
 	path = external/musicpractice
 	url = https://github.com/atinm/musicpractice
@@ -34,6 +28,3 @@
 [submodule "external/basic-pitch-ts"]
 	path = external/basic-pitch-ts
 	url = https://github.com/spotify/basic-pitch-ts
-[submodule "external/ChordMiniApp"]
-	path = external/ChordMiniApp
-	url = https://github.com/ptnghia-j/ChordMiniApp

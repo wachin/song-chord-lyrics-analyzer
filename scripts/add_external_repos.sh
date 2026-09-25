@@ -16,21 +16,19 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 # "path<TAB>url" pairs. Keep in sync with .gitmodules (the authoritative list)
-# and external/README.md. Grouped in the same four blocks as external/README.md:
-# chords, practice tools and visualization / instrument recognition and detection /
-# transcription, audio and other / cross-cutting libraries.
+# and external/README.md. Grouped in the same blocks as external/README.md: block 1
+# chords and practice tools / block 2 instrument recognition / block 4 cross-cutting
+# libraries (block 3 was removed entirely, see below).
 REPOS=(
-  # block 1: chords, practice tools and visualization
+  # block 1: chords and practice tools
   # (chord-extractor, Chord-recognition, scales-chords and chordscope were removed on
-  # 2026-09-24 after their investigation; verdicts in docs/DEPENDENCY_MATRIX.md §13)
-  "Chords.py|https://github.com/yuval-kahan/Chords.py"
+  # 2026-09-24 after their investigation; Chords.py, ChordVisualizer and ChordMiniApp
+  # followed in the §24.7 pass the same day — verdicts in docs/DEPENDENCY_MATRIX.md §13)
   "chordify|https://github.com/1ucas/chordify"
   "MOSS-Music|https://github.com/OpenMOSS/MOSS-Music"
   "orchidas-Chord-Recognition|https://github.com/orchidas/Chord-Recognition"
-  "ChordVisualizer|https://github.com/manh9011/ChordVisualizer"
   "musicpractice|https://github.com/atinm/musicpractice"
   "Guitariz|https://github.com/Guitariz/Guitariz"
-  "ChordMiniApp|https://github.com/ptnghia-j/ChordMiniApp"
   # block 2: instrument recognition — kept after investigation (2026-09-24); the other
   # ten clones of the original block were removed (docs/DEPENDENCY_MATRIX.md §13.8)
   "instrument-prediction|https://github.com/biboamy/instrument-prediction"

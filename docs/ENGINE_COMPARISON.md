@@ -1,7 +1,7 @@
 # Engine Comparison
 
 **Status: partially written (2026-09-25).** A first measured lyrics-ASR comparison
-(roadmap sections 25 and 26) is recorded below. Chords, key and tempo comparisons do
+(roadmap sections 25, 26 and 27) is recorded below. Chords, key and tempo comparisons do
 not exist yet — no chord/key/tempo engine has been integrated, so those rows stay empty
 rather than invented (roadmap rule 6).
 
@@ -60,14 +60,19 @@ The picture is not "one engine wins": Parakeet is **much** better on English (WE
 Spanish excerpt. Both fail on the Mandarin excerpts (WER 1.0). *n = 1 per language is not
 evidence* — the individual-language rows are indicative, not conclusive.
 
-### Singing ASR strategy — mix vs isolated vocal (roadmap 26)
+### Singing ASR strategy — mix, isolated vocal, and a separated stem (roadmap 26/27)
 
-vocadito is a cappella, so the comparison is done with **constructed mixes**: the same
-vocal plus a synthetic accompaniment (a C–Am–F–G pad progression at 120 BPM with a kick and
-hats, rendered from scratch) at three vocal-to-accompaniment ratios. The control is the
+vocadito is a cappella, so this needs **constructed mixes**. Two experiments were run on the
+same eight excerpts (English, Spanish, Catalan/Valencian, Tagalog): (a) mix vs the *true*
+isolated vocal (no separator, so the only variable is the accompaniment), and (b) mix vs a
+**real Demucs-separated vocal stem** (so the variable is the separation itself).
+
+**Accompaniment** is synthetic (a C–Am–F–G pad progression at 120 BPM with a kick and hats,
+rendered from scratch) at three vocal-to-accompaniment ratios; the control is the
 peak-normalised vocal alone (`mixstem`), so a mix and its control differ *only* by the added
-accompaniment — there is **no separation error** in this experiment. Eight excerpts were
-used (English, Spanish, Catalan/Valencian, Tagalog).
+accompaniment.
+
+**(a) Mix vs the true isolated vocal — no separator.**
 
 | Condition (vocal vs accompaniment) | fw-small WER | fw-small CER | Parakeet WER | Parakeet CER |
 | --- | ---: | ---: | ---: | ---: |
@@ -77,9 +82,35 @@ used (English, Spanish, Catalan/Valencian, Tagalog).
 | mix, vocal −6 dB | 0.2905 | 0.1783 | 0.3651 | 0.2771 |
 
 For both engines, adding accompaniment degrades transcription **monotonically** as it gets
-louder, and the isolated vocal is the best input. That supports isolating the vocal for
-lyrics — but only for *synthetic* accompaniment; a real separator adds its own artefacts
-(roadmap 27/28), which this experiment deliberately excludes.
+louder, and the true isolated vocal is the best input.
+
+**(b) Real separation with Demucs.** The `mix+00` mixes (vocal 0 dB vs accompaniment) were
+separated with **Demucs 4.1.0 `htdemucs`** (`--two-stems=vocals`) on CPU, giving a `vocals`
+stem and a `no_vocals` residual per excerpt. The stems were downmixed to mono 16-bit PCM
+before transcription.
+
+| Condition (8 excerpts) | fw-small WER | fw-small CER | fw-small RTF | Parakeet WER | Parakeet CER |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| true isolated vocal (control) | 0.1998 | 0.1087 | 0.96 | 0.2736 | 0.2162 |
+| raw mix (Demucs input) | 0.2505 | 0.1504 | 0.81 | 0.3356 | 0.2332 |
+| Demucs `vocals` stem | 0.3244 | 0.2130 | 0.70 | 0.2991 | 0.1912 |
+| Demucs `no_vocals` residual | 1.0000 | 1.0000 | 1.43 | 1.0000 | 1.0000 |
+
+The residual scores WER 1.0 for both engines (the models emit nothing intelligible from the
+accompaniment alone), which is a useful sanity check that the separator did move the vocal
+out of the residual. But the **separated vocal is not the true vocal**:
+
+* faster-whisper is **worse on the separated stem than on the raw mix** (0.3244 vs 0.2505) —
+  the separation artefacts cost more than the masking did;
+* Parakeet is **slightly better on the separated stem than on the raw mix** (0.2991 vs
+  0.3356) but still worse than the true vocal (0.2736).
+
+So the honest answer to roadmap 26 is: the *true* isolated vocal wins, but a *separated* one
+does not automatically — whether separation pays off is engine-dependent, and here it did not
+justify the cost for the faster engine. Note the caveat: the mixes are synthetic and
+`htdemucs` is trained on real music, so this may be pessimistic; real songs still need to be
+tested, and Demucs weights have an unresolved licence (used locally only, never bundled — see
+`docs/DEPENDENCY_MATRIX.md` §5 and `docs/LICENSE_AUDIT.md`).
 
 ## Observations
 
@@ -95,13 +126,19 @@ lyrics — but only for *synthetic* accompaniment; a real separator adds its own
   so the full grid would take over an hour; it was stopped and is **not** reported.
 * **No timestamp error.** vocadito annotates lyrics at phrase level, not word level, so word
   timestamp error (roadmap 25) could not be computed and is left blank rather than faked.
+* **Separation is not a free win.** Real Demucs `htdemucs` two-stem separation of the same
+  synthetic mixes helped Parakeet slightly (WER 0.2991 vs 0.3356 on the raw mix) but **hurt**
+  faster-whisper (0.3244 vs 0.2505): the separated vocal is not the true vocal. The
+  `no_vocals` residual transcribed to WER 1.0 for both engines, confirming the vocal really
+  was moved out. Separation was ~72 s per ~30 s excerpt (real-time factor ≈ 1.9) on this CPU.
 
 ## What this is not
 
 * Not a benchmark of mixed commercial music, backing vocals, reverb or live recordings —
   the roadmap 25 test list is only partly covered (isolated studio-ish solo vocals).
-* Not a separation comparison: no Demucs/UVR stem was produced (roadmap 27); the "mix" is
-  synthetic and the "stem" is the true vocal.
+* Not a separator benchmark on real music: the mixes are synthetic and only Demucs
+  `htdemucs` two-stem (`--two-stems=vocals`) was tried — no 6-stem, no UVR and no
+  `htdemucs_ft`. One synthetic-progression excerpt set is not enough to rank separators.
 * Not a claim that one engine should be adopted. It is a first data point to inform phase 3.
 
 ## Reproduction

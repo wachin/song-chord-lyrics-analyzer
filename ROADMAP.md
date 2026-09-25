@@ -1161,11 +1161,14 @@ model size
 
 # [ ] 26. Singing ASR Strategy
 
-*Status (2026-09-25): partial — the isolated-vocal vs mix comparison was run on eight vocadito excerpts
-using synthetic accompaniment at three vocal-to-accompaniment ratios (so there is no separation error);
-the isolated vocal was best for both engines and transcription degraded monotonically as the
-accompaniment grew. See `docs/ENGINE_COMPARISON.md`. Still open: real separation stems (Demucs/UVR,
-roadmap 27) and the `vocals + selected accompaniment` case.*
+*Status (2026-09-25): partial — on eight vocadito excerpts with synthetic accompaniment at three
+vocal-to-accompaniment ratios, the true isolated vocal was best for both engines and transcription
+degraded monotonically as the accompaniment grew. The same conditions were then repeated with **real
+Demucs `htdemucs` two-stem separation**, and a *separated* vocal turned out not to be the true vocal:
+it helped Parakeet slightly (WER 0.2991 vs 0.3356 on the raw mix) but hurt faster-whisper (0.3244 vs
+0.2505), and the `no_vocals` residual gave WER 1.0 for both. See `docs/ENGINE_COMPARISON.md`. Still
+open: the `vocals + selected accompaniment` case, real (non-synthetic) music, and 6-stem or
+`htdemucs_ft` separators.*
 
 Compare:
 
@@ -1193,8 +1196,11 @@ Benchmark it.
 
 # [ ] 27. Stem Separation
 
-*Status (2026-09-23): partial — separation licences were audited and Demucs weights remain unresolved
-(the repository was archived on 2025-01-01 with the question still open); no separation has been run.*
+*Status (2026-09-25): partial — Demucs 4.1.0 `htdemucs` was actually run (CPU, `--two-stems=vocals`)
+on the synthetic mixes for the section-26 comparison, producing `vocals` and `no_vocals` stems. The
+licence question is still unresolved, so the weights were used locally only and never bundled. Still
+open: chord recognition on real stems (the `original` vs `vocals` / `other` / `bass+other` test below),
+6-stem separation, `htdemucs_ft` and UVR alternatives.*
 
 Investigate:
 

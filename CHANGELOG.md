@@ -53,7 +53,7 @@ track). Full detail: `docs/DEPENDENCY_MATRIX.md` §10.
   No accuracy claim is made: a click track and a synthetic triad are not a
   benchmark.
 
-### Lyrics ASR investigation (roadmap 25/26)
+### Lyrics ASR investigation (roadmap 25/26/27)
 
 A first measured comparison of singing-voice recognition, run on the CPU-only
 reference machine (Intel Core i3-7020U, 7.6 GiB RAM) and recorded in
@@ -74,10 +74,20 @@ reference machine (Intel Core i3-7020U, 7.6 GiB RAM) and recorded in
   excerpt, and both fail on Mandarin.
 * Mix vs isolated vocal (roadmap 26): on eight excerpts with synthetic accompaniment at
   three ratios, both engines degraded monotonically as the accompaniment grew, and the
-  isolated vocal was best. No separation error is involved, by construction.
+  true isolated vocal was best (no separation error is involved, by construction).
+* Real separation with **Demucs 4.1.0 `htdemucs`** (`--two-stems=vocals`, CPU; roadmap
+  26/27): repeating the same eight conditions on the separated `vocals` stem did *not*
+  reproduce the true-vocal win. The separated stem was worse than the raw mix for
+  Faster-Whisper (WER 0.3244 vs 0.2505) and only slightly better for Parakeet (0.2991 vs
+  0.3356), while the `no_vocals` residual scored WER 1.0 for both engines. Separation is
+  engine-dependent, not a free win, and the mixes are synthetic (a caveat, since
+  `htdemucs` is trained on real music). Demucs weights were used locally only and never
+  bundled — their licence is still unresolved.
 * Not covered, and recorded as such: backing vocals, reverb, live recordings, heavy
-  instrumentation, word-timestamp error (vocadito has no word-level ground truth), and a
-  larger Whisper (medium needed ~66 s per 30 s clip on this CPU and was stopped).
+  instrumentation, word-timestamp error (vocadito has no word-level ground truth), a
+  larger Whisper (medium needed ~66 s per 30 s clip on this CPU and was stopped), the
+  `vocals + selected accompaniment` case, and 6-stem separation or `htdemucs_ft`/UVR
+  alternatives.
 
 ### Reference repositories
 

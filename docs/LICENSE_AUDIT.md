@@ -66,7 +66,7 @@ Weights are where the expensive mistakes live (roadmap rule 4).
 | beat_this checkpoint | MIT per the project (JKU Linz); the downloaded `beat_this-final0.ckpt` file itself was not inspected | partially verified — its 81 MB auto-download must be routed through our cache and model manager |
 | **madmom models/data files** | **CC BY-NC-SA 4.0** — "If you want to include any of these files ... in a commercial product, please contact Gerhard Widmer." | verified; **non-commercial, conflicts with redistribution inside a GPL-3 work** |
 | **Essentia (MTG) models** | **CC BY-NC-SA 4.0**, proprietary licence on request | verified on essentia.upf.edu/models.html; **non-commercial** |
-| **Demucs pre-trained models** | **unresolved** | issue `facebookresearch/demucs#327` (2022-05-05) is still open with label "Further information is requested"; the repository was archived 2025-01-01, so the question will not be answered upstream |
+| **Demucs pre-trained models** | **unresolved** | issue `facebookresearch/demucs#327` (2022-05-05) is still open with label "Further information is requested"; the repository was archived 2025-01-01, so the question will not be answered upstream. Exercised locally on 2026-09-25 (`htdemucs` two-stem, throwaway environment) for the roadmap 26 comparison — downloaded and run, never redistributed or bundled. |
 | torchcrepe weights (converted CREPE "tiny"/"full") | not individually verified; upstream CREPE is MIT | open |
 | Spleeter pre-trained models | not verified | open |
 | UVR model zoo (via `audio-separator`) | mixes licences, some non-commercial | open; verify per model |
@@ -112,7 +112,9 @@ packaging, which is why it is written down now.
   They are never bundled.
 * **GPL-2.0-only external tools** (if that is what Chordino/NNLS Chroma turn out
   to be) stay separate executables that the user installs.
-* **Demucs weights** stay unresolved and are therefore never redistributed.
+* **Demucs weights** stay unresolved and are therefore never redistributed. A
+  2026-09-25 investigation downloaded them into a throwaway, gitignored environment
+  to test separation (roadmap 26/27) and did not redistribute or bundle them.
 
 ## 8. Policy rules that follow
 

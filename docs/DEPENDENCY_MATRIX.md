@@ -207,7 +207,7 @@ was not tested).
 | beat_this | `pip install beat-this` | CPU or GPU | pure wheel, but verified resolution pulls **39 packages**: `torch 2.14.0`, `torchaudio 2.11.0`, `rotary-embedding-torch`, `soxr`, `numpy`, and the CUDA runtime packages from §7. Use the PyTorch CPU index for CPU-only installs. |
 | torch / torchaudio | `pip install torch torchaudio` | CPU wheels exist; CUDA is opt-in | very large downloads; the default index pulls CUDA packages (§7), so pin the CPU build for CI |
 | torchcrepe | `pip install torchcrepe` | CPU or CUDA | depends on the torch stack |
-| demucs | `pip install demucs` | CPU slow, GPU recommended | weights must be fetched separately and are **not** bundled (see §5) |
+| demucs | `pip install demucs` | CPU slow, GPU recommended | weights must be fetched separately and are **not** bundled (see §5). Ran once on 2026-09-25: `htdemucs` two-stem took ~72 s for a ~30 s excerpt (real-time factor ≈ 1.9) on the reference CPU. |
 | spleeter | `pip install spleeter` | CPU or GPU | `Requires-Python <4.0` upper bound; TF-era stack |
 | audio-separator | `pip install audio-separator` | CPU or GPU | per-model licence checks required |
 | MOSS-Music | `transformers` + Hugging Face model (~18.1 GB bf16 weights) | GPU-only in practice — no quantization path and CUDA-first install | assessed 2026-09-24: not viable on commodity CPU, see §13.11 |
@@ -226,9 +226,11 @@ tests:
 1. **Runtime verified on Linux only.** Windows and macOS have wheel-level
    evidence (see §10.3) but no runtime evidence. Anyone claiming cross-platform
    support for an engine must test it on that platform first.
-2. **No real music has been analysed.** No accuracy, WER, key or tempo metric
-   exists, and none may be quoted until `songlab benchmark` produces them
-   (roadmap rules 6 and 13).
+2. **No chord, key or tempo metric exists on real music.** A lyrics WER/CER figure
+   does now (roadmap 25/26, `docs/ENGINE_COMPARISON.md`), but it comes from a
+   throwaway harness on 40 short a cappella excerpts, not from `songlab benchmark`,
+   and no accuracy number may be quoted until that command produces it (roadmap
+   rules 6 and 13).
 3. **The basic-pitch Python-version conflict needs a decision:** either pin that
    feature's extra to Python <= 3.11, ship the documented ONNX workaround
    (`--no-deps` + `onnxruntime`), or defer it to phase 7 and revisit. The ONNX
@@ -251,6 +253,12 @@ tests:
    published, and the timestamped chord/ASR benchmarks appear.
 10. **No memory measurement** beyond environment disk size: peak RAM per engine
     belongs to `songlab benchmark` (roadmap section 45), not to this document.
+11. **Demucs was exercised but is not adopted (2026-09-25).** `htdemucs` two-stem
+    separation ran locally for the roadmap 26/27 comparison and its stems are
+    reported in `docs/ENGINE_COMPARISON.md`; the wheel and weights were installed
+    only in a throwaway, gitignored environment. The weights licence is still
+    unresolved (§5), so nothing is bundled and no separator is part of the
+    dependency set.
 
 Phase 1 is therefore **complete for the candidates needed by the first analysis
 phases** (audio, lyrics, chords, beats; each has an installable, licence-cleared

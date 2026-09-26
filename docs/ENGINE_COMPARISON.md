@@ -186,14 +186,19 @@ vocals, reverb and the production style are uncontrolled. And this compares the 
 ## Chords — chroma + Viterbi on the mix and on separated stems (roadmap 23/24/27/28)
 
 **Why.** Roadmap 27 asks for chord recognition tested on `original`, `bass`, `other`,
-`vocals` and `other + bass`; roadmap 28 asks which of them wins. This is the first pass.
+`vocals` and `other + bass`; roadmap 28 asks which of them wins. This pass now covers
+two songs.
 
-**Input.** A second commercial MP3 supplied by the user for local analysis only, with a
-hand-written chord chart. Both live in the gitignored `mp3/` directory; the extracted
-audio, the stems and the detected sequences live in the gitignored `.cache/chords/`.
-**Neither the audio nor the chord chart is committed, and no lyric text is reproduced**
-here. The file is 327.16 s, 44.1 kHz stereo, 160 kbit/s, tagged 84 BPM. The Demucs 4-stem
-split (`htdemucs`, CPU) is the same configuration used for the real-song lyrics pass.
+**Input.** Two commercial MP3s supplied by the user for local analysis only, each with a
+hand-written chord chart. Both pairs live in the gitignored `mp3/` directory; the extracted
+audio, the stems and the detected sequences live in the gitignored `.cache/chords/<song>/`.
+**Neither the audio nor the chord charts are committed, and no lyric text is reproduced**
+here. Song A is 327.16 s, 44.1 kHz stereo, 160 kbit/s, tagged 84 BPM; song B is 268.5 s,
+48 kHz stereo, ~103 kbit/s. The Demucs 4-stem split (`htdemucs`, CPU) is the same
+configuration used for the real-song lyrics pass, run once per song. For song B, the free
+LRCLIB lyrics API was also queried as a feasibility check: a plain and a line-timed variant
+of the song exist there and match its duration, and the response is kept in the gitignored
+cache as a possible future lyric reference — the chord pass did not use it.
 
 **The engine (baseline, our own code).** The section-24.1 pipeline, re-implemented from the
 recorded design:
@@ -211,19 +216,22 @@ recorded design:
 7. segments shorter than 0.30 s absorbed, consecutive duplicates collapsed.
 
 The change penalty is expressed in this implementation's own emission units, so it does
-**not** transfer from chordify's value; it was tuned on this song (sweep, below).
+**not** transfer from chordify's value; it was tuned on song A's sweep and then held fixed
+for song B (robustness rows below), which is the honest cross-song test.
 
-**Reference and metrics (timing-free).** The chart is a complete chord sheet — 86 chords in
-song order, sections Intro/Verso/Coro, 8 distinct chords (A, Am, Bm, C, D, Em, F#m, G) — but
-it carries **no timestamps**, so frame accuracy, segment overlap and chord-change timing
-error cannot be computed. It is scored instead by:
+**Reference and metrics (timing-free).** Each chart is a complete chord sheet in song order
+with section headers but **no timestamps** — the standard chord-sheet format (as found on
+ultimate-guitar), so frame accuracy, segment overlap and chord-change timing error cannot
+be computed. Song A's chart has 86 chords, 8 distinct (A, Am, Bm, C, D, Em, F#m, G), key
+D major; song B's has 64 chords, only 4 distinct (A, D, E, F#m), key A major. Charts are
+scored instead by:
 
 * **sequence alignment** (Needleman-Wunsch, gap cost 1) between the reference sequence and
   the detected sequence, reported as exact / root-only / quality-only precision-recall-F1;
 * **multiset F1** (repeat-aware chord distribution) and **palette F1** (distinct chords);
 * **key** agreement (Krumhansl-Schmuckler on the reference's chord tones vs on the audio).
 
-**Results** at change penalty 0.40 (reference: 86 chords; chart key D major).
+**Results, song A** at change penalty 0.40 (reference: 86 chords; chart key D major).
 
 | Input (327 s) | chords detected | exact F1 | root F1 | quality F1 | multiset F1 | palette F1 | key |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | :---: |
@@ -234,28 +242,48 @@ error cannot be computed. It is scored instead by:
 | Demucs `vocals` | 66 | 0.447 | 0.513 | 0.447 | 0.684 | 0.750 | D major ✓ |
 | Demucs `bass` | 119 | 0.429 | 0.585 | 0.429 | 0.537 | 0.667 | D major ✓ |
 
+**Results, song B** at the same change penalty 0.40, held over from song A (reference:
+64 chords; chart key A major).
+
+| Input (268.5 s) | chords detected | exact F1 | root F1 | quality F1 | multiset F1 | palette F1 | key |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | :---: |
+| Demucs `other` | 70 | **0.791** | **0.806** | **0.791** | **0.866** | **0.889** | A major ✓ |
+| Demucs `bass`+`other` | 73 | 0.642 | 0.745 | 0.642 | 0.701 | 0.727 | A major ✓ |
+| original mix | 64 | 0.641 | 0.656 | 0.641 | 0.688 | 0.727 | A major ✓ |
+| Demucs `no_vocals` (drums+bass+other) | 61 | 0.624 | 0.720 | 0.624 | 0.704 | 0.727 | A major ✓ |
+| Demucs `vocals` | 50 | 0.544 | 0.597 | 0.544 | 0.579 | 0.615 | A major ✓ |
+| Demucs `bass` | 40 | 0.308 | 0.654 | 0.308 | 0.308 | 0.600 | A major ✓ |
+
 **Robustness to the change penalty** (multiset F1), because a single tuned value would hide
 the sensitivity:
 
-| Input | penalty 0.30 | penalty 0.40 | penalty 0.50 |
-| --- | ---: | ---: | ---: |
-| original mix | **0.726** | 0.809 | 0.765 |
-| Demucs `other` | 0.652 | **0.859** | 0.752 |
-| Demucs `bass`+`other` | 0.700 | 0.720 | **0.787** |
-| Demucs `no_vocals` | 0.687 | 0.698 | 0.715 |
-| Demucs `vocals` | 0.652 | 0.684 | 0.567 |
-| Demucs `bass` | 0.560 | 0.537 | 0.526 |
+| Input | song A 0.30 | song A 0.40 | song A 0.50 | song B 0.30 | song B 0.40 | song B 0.50 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| original mix | **0.726** | 0.809 | 0.765 | 0.721 | 0.688 | **0.727** |
+| Demucs `other` | 0.652 | **0.859** | 0.752 | 0.749 | 0.866 | **0.924** |
+| Demucs `bass`+`other` | 0.700 | 0.720 | **0.787** | 0.719 | 0.701 | 0.711 |
+| Demucs `no_vocals` | 0.687 | 0.698 | 0.715 | 0.703 | 0.704 | 0.588 |
+| Demucs `vocals` | 0.652 | 0.684 | 0.567 | 0.579 | 0.579 | 0.596 |
+| Demucs `bass` | 0.560 | 0.537 | 0.526 | 0.403 | 0.308 | 0.408 |
 
-**Cost.** ~38–40 s per 327 s song (real-time factor ≈ 0.12, peak RSS ≈ 1.04 GiB), of which
-feature extraction is essentially all of it — decoding is 0.03 s.
+**Cost.** Song A: ~38–40 s per 327 s song (real-time factor ≈ 0.12, peak RSS ≈ 1.04 GiB);
+song B: ~33–34 s per 268.5 s (real-time factor ≈ 0.12, peak RSS ≈ 0.90 GiB). Feature
+extraction is essentially all of it — decoding is 0.03–0.05 s.
 
 **Reading it.**
 
 * **All six inputs recover the correct key (D major)** — key estimation is robust to which
   stems are fed in.
-* **No stem is reliably best.** `other` leads on multiset F1 at the tuned penalty (0.859 vs
-  0.809 for the mix), but the raw mix leads at 0.30 and `bass`+`other` at 0.50. The raw mix
-  is the one input that stays near the top at every penalty.
+* **The ranking repeated across both songs (n = 2).** `other` is first and the raw mix
+  second on song A *and* song B at the held penalty; `bass` and `vocals` are last on both.
+  Song A alone had suggested no stem was reliably best — with two songs, `other` looks like
+  the better chord input.
+* **The raw mix stays near the top at every penalty on both songs** (it leads song A at
+  0.30 and sits within 0.02 of the best stem input there on song B), so it remains the
+  safest no-separation choice.
+* **The penalty tuned on song A transferred to song B.** At 0.40 the mix is within 0.04 of
+  its own best (0.688 vs 0.727 at 0.50), and `other`'s best sits at or above 0.40 on both
+  songs — the value is not song-specific, though the full sweep ran only on song A.
 * **Separation is not required for chords, and it is not a free win.** As in the lyrics pass,
   the extra processing does not buy a stable improvement over the mix.
 * **`bass` alone and `vocals` alone are clearly the worst.** `bass` recovers roots but not
@@ -264,14 +292,17 @@ feature extraction is essentially all of it — decoding is 0.03 s.
 * **The dominant knob is the change penalty**, not the input: moving it from 0.40 to 0.50
   roughly halves the detected chord count (87 → 63 on the mix).
 * **The error pattern is systematic**: the engine confuses major with the parallel minor
-  (it emits `Dm` and `Gm` where the chart has `D` and `G`) and misses the chart's single
-  borrowed `C`. At penalty 0.40 the mix recovers 7 of the 8 reference chords.
+  (on song A it emits `Dm` and `Gm` where the chart has `D` and `G`, and misses the single
+  borrowed `C`; at penalty 0.40 the mix recovers 7 of 8 reference chords). Song B shows the
+  same shape: `other` recovers all 4 reference chords with a single false parallel (`Em`),
+  while the mix recovers all 4 but adds three (`Bm`, `Dm`, `Em`).
 
-**Limits.** One song and one chart (n = 1): no statistical claim. The chart has no
-timestamps, so no frame-level accuracy exists. The change penalty was selected on this same
-song's sweep — it is a tuned, not a default, value, and the stem ranking is sensitive to it.
-The reference chords are the user's editorial choices for their own arrangement, not a
-definitive transcription.
+**Limits.** Two songs and charts (n = 2), from the same user and the same genre (simple
+diatonic worship arrangements): still no statistical claim, and song B's 4-chord palette
+makes the palette metric easy. The charts have no timestamps, so no frame-level accuracy
+exists. The change penalty was selected on song A's sweep — a tuned, not a default, value —
+though it transferred to song B. The reference chords are the user's editorial choices for
+their own arrangements, not definitive transcriptions.
 
 ## Observations
 
@@ -298,10 +329,11 @@ definitive transcription.
   the packaged ONNX Parakeet path returned 8 garbled words, and the upstream VAD route returned
   nothing at all (a speech VAD does not treat singing as speech). Only our own fixed-window
   chunking worked.
-* **Chord input affects chords less than expected.** On the chord pass all six inputs
-  recovered the right key, the raw mix stayed near the top, and no single Demucs stem was
-  reliably best — the change penalty mattered more than the choice of input. This is the same
-  "separation is not a free win" result the lyrics pass reached, now on the chord task.
+* **Chord input matters, and `other` now leads twice.** On both chord-pass songs all six
+  inputs recovered the right key; `other` ranked first and the raw mix second on both
+  (multiset F1 0.859/0.866 vs 0.809/0.688), with `bass` and `vocals` clearly worst. The
+  change penalty still matters more than anything else. Unlike the lyrics pass, for chords
+  the separation into `other` did buy a consistent win on both songs measured so far.
 * **The chord engine's errors are systematic, not random**: parallel major/minor confusion
   and missed borrowed chords, at a chord count (87) that closely matches the chart (86).
 
@@ -315,8 +347,8 @@ definitive transcription.
 * Not a full-transcript evaluation of the real song: its embedded lyrics are a partial
   reference, so no whole-song WER against a verbatim transcript exists.
 * Not a chord-engine benchmark: the section-23/24 engine is a hand-written baseline with no
-  sibling to compare against, tested on one song with a timestamp-free chart, so it measures
-  *this* engine against *this* reference, not chord recognition in general.
+  sibling to compare against, tested on two songs with timestamp-free charts, so it measures
+  *this* engine against *these* references, not chord recognition in general.
 * Not a claim that one engine should be adopted. It is a first data point to inform phase 3.
 
 ## Reproduction
@@ -336,18 +368,19 @@ not supply their own copy of the song. Its machine-readable results are also wri
 `results/lyrics_asr_real_song_{rows.csv,summary.json}`, which the repository keeps out of git
 like the rest of `results/`.
 
-The chord pass lives in the gitignored `.cache/chords/` (`chords.py`, the extracted audio,
-the Demucs stems, cached chroma/beat features and per-input `results/*.json` plus
-`summary.json` and the parameter `sweep.json`). The second commercial MP3 and the chord
-chart stay in the gitignored `mp3/` directory. **Neither the audio, the chord chart nor any
-lyric text is committed**, and the pass is not reproducible without the user's own copy of
-the song and chart; the table above is the durable record.
+The chord pass lives in the gitignored `.cache/chords/` (`chords.py`, now per-song via a
+`--song` flag, with per-song subdirectories holding the extracted audio, the Demucs stems,
+cached chroma/beat features, per-input `results/*.json`, `summary.json`, the
+`sweep.json`/`robust.json` parameter grids and a fetched LRCLIB response for song B). Both
+commercial MP3s and both chord charts stay in the gitignored `mp3/` directory. **Neither
+the audio, the chord charts nor any lyric text is committed**, and the pass is not
+reproducible without the user's own copies; the tables above are the durable record.
 
 ## What it will contain, per engine and per preprocessing strategy (still pending)
 
 The chord rows below (root/quality/exact accuracy, segment overlap, change timing) are
-**now measured once** in the chord section above, but only as timing-free sequence scores on
-a single timestamp-free chart; a true `songlab benchmark` report with frame metrics is still
+**now measured twice** in the chord section above, but only as timing-free sequence scores on
+two timestamp-free charts; a true `songlab benchmark` report with frame metrics is still
 pending, so the table stays as the specification.
 
 | Field | Example |

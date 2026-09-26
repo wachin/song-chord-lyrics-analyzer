@@ -270,11 +270,12 @@ tests:
 
 13. **Chord recognition baseline was measured but is not adopted (2026-09-26).** Our own
     chroma (CQT/CENS) + 24-triad-template + beat-synchronous Viterbi baseline
-    (`librosa` 1.0.0, run in a throwaway gitignored venv) was scored against a user chord
-    chart on one 327 s song and on its Demucs stems — no stem was reliably best and the
-    change penalty mattered more than the input choice. No chord adapter is registered in
-    `src/` yet, and the penalty was tuned on that same song, so this is a first data point,
-    not a selected engine. See `docs/ENGINE_COMPARISON.md` "Chords".
+    (`librosa` 1.0.0, run in a throwaway gitignored venv) was scored against user chord
+    charts on two songs (327 s and 268.5 s) and on their Demucs stems — `other` ranked
+    first and the raw mix second on both, the change penalty still mattered, and the
+    penalty tuned on the first song transferred to the second. No chord adapter is
+    registered in `src/` yet, so this remains a first data point, not a selected engine.
+    See `docs/ENGINE_COMPARISON.md` "Chords".
 
 Phase 1 is therefore **complete for the candidates needed by the first analysis
 phases** (audio, lyrics, chords, beats; each has an installable, licence-cleared

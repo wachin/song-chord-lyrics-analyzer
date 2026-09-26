@@ -127,6 +127,18 @@ investigation, not a `songlab benchmark` run, and no chord adapter is registered
 * Cost: ~38–40 s per 327 s song (real-time factor ≈ 0.12, peak RSS ≈ 1.04 GiB); the change
   penalty, not the input, was the dominant knob, and it was tuned on this same song — a
   recorded overfitting risk, so the stem ranking is indicative, not settled.
+* **Second song (same day).** A third user-supplied commercial MP3 with its own hand-written
+  chart (64 chords, only 4 distinct, key A major, no timestamps; 268.5 s, kept in the
+  gitignored `mp3/`) was run through the unchanged pipeline at the penalty held over from
+  the first song. All six inputs again recovered the correct key, and the ranking **repeated**:
+  Demucs `other` first (multiset F1 0.866, palette 0.889; all 4 reference chords recovered
+  with one false parallel `Em`), the raw mix second (0.688), `bass` (0.308) and `vocals`
+  (0.579) last. At a higher penalty `other` reaches multiset F1 0.924 with a perfect palette
+  match. Cost ~33–34 s per 268.5 s (RTF ≈ 0.12, peak RSS ≈ 0.90 GiB). With n = 2, `other`
+  looks like the better chord input and the tuned penalty transferred across songs; a
+  synced-lyrics check against the free LRCLIB API was also made for this song (both a plain
+  and a line-timed variant exist and match its duration), recorded as an input option for
+  future lyric passes, not as a result.
 
 ### Reference repositories
 

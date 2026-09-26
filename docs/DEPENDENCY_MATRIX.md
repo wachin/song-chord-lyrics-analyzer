@@ -226,11 +226,12 @@ tests:
 1. **Runtime verified on Linux only.** Windows and macOS have wheel-level
    evidence (see §10.3) but no runtime evidence. Anyone claiming cross-platform
    support for an engine must test it on that platform first.
-2. **No chord, key or tempo metric exists on real music.** A lyrics WER/CER figure
-   does now (roadmap 25/26, `docs/ENGINE_COMPARISON.md`), but it comes from a
-   throwaway harness on 40 short a cappella excerpts, not from `songlab benchmark`,
-   and no accuracy number may be quoted until that command produces it (roadmap
-   rules 6 and 13).
+2. **No `songlab benchmark` metric exists yet.** A lyrics WER/CER figure does (roadmap
+   25/26) and a first **chord** figure was measured on 2026-09-26 (roadmap 23/24/27/28,
+   `docs/ENGINE_COMPARISON.md` "Chords"), but both come from throwaway harnesses — the
+   chord one is timing-free, on a single chart that itself has no timestamps — not from
+   `songlab benchmark`, and no number may be quoted as production quality until that
+   command produces it (roadmap rules 6 and 13).
 3. **The basic-pitch Python-version conflict needs a decision:** either pin that
    feature's extra to Python <= 3.11, ship the documented ONNX workaround
    (`--no-deps` + `onnxruntime`), or defer it to phase 7 and revisit. The ONNX
@@ -266,6 +267,14 @@ tests:
     because a speech VAD does not treat singing as speech. The working route was our
     own fixed-window chunking. Roadmap section 25 needs this as a real code path, and
     a lyrics backend must declare whether it chunks long audio when it registers.
+
+13. **Chord recognition baseline was measured but is not adopted (2026-09-26).** Our own
+    chroma (CQT/CENS) + 24-triad-template + beat-synchronous Viterbi baseline
+    (`librosa` 1.0.0, run in a throwaway gitignored venv) was scored against a user chord
+    chart on one 327 s song and on its Demucs stems — no stem was reliably best and the
+    change penalty mattered more than the input choice. No chord adapter is registered in
+    `src/` yet, and the penalty was tuned on that same song, so this is a first data point,
+    not a selected engine. See `docs/ENGINE_COMPARISON.md` "Chords".
 
 Phase 1 is therefore **complete for the candidates needed by the first analysis
 phases** (audio, lyrics, chords, beats; each has an installable, licence-cleared

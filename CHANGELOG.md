@@ -25,9 +25,9 @@ the project uses [semantic versioning](https://semver.org/).
 * Recorded that current numpy/scipy/librosa releases require Python >= 3.12, so
   DSP extras effectively raise the floor above the core's 3.10.
 * Remaining open questions are listed explicitly: Windows/macOS runtime is
-  unverified, no real music has been analysed, unverified weights (torchcrepe,
-  Spleeter, UVR), and the GPL-2.0 "only" vs "or later" question for the Vamp
-  plugins.
+  unverified, no `songlab benchmark` report exists yet (only investigation harnesses,
+  on synthetic material and on real music), unverified weights (torchcrepe, Spleeter,
+  UVR), and the GPL-2.0 "only" vs "or later" question for the Vamp plugins.
 
 ### Smoke-tested
 
@@ -100,6 +100,33 @@ reference machine (Intel Core i3-7020U, 7.6 GiB RAM) and recorded in
   larger Whisper (medium needed ~66 s per 30 s clip on this CPU and was stopped), the
   `vocals + selected accompaniment` case, a full verbatim transcript for the real song, and
   6-stem separation or `htdemucs_ft`/UVR alternatives.
+
+### Chord recognition investigation (roadmap 23/24/27/28)
+
+A first measured chord comparison, recorded in `docs/ENGINE_COMPARISON.md` ("Chords"). The
+section-24.1 pipeline was re-implemented as our own baseline — HPSS + tuning-corrected
+CQT/CENS chroma blend, 24 equal-weight triad templates, bass root/fifth boost, a
+Krumhansl-Schmuckler key prior, beat-synchronous max-sum Viterbi and a palette-prior second
+pass — running on **librosa 1.0.0** in a throwaway, gitignored environment. It is an
+investigation, not a `songlab benchmark` run, and no chord adapter is registered in `src/` yet.
+
+* The baseline was scored against a **user-supplied hand-written chord chart** (86 chords,
+  8 distinct, key D major, no timestamps) for a second commercial MP3 supplied by the user
+  (327 s, kept in the gitignored `mp3/`, never committed).
+* Because the chart has no timestamps, scoring is **timing-free**: order-preserving sequence
+  alignment (exact / root-only / quality-only precision-recall-F1), chord multiset and
+  palette F1, and key agreement. No frame accuracy, segment overlap or change-timing error
+  could be computed.
+* Roadmap §27/§28 were exercised on the same Demucs 4-stem split: `original`, `vocals`,
+  `other`, `bass`, `bass`+`other` and `drums`+`bass`+`other`. **All six recovered the
+  correct key**, and **no stem was reliably best** — `other` led on multiset F1 at the tuned
+  Viterbi change penalty (0.859 vs 0.809 for the mix), the raw mix led at a lower penalty and
+  `bass`+`other` at a higher one. `bass` alone and `vocals` alone were clearly worst (bass
+  recovers roots but not qualities). This repeats the lyrics pass's "separation is not a free
+  win" finding on the chord task.
+* Cost: ~38–40 s per 327 s song (real-time factor ≈ 0.12, peak RSS ≈ 1.04 GiB); the change
+  penalty, not the input, was the dominant knob, and it was tuned on this same song — a
+  recorded overfitting risk, so the stem ranking is indicative, not settled.
 
 ### Reference repositories
 

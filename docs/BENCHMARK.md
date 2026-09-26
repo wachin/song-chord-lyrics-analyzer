@@ -1,9 +1,10 @@
 # Benchmark
 
 **Status: planned for phase 11 — this command has not been implemented and no benchmark has been run
-through it yet.** A first *investigation* by a temporary harness (lyrics ASR on vocadito, then on
-synthetic mixes and on one real commercial mix) is recorded in `docs/ENGINE_COMPARISON.md`; it is
-explicitly not a `songlab benchmark` run.
+through it yet.** First *investigations* by temporary harnesses are recorded in
+`docs/ENGINE_COMPARISON.md`: lyrics ASR on vocadito, on synthetic mixes and on real commercial
+mixes, plus a chord-recognition baseline scored against a user chord chart on one song and its
+Demucs stems. They are explicitly not `songlab benchmark` runs.
 
 ## Planned command
 
@@ -27,7 +28,9 @@ run can actually compute.
 ## Metrics (roadmap section 44)
 
 Chord metrics: exact chord accuracy, root accuracy, quality accuracy, segment
-overlap, timing error, chord-change detection accuracy.
+overlap, timing error, chord-change detection accuracy. (A first timing-free pass — exact /
+root / quality sequence F1, chord multiset and palette F1, and key, but no frame metrics — is
+recorded in `docs/ENGINE_COMPARISON.md`, because its reference chart has no timestamps.)
 
 Lyric metrics: WER, CER, word timestamp error.
 

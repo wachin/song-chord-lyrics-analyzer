@@ -1,9 +1,11 @@
 # Engine Comparison
 
-**Status: partially written (2026-09-25).** A first measured lyrics-ASR comparison
+**Status: partially written (2026-09-26).** A first measured lyrics-ASR comparison
 (roadmap sections 25, 26 and 27) is recorded below, on isolated vocals, on synthetic
-mixes, and on one real commercial mix. Chords, key and tempo comparisons do
-not exist yet — no chord/key/tempo engine has been integrated, so those rows stay empty
+mixes, and on one real commercial mix. A first **chord** measurement (roadmap sections
+23, 24, 27 and 28) was added on 2026-09-26: a chroma + Viterbi baseline scored against a
+user-supplied chord chart, on the mix and on Demucs stems. Key and tempo comparisons do
+not exist yet — no key or tempo engine has been integrated — so those rows stay empty
 rather than invented (roadmap rule 6).
 
 > **This is a pre-harness investigation, not `songlab benchmark`.** The phase-11 benchmark
@@ -181,6 +183,96 @@ is the tag's partial lyrics and the song's repeats inflate any whole-file error 
 vocals, reverb and the production style are uncontrolled. And this compares the mix with
 *Demucs' separated* vocal, not with the true vocal, which does not exist for commercial audio.
 
+## Chords — chroma + Viterbi on the mix and on separated stems (roadmap 23/24/27/28)
+
+**Why.** Roadmap 27 asks for chord recognition tested on `original`, `bass`, `other`,
+`vocals` and `other + bass`; roadmap 28 asks which of them wins. This is the first pass.
+
+**Input.** A second commercial MP3 supplied by the user for local analysis only, with a
+hand-written chord chart. Both live in the gitignored `mp3/` directory; the extracted
+audio, the stems and the detected sequences live in the gitignored `.cache/chords/`.
+**Neither the audio nor the chord chart is committed, and no lyric text is reproduced**
+here. The file is 327.16 s, 44.1 kHz stereo, 160 kbit/s, tagged 84 BPM. The Demucs 4-stem
+split (`htdemucs`, CPU) is the same configuration used for the real-song lyrics pass.
+
+**The engine (baseline, our own code).** The section-24.1 pipeline, re-implemented from the
+recorded design:
+
+1. HPSS harmonic component (`margin=3.0`) and tuning estimated with `librosa.estimate_tuning`;
+2. `chroma_cqt` (from C2, 5 octaves) and `chroma_cens`, blended 0.3 CQT / 0.7 CENS and
+   L2-normalised per frame;
+3. 24 equal-weight major/minor triad templates, with non-chord-tone energy penalised (×0.5);
+4. a bass chroma (C1, 3 octaves) root (+0.15) and fifth (+0.10) boost;
+5. a song-level Krumhansl-Schmuckler key prior (+0.05 diatonic, −0.12 non-diatonic), used
+   only as a soft prior;
+6. beat-synchronous frames (`librosa.beat.beat_track`, median aggregation) decoded by a
+   max-sum **Viterbi** with a flat chord-change penalty, followed by a second pass with a
+   palette prior (states below 2.5% share penalised −0.10);
+7. segments shorter than 0.30 s absorbed, consecutive duplicates collapsed.
+
+The change penalty is expressed in this implementation's own emission units, so it does
+**not** transfer from chordify's value; it was tuned on this song (sweep, below).
+
+**Reference and metrics (timing-free).** The chart is a complete chord sheet — 86 chords in
+song order, sections Intro/Verso/Coro, 8 distinct chords (A, Am, Bm, C, D, Em, F#m, G) — but
+it carries **no timestamps**, so frame accuracy, segment overlap and chord-change timing
+error cannot be computed. It is scored instead by:
+
+* **sequence alignment** (Needleman-Wunsch, gap cost 1) between the reference sequence and
+  the detected sequence, reported as exact / root-only / quality-only precision-recall-F1;
+* **multiset F1** (repeat-aware chord distribution) and **palette F1** (distinct chords);
+* **key** agreement (Krumhansl-Schmuckler on the reference's chord tones vs on the audio).
+
+**Results** at change penalty 0.40 (reference: 86 chords; chart key D major).
+
+| Input (327 s) | chords detected | exact F1 | root F1 | quality F1 | multiset F1 | palette F1 | key |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | :---: |
+| original mix | 87 | 0.694 | 0.751 | 0.694 | 0.809 | **0.824** | D major ✓ |
+| Demucs `other` | 91 | **0.701** | 0.701 | **0.701** | **0.859** | 0.800 | D major ✓ |
+| Demucs `bass`+`other` | 89 | 0.663 | 0.697 | 0.663 | 0.720 | 0.667 | D major ✓ |
+| Demucs `no_vocals` (drums+bass+other) | 86 | 0.558 | 0.616 | 0.558 | 0.698 | 0.667 | D major ✓ |
+| Demucs `vocals` | 66 | 0.447 | 0.513 | 0.447 | 0.684 | 0.750 | D major ✓ |
+| Demucs `bass` | 119 | 0.429 | 0.585 | 0.429 | 0.537 | 0.667 | D major ✓ |
+
+**Robustness to the change penalty** (multiset F1), because a single tuned value would hide
+the sensitivity:
+
+| Input | penalty 0.30 | penalty 0.40 | penalty 0.50 |
+| --- | ---: | ---: | ---: |
+| original mix | **0.726** | 0.809 | 0.765 |
+| Demucs `other` | 0.652 | **0.859** | 0.752 |
+| Demucs `bass`+`other` | 0.700 | 0.720 | **0.787** |
+| Demucs `no_vocals` | 0.687 | 0.698 | 0.715 |
+| Demucs `vocals` | 0.652 | 0.684 | 0.567 |
+| Demucs `bass` | 0.560 | 0.537 | 0.526 |
+
+**Cost.** ~38–40 s per 327 s song (real-time factor ≈ 0.12, peak RSS ≈ 1.04 GiB), of which
+feature extraction is essentially all of it — decoding is 0.03 s.
+
+**Reading it.**
+
+* **All six inputs recover the correct key (D major)** — key estimation is robust to which
+  stems are fed in.
+* **No stem is reliably best.** `other` leads on multiset F1 at the tuned penalty (0.859 vs
+  0.809 for the mix), but the raw mix leads at 0.30 and `bass`+`other` at 0.50. The raw mix
+  is the one input that stays near the top at every penalty.
+* **Separation is not required for chords, and it is not a free win.** As in the lyrics pass,
+  the extra processing does not buy a stable improvement over the mix.
+* **`bass` alone and `vocals` alone are clearly the worst.** `bass` recovers roots but not
+  qualities (root F1 0.585 vs quality F1 0.429 — it finds the root and gets the third wrong),
+  and `vocals` carries melody rather than the chord.
+* **The dominant knob is the change penalty**, not the input: moving it from 0.40 to 0.50
+  roughly halves the detected chord count (87 → 63 on the mix).
+* **The error pattern is systematic**: the engine confuses major with the parallel minor
+  (it emits `Dm` and `Gm` where the chart has `D` and `G`) and misses the chart's single
+  borrowed `C`. At penalty 0.40 the mix recovers 7 of the 8 reference chords.
+
+**Limits.** One song and one chart (n = 1): no statistical claim. The chart has no
+timestamps, so no frame-level accuracy exists. The change penalty was selected on this same
+song's sweep — it is a tuned, not a default, value, and the stem ranking is sensitive to it.
+The reference chords are the user's editorial choices for their own arrangement, not a
+definitive transcription.
+
 ## Observations
 
 * **Speed.** On this CPU Parakeet's ONNX int8 path is ~4–5× faster than faster-whisper
@@ -206,6 +298,12 @@ vocals, reverb and the production style are uncontrolled. And this compares the 
   the packaged ONNX Parakeet path returned 8 garbled words, and the upstream VAD route returned
   nothing at all (a speech VAD does not treat singing as speech). Only our own fixed-window
   chunking worked.
+* **Chord input affects chords less than expected.** On the chord pass all six inputs
+  recovered the right key, the raw mix stayed near the top, and no single Demucs stem was
+  reliably best — the change penalty mattered more than the choice of input. This is the same
+  "separation is not a free win" result the lyrics pass reached, now on the chord task.
+* **The chord engine's errors are systematic, not random**: parallel major/minor confusion
+  and missed borrowed chords, at a chord count (87) that closely matches the chart (86).
 
 ## What this is not
 
@@ -216,6 +314,9 @@ vocals, reverb and the production style are uncontrolled. And this compares the 
   UVR and no 6-stem model. Two inputs are not enough to rank separators.
 * Not a full-transcript evaluation of the real song: its embedded lyrics are a partial
   reference, so no whole-song WER against a verbatim transcript exists.
+* Not a chord-engine benchmark: the section-23/24 engine is a hand-written baseline with no
+  sibling to compare against, tested on one song with a timestamp-free chart, so it measures
+  *this* engine against *this* reference, not chord recognition in general.
 * Not a claim that one engine should be adopted. It is a first data point to inform phase 3.
 
 ## Reproduction
@@ -235,7 +336,19 @@ not supply their own copy of the song. Its machine-readable results are also wri
 `results/lyrics_asr_real_song_{rows.csv,summary.json}`, which the repository keeps out of git
 like the rest of `results/`.
 
+The chord pass lives in the gitignored `.cache/chords/` (`chords.py`, the extracted audio,
+the Demucs stems, cached chroma/beat features and per-input `results/*.json` plus
+`summary.json` and the parameter `sweep.json`). The second commercial MP3 and the chord
+chart stay in the gitignored `mp3/` directory. **Neither the audio, the chord chart nor any
+lyric text is committed**, and the pass is not reproducible without the user's own copy of
+the song and chart; the table above is the durable record.
+
 ## What it will contain, per engine and per preprocessing strategy (still pending)
+
+The chord rows below (root/quality/exact accuracy, segment overlap, change timing) are
+**now measured once** in the chord section above, but only as timing-free sequence scores on
+a single timestamp-free chart; a true `songlab benchmark` report with frame metrics is still
+pending, so the table stays as the specification.
 
 | Field | Example |
 | --- | --- |

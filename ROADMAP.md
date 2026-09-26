@@ -940,6 +940,11 @@ Do not assume it will work unchanged on every current Python version.
 
 # [ ] 23. PitchPerfect Investigation
 
+*Status (2026-09-26): the PitchPerfect ecosystem itself has not been investigated. The
+chordify architecture from §24.1 was instead re-implemented as our own chroma + template +
+Viterbi baseline and measured on a real song against a user chord chart
+(`docs/ENGINE_COMPARISON.md`, "Chords"); no chord adapter has been registered in `src/` yet.*
+
 Investigate:
 
 ```text
@@ -1207,9 +1212,11 @@ Benchmark it.
 split of the synthetic mixes for the section-26 comparison and then as a full four-stem split of a
 real 272 s commercial song (5 min 38 s, real-time factor 1.23), producing `vocals`, `drums`, `bass`,
 `other` and a derived `no_vocals` residual. The licence question is still unresolved, so the weights
-were used locally only and never bundled. Still open: chord recognition on real stems (the `original`
-vs `vocals` / `other` / `bass+other` test below), 6-stem separation, `htdemucs_ft` and UVR
-alternatives.*
+were used locally only and never bundled. **Chord recognition on real stems was measured on
+2026-09-26** (a second song, 327 s: `original`, `vocals`, `other`, `bass`, `bass+other`,
+`drums+bass+other` against a user chord chart — no stem was reliably best and the raw mix stayed
+near the top; `docs/ENGINE_COMPARISON.md`, "Chords"). Still open: the `fast`/`balanced`/`accurate`
+configurable strategy, 6-stem separation, `htdemucs_ft` and UVR alternatives.*
 
 Investigate:
 
@@ -1253,6 +1260,13 @@ accurate
 ---
 
 # [ ] 28. Stem Selection Strategy
+
+*Status (2026-09-26): partial — measured once on a real song with our chord baseline
+(`docs/ENGINE_COMPARISON.md`, "Chords"). For chords, no stem was reliably best: `other` led on
+multiset F1 at the tuned Viterbi change penalty, but the original mix led at a lower penalty and
+`bass`+`other` at a higher one; `bass` alone and `vocals` alone were clearly worst. The ranking is
+sensitive to the change penalty, so this is indicative, not settled. For lyrics, `vocals` was
+tested separately in the roadmap 26 pass.*
 
 For chord recognition, investigate whether:
 

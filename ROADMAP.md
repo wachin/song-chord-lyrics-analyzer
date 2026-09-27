@@ -942,7 +942,7 @@ Do not assume it will work unchanged on every current Python version.
 
 *Status (2026-09-26): the PitchPerfect ecosystem itself has not been investigated. The
 chordify architecture from §24.1 was instead re-implemented as our own chroma + template +
-Viterbi baseline and measured on two real songs against user chord charts
+Viterbi baseline and measured on three real songs against user chord charts
 (`docs/ENGINE_COMPARISON.md`, "Chords"); no chord adapter has been registered in `src/` yet.*
 
 Investigate:
@@ -1213,9 +1213,11 @@ split of the synthetic mixes for the section-26 comparison and then as a full fo
 real 272 s commercial song (5 min 38 s, real-time factor 1.23), producing `vocals`, `drums`, `bass`,
 `other` and a derived `no_vocals` residual. The licence question is still unresolved, so the weights
 were used locally only and never bundled. **Chord recognition on real stems was measured on
-2026-09-26** on two songs (327 s and 268.5 s: `original`, `vocals`, `other`, `bass`,
-`bass+other`, `drums+bass+other` on each, against user chord charts — `other` ranked first
-and the raw mix second on both songs; `docs/ENGINE_COMPARISON.md`, "Chords"). Still open: the
+2026-09-26** on three songs (327 s, 268.5 s and 254.3 s: `original`, `vocals`, `other`,
+`bass`, `bass+other`, `drums+bass+other` on each, against user chord charts — the stem
+ranking inverted between songs: `other` led the first two, the raw mix and `bass` led the
+third, and three inputs mis-estimated the third song's key; `docs/ENGINE_COMPARISON.md`,
+"Chords"). Still open: the
 `fast`/`balanced`/`accurate` configurable strategy, 6-stem separation, `htdemucs_ft` and UVR
 alternatives.*
 
@@ -1262,13 +1264,14 @@ accurate
 
 # [ ] 28. Stem Selection Strategy
 
-*Status (2026-09-26): partial — measured on two real songs with our chord baseline
-(`docs/ENGINE_COMPARISON.md`, "Chords"). For chords, Demucs `other` ranked first and the
-original mix second on both songs at the change penalty tuned on the first song (multiset
-F1 0.859/0.866 vs 0.809/0.688); `bass` alone and `vocals` alone were clearly worst on both,
-and the mix stayed near the top at every penalty — so `other` now looks like the better
-chord input, at n = 2 with no statistical claim. For lyrics, `vocals` was
-tested separately in the roadmap 26 pass.*
+*Status (2026-09-26): partial — measured on three real songs with our chord baseline
+(`docs/ENGINE_COMPARISON.md`, "Chords"). For chords there is **no stable stem winner**:
+`other` ranked first on songs 1–2 (multiset F1 0.859/0.866) but collapsed on song 3
+(0.371), where `bass` — worst on songs 1–2 — led the triad-reduced view (0.707); the raw
+mix was never a clear winner but never collapsed, and on song 3 three of six inputs
+estimated the wrong key. The change penalty remains the dominant knob. The earlier
+n = 2 "`other` is best" reading was overfit — exactly what its caveat predicted. For
+lyrics, `vocals` was tested separately in the roadmap 26 pass.*
 
 For chord recognition, investigate whether:
 

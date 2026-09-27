@@ -139,6 +139,18 @@ investigation, not a `songlab benchmark` run, and no chord adapter is registered
   synced-lyrics check against the free LRCLIB API was also made for this song (both a plain
   and a line-timed variant exist and match its duration), recorded as an input option for
   future lyric passes, not as a result.
+* **Third song (same day).** A fourth user-supplied commercial MP3 with its own hand-written
+  chart (101 chords, 8 distinct, key A minor, 254.3 s; the first chart with seventh and
+  fifth labels — `D7`, `E5` — which a triad-only decoder cannot emit, so scoring also uses
+  a documented triad-reduced view of the reference). The held penalty transferred again,
+  but **the n = 2 stem ranking inverted**: `other` (first twice) collapsed to
+  second-to-last (multiset F1 0.371 on the chart's labels, 0.474 triad-reduced), while
+  `bass` (last twice) led the triad view (0.707) — the song's bass-led solo-guitar style
+  rewards the bass stem. For the first time **three of six inputs mis-estimated the key**
+  (E minor for an A-minor song), and the raw mix was again the most consistent input.
+  Conclusion back to *no stem is reliably best*, with the raw mix the safest
+  no-separation choice; detected chord counts matching the reference (98 vs 101) proved no
+guarantee of accuracy.
 
 ### Reference repositories
 

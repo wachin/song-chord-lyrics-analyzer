@@ -187,14 +187,15 @@ vocals, reverb and the production style are uncontrolled. And this compares the 
 
 **Why.** Roadmap 27 asks for chord recognition tested on `original`, `bass`, `other`,
 `vocals` and `other + bass`; roadmap 28 asks which of them wins. This pass now covers
-two songs.
+three songs.
 
 **Input.** Two commercial MP3s supplied by the user for local analysis only, each with a
 hand-written chord chart. Both pairs live in the gitignored `mp3/` directory; the extracted
 audio, the stems and the detected sequences live in the gitignored `.cache/chords/<song>/`.
 **Neither the audio nor the chord charts are committed, and no lyric text is reproduced**
 here. Song A is 327.16 s, 44.1 kHz stereo, 160 kbit/s, tagged 84 BPM; song B is 268.5 s,
-48 kHz stereo, ~103 kbit/s. The Demucs 4-stem split (`htdemucs`, CPU) is the same
+48 kHz stereo, ~103 kbit/s; song C is 254.3 s, 44.1 kHz stereo, ~327 kbit/s. The Demucs
+4-stem split (`htdemucs`, CPU) is the same
 configuration used for the real-song lyrics pass, run once per song. For song B, the free
 LRCLIB lyrics API was also queried as a feasibility check: a plain and a line-timed variant
 of the song exist there and match its duration, and the response is kept in the gitignored
@@ -223,7 +224,11 @@ for song B (robustness rows below), which is the honest cross-song test.
 with section headers but **no timestamps** — the standard chord-sheet format (as found on
 ultimate-guitar), so frame accuracy, segment overlap and chord-change timing error cannot
 be computed. Song A's chart has 86 chords, 8 distinct (A, Am, Bm, C, D, Em, F#m, G), key
-D major; song B's has 64 chords, only 4 distinct (A, D, E, F#m), key A major. Charts are
+D major; song B's has 64 chords, only 4 distinct (A, D, E, F#m), key A major; song C's has
+101 chords, 8 distinct (Am, Bm, C, D7, Dm, E, E5, F), key A minor — and it is the first
+chart with seventh (`D7`) and fifth (`E5`) labels, which the 24-triad decoder cannot emit in
+the first place, so song C is also scored against the reference **reduced to triads** (a
+documented scoring view, never an edit of the chart). Charts are
 scored instead by:
 
 * **sequence alignment** (Needleman-Wunsch, gap cost 1) between the reference sequence and
@@ -254,55 +259,90 @@ scored instead by:
 | Demucs `vocals` | 50 | 0.544 | 0.597 | 0.544 | 0.579 | 0.615 | A major ✓ |
 | Demucs `bass` | 40 | 0.308 | 0.654 | 0.308 | 0.308 | 0.600 | A major ✓ |
 
+**Results, song C** at the same change penalty 0.40, held over from song A (reference:
+101 chords; chart key A minor). First against the chart's own labels:
+
+| Input (254.3 s) | chords detected | exact F1 | root F1 | quality F1 | multiset F1 | palette F1 | key |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | :---: |
+| original mix | 98 | 0.372 | 0.623 | 0.372 | 0.502 | 0.667 | A minor ✓ |
+| Demucs `no_vocals` (drums+bass+other) | 101 | 0.396 | 0.653 | 0.396 | 0.505 | 0.667 | E minor ✗ |
+| Demucs `bass` | 97 | 0.384 | 0.748 | 0.384 | 0.495 | 0.706 | A minor ✓ |
+| Demucs `bass`+`other` | 103 | 0.343 | 0.686 | 0.343 | 0.490 | 0.667 | E minor ✗ |
+| Demucs `vocals` | 39 | 0.371 | 0.457 | 0.371 | 0.443 | 0.615 | A minor ✓ |
+| Demucs `other` | 93 | 0.216 | 0.433 | 0.216 | 0.371 | 0.625 | E minor ✗ |
+
+And against the reference reduced to triads (`D7`→`D`, `E5`→`E`), which is the fair
+comparison for a triad-only decoder:
+
+| Input | exact F1 | root F1 | multiset F1 | palette F1 | key |
+| --- | ---: | ---: | ---: | ---: | :---: |
+| Demucs `bass` | 0.596 | **0.748** | **0.707** | **0.875** | A minor ✓ |
+| Demucs `bass`+`other` | 0.598 | 0.686 | 0.667 | 0.824 | E minor ✗ |
+| Demucs `no_vocals` | 0.594 | 0.653 | 0.644 | 0.824 | E minor ✗ |
+| original mix | 0.533 | 0.623 | 0.613 | 0.824 | A minor ✓ |
+| Demucs `vocals` | 0.414 | 0.457 | 0.486 | 0.833 | A minor ✓ |
+| Demucs `other` | 0.320 | 0.433 | 0.474 | 0.800 | E minor ✗ |
+
 **Robustness to the change penalty** (multiset F1), because a single tuned value would hide
 the sensitivity:
 
-| Input | song A 0.30 | song A 0.40 | song A 0.50 | song B 0.30 | song B 0.40 | song B 0.50 |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| original mix | **0.726** | 0.809 | 0.765 | 0.721 | 0.688 | **0.727** |
-| Demucs `other` | 0.652 | **0.859** | 0.752 | 0.749 | 0.866 | **0.924** |
-| Demucs `bass`+`other` | 0.700 | 0.720 | **0.787** | 0.719 | 0.701 | 0.711 |
-| Demucs `no_vocals` | 0.687 | 0.698 | 0.715 | 0.703 | 0.704 | 0.588 |
-| Demucs `vocals` | 0.652 | 0.684 | 0.567 | 0.579 | 0.579 | 0.596 |
-| Demucs `bass` | 0.560 | 0.537 | 0.526 | 0.403 | 0.308 | 0.408 |
+| Input | song A 0.30 | song A 0.40 | song A 0.50 | song B 0.30 | song B 0.40 | song B 0.50 | song C 0.30 | song C 0.40 | song C 0.50 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| original mix | **0.726** | 0.809 | 0.765 | 0.721 | 0.688 | **0.727** | 0.451 | 0.502 | 0.452 |
+| Demucs `other` | 0.652 | **0.859** | 0.752 | 0.749 | 0.866 | **0.924** | 0.326 | 0.371 | 0.388 |
+| Demucs `bass`+`other` | 0.700 | 0.720 | **0.787** | 0.719 | 0.701 | 0.711 | 0.400 | 0.490 | 0.484 |
+| Demucs `no_vocals` | 0.687 | 0.698 | 0.715 | 0.703 | 0.704 | 0.588 | 0.407 | 0.505 | 0.450 |
+| Demucs `vocals` | 0.652 | 0.684 | 0.567 | 0.579 | 0.579 | 0.596 | 0.395 | 0.443 | 0.378 |
+| Demucs `bass` | 0.560 | 0.537 | 0.526 | 0.403 | 0.308 | 0.408 | 0.473 | 0.495 | 0.447 |
 
 **Cost.** Song A: ~38–40 s per 327 s song (real-time factor ≈ 0.12, peak RSS ≈ 1.04 GiB);
-song B: ~33–34 s per 268.5 s (real-time factor ≈ 0.12, peak RSS ≈ 0.90 GiB). Feature
+song B: ~33–34 s per 268.5 s (real-time factor ≈ 0.12, peak RSS ≈ 0.90 GiB); song C: ~31–33
+s per 254.3 s (real-time factor 0.12–0.13, peak RSS ≈ 0.86 GiB). Feature
 extraction is essentially all of it — decoding is 0.03–0.05 s.
 
 **Reading it.**
 
-* **All six inputs recover the correct key (D major)** — key estimation is robust to which
-  stems are fed in.
-* **The ranking repeated across both songs (n = 2).** `other` is first and the raw mix
-  second on song A *and* song B at the held penalty; `bass` and `vocals` are last on both.
-  Song A alone had suggested no stem was reliably best — with two songs, `other` looks like
-  the better chord input.
-* **The raw mix stays near the top at every penalty on both songs** (it leads song A at
-  0.30 and sits within 0.02 of the best stem input there on song B), so it remains the
-  safest no-separation choice.
-* **The penalty tuned on song A transferred to song B.** At 0.40 the mix is within 0.04 of
-  its own best (0.688 vs 0.727 at 0.50), and `other`'s best sits at or above 0.40 on both
-  songs — the value is not song-specific, though the full sweep ran only on song A.
+* **Key estimation was robust — until song C.** On songs A and B all six inputs recovered
+  the correct key. On song C three of six (`other`, `bass`+`other`, `no_vocals`) estimated
+  E minor for an A-minor song: the arrangement's dominant-heavy `E`/`E5` turnaround pulled
+  the Krumhansl-Schmuckler profile to the dominant. Key accuracy is not stem-proof.
+* **The n = 2 ranking did not survive song C.** `other`, first on songs A and B, is
+  second-to-last on C (multiset F1 0.371 on the chart's labels, 0.474 in the triad view);
+  `bass`, last on both earlier songs, is the **best** input on C in the triad view (0.707).
+  Three songs in, the honest conclusion is back to *no stem is reliably best* — the earlier
+  `other` rule was overfit to two songs, which is exactly what the n = 1 caveat predicted.
+* **The raw mix remains the most consistent input across all three songs.** It leads song
+  A at penalty 0.30, ties for first on song C's label view, and is never last anywhere —
+  the safest no-separation choice, even though it is nobody's clear winner.
+* **The penalty tuned on song A transferred to songs B and C.** The mix peaks at 0.40 on
+  all three songs, and on C no input climbs much at any penalty (0.37–0.51) — the value is
+  not song-specific, though the full sweep ran only on song A.
 * **Separation is not required for chords, and it is not a free win.** As in the lyrics pass,
   the extra processing does not buy a stable improvement over the mix.
-* **`bass` alone and `vocals` alone are clearly the worst.** `bass` recovers roots but not
-  qualities (root F1 0.585 vs quality F1 0.429 — it finds the root and gets the third wrong),
-  and `vocals` carries melody rather than the chord.
+* **`bass` alone inverted between songs.** On songs A and B it was clearly worst (it finds
+  roots but not qualities); on song C it is the best triad-view input (root F1 0.748). The
+  chart's bass-led arpeggiation — the genre's typical solo-guitar style — rewards the bass
+  stem, which the band arrangements of songs A and B punished. `vocals` stays weak on all
+  three songs: it carries melody, not harmony.
 * **The dominant knob is the change penalty**, not the input: moving it from 0.40 to 0.50
   roughly halves the detected chord count (87 → 63 on the mix).
 * **The error pattern is systematic**: the engine confuses major with the parallel minor
   (on song A it emits `Dm` and `Gm` where the chart has `D` and `G`, and misses the single
   borrowed `C`; at penalty 0.40 the mix recovers 7 of 8 reference chords). Song B shows the
   same shape: `other` recovers all 4 reference chords with a single false parallel (`Em`),
-  while the mix recovers all 4 but adds three (`Bm`, `Dm`, `Em`).
+  while the mix recovers all 4 but adds three (`Bm`, `Dm`, `Em`). Song C adds a new one:
+  detected chord *counts* can match the chart (98 vs 101) while the content is wrong, so
+  count alone is not evidence of accuracy.
 
-**Limits.** Two songs and charts (n = 2), from the same user and the same genre (simple
-diatonic worship arrangements): still no statistical claim, and song B's 4-chord palette
+**Limits.** Three songs and charts (n = 3), from the same user and the same genre (simple
+diatonic worship arrangements; song C is from the same arranger as song A): still no
+statistical claim, and song B's 4-chord palette
 makes the palette metric easy. The charts have no timestamps, so no frame-level accuracy
 exists. The change penalty was selected on song A's sweep — a tuned, not a default, value —
-though it transferred to song B. The reference chords are the user's editorial choices for
-their own arrangements, not definitive transcriptions.
+though it transferred to songs B and C. Song C's triad-reduced view means its seventh and
+fifth labels can never be scored exactly against a triad-only decoder, and the reference
+chords are the user's editorial choices for their own arrangements, not definitive
+transcriptions.
 
 ## Observations
 
@@ -329,11 +369,13 @@ their own arrangements, not definitive transcriptions.
   the packaged ONNX Parakeet path returned 8 garbled words, and the upstream VAD route returned
   nothing at all (a speech VAD does not treat singing as speech). Only our own fixed-window
   chunking worked.
-* **Chord input matters, and `other` now leads twice.** On both chord-pass songs all six
-  inputs recovered the right key; `other` ranked first and the raw mix second on both
-  (multiset F1 0.859/0.866 vs 0.809/0.688), with `bass` and `vocals` clearly worst. The
-  change penalty still matters more than anything else. Unlike the lyrics pass, for chords
-  the separation into `other` did buy a consistent win on both songs measured so far.
+* **Chord input: no stable winner across three songs.** `other` led on songs 1–2 (multiset
+  F1 0.859/0.866) but collapsed on song 3 (0.371/0.474); `bass`, worst on songs 1–2, led
+  song 3 in the triad view (0.707). All six inputs recovered the key on songs 1–2; on song 3
+  three inputs got it wrong. The raw mix never wins by much but never collapses, and the
+  change penalty still matters more than anything else. This is the same
+  "separation is not a free win" result the lyrics pass reached, now strengthened on the
+  chord task.
 * **The chord engine's errors are systematic, not random**: parallel major/minor confusion
   and missed borrowed chords, at a chord count (87) that closely matches the chart (86).
 
@@ -347,7 +389,7 @@ their own arrangements, not definitive transcriptions.
 * Not a full-transcript evaluation of the real song: its embedded lyrics are a partial
   reference, so no whole-song WER against a verbatim transcript exists.
 * Not a chord-engine benchmark: the section-23/24 engine is a hand-written baseline with no
-  sibling to compare against, tested on two songs with timestamp-free charts, so it measures
+  sibling to compare against, tested on three songs with timestamp-free charts, so it measures
   *this* engine against *these* references, not chord recognition in general.
 * Not a claim that one engine should be adopted. It is a first data point to inform phase 3.
 
@@ -371,7 +413,8 @@ like the rest of `results/`.
 The chord pass lives in the gitignored `.cache/chords/` (`chords.py`, now per-song via a
 `--song` flag, with per-song subdirectories holding the extracted audio, the Demucs stems,
 cached chroma/beat features, per-input `results/*.json`, `summary.json`, the
-`sweep.json`/`robust.json` parameter grids and a fetched LRCLIB response for song B). Both
+`sweep.json`/`robust.json` parameter grids, a fetched LRCLIB response for song B and a
+triad-reduced scoring view (`report --triads`, used for song C's seventh/fifth labels). Both
 commercial MP3s and both chord charts stay in the gitignored `mp3/` directory. **Neither
 the audio, the chord charts nor any lyric text is committed**, and the pass is not
 reproducible without the user's own copies; the tables above are the durable record.
@@ -379,8 +422,8 @@ reproducible without the user's own copies; the tables above are the durable rec
 ## What it will contain, per engine and per preprocessing strategy (still pending)
 
 The chord rows below (root/quality/exact accuracy, segment overlap, change timing) are
-**now measured twice** in the chord section above, but only as timing-free sequence scores on
-two timestamp-free charts; a true `songlab benchmark` report with frame metrics is still
+**now measured three times** in the chord section above, but only as timing-free sequence scores on
+three timestamp-free charts; a true `songlab benchmark` report with frame metrics is still
 pending, so the table stays as the specification.
 
 | Field | Example |

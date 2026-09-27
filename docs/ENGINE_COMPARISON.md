@@ -415,7 +415,9 @@ The chord pass lives in the gitignored `.cache/chords/` (`chords.py`, now per-so
 cached chroma/beat features, per-input `results/*.json`, `summary.json`, the
 `sweep.json`/`robust.json` parameter grids, a fetched LRCLIB response for song B and a
 triad-reduced scoring view (`report --triads`, used for song C's seventh/fifth labels). Both
-commercial MP3s and both chord charts stay in the gitignored `mp3/` directory. **Neither
+commercial MP3s and both chord charts stay in the gitignored `mp3/` directory (the user
+also mirrors them in the private `mp3-library/` submodule, whose reference hash is the only
+thing committed). **Neither
 the audio, the chord charts nor any lyric text is committed**, and the pass is not
 reproducible without the user's own copies; the tables above are the durable record.
 

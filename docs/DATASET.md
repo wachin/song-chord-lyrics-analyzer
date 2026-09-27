@@ -14,6 +14,10 @@ Three user-supplied commercial MP3s with hand-written chord charts were used by 
 2026-09-26 chord pass (`docs/ENGINE_COMPARISON.md`, "Chords"): all live only in the
 gitignored `mp3/` directory, the chord charts are local references rather than dataset
 entries (they have no timestamps and no sidecars), and none are committed or redistributable.
+The user also keeps a private GitHub backup of the same files (mp3 plus chord charts),
+mounted here as the private `mp3-library/` submodule: only the submodule reference hash is
+committed — the audio and the chart text stay in that private repository and are never
+committed here or redistributed.
 
 ## Policy
 

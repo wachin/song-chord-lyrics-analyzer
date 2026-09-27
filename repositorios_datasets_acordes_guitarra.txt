@@ -1,0 +1,96 @@
+Repositorios y datasets de acordes de guitarra, posiciones y audio
+===============================================================
+
+1. T-vK/chord-collection
+URL: https://github.com/T-vK/chord-collection
+Descripción: Base de datos de acordes de guitarra con posiciones de dedos/fretes. Es una referencia directa para representar las digitaciones y formas de los acordes.
+
+2. marl/GuitarSet
+URL: https://github.com/marl/GuitarSet
+Descripción: Dataset de grabaciones reales de guitarra para transcripción. Incluye audio y anotaciones detalladas, entre ellas notas, cuerdas, acordes y posiciones. Es especialmente útil para relacionar audio con información musical de guitarra.
+
+3. GuitarSet — Zenodo
+URL: https://zenodo.org/records/3371780
+Descripción: Descarga oficial de los datos de GuitarSet, incluyendo diferentes capturas de audio y los archivos de anotaciones. Es el complemento de datos/audio del repositorio GitHub de GuitarSet.
+
+4. severyn-k/isolated-guitar-chords
+URL: https://huggingface.co/datasets/severyn-k/isolated-guitar-chords
+Descripción: Dataset de grabaciones aisladas de acordes de guitarra. Contiene acordes mayores y menores, diferentes patrones de rasgueo y varias digitaciones. CC BY 4.0.
+
+5. ryangowe/guitar-chord-mix
+URL: https://huggingface.co/datasets/ryangowe/guitar-chord-mix
+Descripción: Dataset unificado que reúne GuitarSet, Guitar-Techs, EGFxSet, Isolated Guitar Chords, bibliotecas SFZ y ruido DEMAND. Los clips incluyen WAV y anotaciones JAMS con información MIDI por cuerda. Es uno de los recursos más interesantes para combinar reconocimiento de acordes y audio.
+
+6. Madhudorai/Guitar-TECHS
+URL: https://github.com/Madhudorai/Guitar-TECHS
+Descripción: Dataset de grabaciones reales de guitarra orientado a investigación musical. Incluye notas individuales, escalas y acordes, con información por cuerda/MIDI. Puede servir para relacionar audio con notas y posiciones.
+
+7. philwhiles/frettler
+URL: https://github.com/philwhiles/frettler
+Descripción: Programa open source que contiene una base de datos de digitaciones de acordes para guitarra y otros instrumentos de cuerda. Utiliza definiciones de acordes/fingerings y datos derivados de OLGA. No es un dataset de audio.
+
+8. IDMT-SMT-Guitar — Fraunhofer IDMT
+URL: https://www.idmt.fraunhofer.de/en/publications/datasets/guitar.html
+Descripción: Gran base de datos de grabaciones reales de guitarra. Incluye diferentes guitarras, técnicas de ejecución y anotaciones. Una parte contiene información para tareas de transcripción y otra para reconocimiento de acordes y ritmo. Licencia del dataset: CC BY-NC-ND 4.0.
+
+9. IDMT-SMT-Guitar — Zenodo
+URL: https://zenodo.org/records/7544110
+Descripción: Descarga del dataset IDMT-SMT-Guitar de Fraunhofer IDMT. Contiene los archivos de audio y sus anotaciones correspondientes.
+
+10. IDMT-SMT-Chords
+URL: https://zenodo.org/records/7544213
+Descripción: Dataset de acordes generado a partir de MIDI, con instrumentos sintetizados, incluyendo guitarras acústicas y eléctricas. Contiene 7.398 segmentos de acordes y 273 clases/voicings de guitarra. Es útil para experimentación, pero el audio no procede de grabaciones reales de guitarra.
+
+11. IDMT-SMT-Chord-Sequences
+URL: https://zenodo.org/records/7544225
+Descripción: Dataset de 15.000 progresiones de acordes sintetizadas a partir de MIDI, con metadatos sobre tempo, métrica, duración, instrumento y progresión. Útil para trabajar con secuencias de acordes, aunque no es una colección de grabaciones reales.
+
+12. Freesound
+URL: https://freesound.org/
+Descripción: Plataforma de muestras de audio. Contiene grabaciones aisladas de acordes de guitarra, rasgueos y diferentes guitarras. No tiene una estructura uniforme de digitaciones como chord-collection, por lo que debe utilizarse como fuente complementaria y revisando la licencia de cada sonido.
+
+13. Guitar Chord Mix — estructura y descarga
+URL: https://huggingface.co/datasets/ryangowe/guitar-chord-mix
+Descripción: La colección incluye clips WAV, anotaciones JAMS por cuerda y recursos SFZ. Las bibliotecas SFZ permiten generar audio sintético de notas o acordes mediante un reproductor SFZ, por ejemplo sfizz.
+
+---------------------------------------------------------------
+Observación para el proyecto
+---------------------------------------------------------------
+
+No encontré un único repositorio que combine exactamente, para cada voicing de guitarra:
+
+    nombre del acorde
+    + posición de cada cuerda
+    + número de dedo
+    + audio real de esa misma digitación
+
+La combinación más útil para construir una base propia sería:
+
+    chord-collection / Frettler
+        -> formas, fretes y digitaciones
+
+    GuitarSet / Guitar-TECHS / IDMT-SMT-Guitar
+        -> audio real + anotaciones de guitarra
+
+    isolated-guitar-chords
+        -> audio de acordes aislados
+
+    guitar-chord-mix
+        -> integración de varias de estas fuentes
+
+    IDMT-SMT-Chords / SFZ
+        -> audio sintético y generación controlada
+
+La estructura conceptual recomendada sería:
+
+    Acorde
+      -> Voicing
+        -> Afinación
+        -> Fretes
+        -> Dedos
+        -> Notas/MIDI
+        -> Audio
+        -> Fuente/licencia
+
+Nota sobre licencias:
+Las licencias no son iguales entre los datasets. Antes de redistribuir audio o incorporarlo a una aplicación comercial, hay que revisar la licencia específica de cada fuente y, cuando corresponda, la licencia de los archivos individuales.

@@ -1,0 +1,3 @@
+https://github.com/T-vK/chord-collection
+
+Simple collection of guitar chords in a javascript-friendly object and in json.

@@ -160,6 +160,16 @@ investigation, not a `songlab benchmark` run, and no chord adapter is registered
   three songs, fourth only on song 3's raw-label view), `vocals` never left the bottom two,
   and `other`'s best penalty on this song
   was 0.30 (0.822), not 0.40. Cost ~35–36 s per 296.8 s (RTF 0.12, peak RSS ≈ 0.95 GiB).
+* **Fifth song (same days).** A sixth user-supplied commercial MP3 with its own hand-written
+  chart (85 chords, 12 distinct — the richest vocabulary yet; first chart with an in-song
+  modulation, D major → E major on the final chorus; `D7`/`E7` labels scored against a
+  triad-reduced reference; 315.7 s). **The raw mix won for the first time** (multiset F1
+  0.778, palette 0.857; 0.811/0.947 triad-reduced) with `bass`+`other` second (0.770) and
+  `bass` worst (0.552) — five songs, four different winners. `vocals` mis-estimated the key
+  to the relative (F# minor), and the modulating chart itself estimates A major (V of D,
+  IV of E), softening key scoring for this song; 6 of 30 condition–song pairs get the key
+  wrong overall. The 0.40 penalty transferred to songs B–D but song E's mix peaks at 0.50
+  (0.829). Cost ~38–42 s per 315.7 s (RTF 0.12–0.13, peak RSS ≈ 0.98 GiB).
 
 ### Reference repositories
 

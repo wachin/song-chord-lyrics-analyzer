@@ -271,11 +271,13 @@ tests:
 13. **Chord recognition baseline was measured but is not adopted (2026-09-26).** Our own
     chroma (CQT/CENS) + 24-triad-template + beat-synchronous Viterbi baseline
     (`librosa` 1.0.0, run in a throwaway gitignored venv) was scored against user chord
-    charts on four songs (327 s, 268.5 s, 254.3 s, 296.8 s) and on their Demucs stems — the
-    stem ranking keeps inverting between songs (`other` led the first two, `bass` the third
-    in a triad-reduced view, `no_vocals` the fourth; `bass`+`other` never finished far
-    from the top), the raw mix never collapsed but 5 of 24 condition–song pairs mis-estimated the
-    key (dominant-heavy arrangements pull the profile to the dominant), and the change
+    charts on five songs (327 s, 268.5 s, 254.3 s, 296.8 s, 315.7 s) and on their Demucs
+    stems — the stem ranking keeps inverting between songs (five songs, four different
+    winners: `other` twice, `bass` once in a triad-reduced view, `no_vocals` once, the raw
+    mix once on a modulating song; `bass`+`other` never finished far from the top), 6 of 30
+    condition–song pairs mis-estimated the
+    key (dominant-heavy arrangements pull the profile to the dominant; modulations blur the
+    reference key), and the change
     penalty still mattered most. No
     chord adapter is registered in `src/` yet, so this remains an exploratory data point,
     not a selected engine. See `docs/ENGINE_COMPARISON.md` "Chords".

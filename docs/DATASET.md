@@ -10,7 +10,7 @@ The 2026-09-25 real-music pass of the lyrics-ASR investigation used one commerci
 by the user: it lives only in the gitignored `mp3/` directory (and the gitignored
 `.cache/real-song/`), is never committed or redistributed, and is a local check rather than a
 dataset entry — so it carries no sidecar and cannot be reproduced without the reader's own copy.
-Four user-supplied commercial MP3s with hand-written chord charts were used by the
+Five user-supplied commercial MP3s with hand-written chord charts were used by the
 2026-09-26 chord pass (`docs/ENGINE_COMPARISON.md`, "Chords"): all live only in the
 gitignored `mp3/` directory, the chord charts are local references rather than dataset
 entries (they have no timestamps and no sidecars), and none are committed or redistributable.

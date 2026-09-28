@@ -28,3 +28,108 @@
 [submodule "mp3-library"]
 	path = mp3-library
 	url = https://github.com/wachin/mp3-text-lyrics-chords.git
+[submodule "external/chordify-org/AceEval"]
+	path = external/chordify-org/AceEval
+	url = https://github.com/chordify/AceEval.git
+[submodule "external/chordify-org/amazonka"]
+	path = external/chordify-org/amazonka
+	url = https://github.com/chordify/amazonka.git
+[submodule "external/chordify-org/billboard-parser"]
+	path = external/chordify-org/billboard-parser
+	url = https://github.com/chordify/billboard-parser.git
+[submodule "external/chordify-org/binary-parsers"]
+	path = external/chordify-org/binary-parsers
+	url = https://github.com/chordify/binary-parsers.git
+[submodule "external/chordify-org/CASD"]
+	path = external/chordify-org/CASD
+	url = https://github.com/chordify/CASD.git
+[submodule "external/chordify-org/currency-codes"]
+	path = external/chordify-org/currency-codes
+	url = https://github.com/chordify/currency-codes.git
+[submodule "external/chordify-org/esqueleto"]
+	path = external/chordify-org/esqueleto
+	url = https://github.com/chordify/esqueleto.git
+[submodule "external/chordify-org/gogol"]
+	path = external/chordify-org/gogol
+	url = https://github.com/chordify/gogol.git
+[submodule "external/chordify-org/HarmTrace-Base"]
+	path = external/chordify-org/HarmTrace-Base
+	url = https://github.com/chordify/HarmTrace-Base.git
+[submodule "external/chordify-org/haskell-servant-pagination"]
+	path = external/chordify-org/haskell-servant-pagination
+	url = https://github.com/chordify/haskell-servant-pagination.git
+[submodule "external/chordify-org/haskell-sphinx-client"]
+	path = external/chordify-org/haskell-sphinx-client
+	url = https://github.com/chordify/haskell-sphinx-client.git
+[submodule "external/chordify-org/hedis"]
+	path = external/chordify-org/hedis
+	url = https://github.com/chordify/hedis.git
+[submodule "external/chordify-org/ISMIR2020-industrybooth"]
+	path = external/chordify-org/ISMIR2020-industrybooth
+	url = https://github.com/chordify/ISMIR2020-industrybooth.git
+[submodule "external/chordify-org/iso8601-duration"]
+	path = external/chordify-org/iso8601-duration
+	url = https://github.com/chordify/iso8601-duration.git
+[submodule "external/chordify-org/libjwt-typed"]
+	path = external/chordify-org/libjwt-typed
+	url = https://github.com/chordify/libjwt-typed.git
+[submodule "external/chordify-org/mautic"]
+	path = external/chordify-org/mautic
+	url = https://github.com/chordify/mautic.git
+[submodule "external/chordify-org/mautic-rss-to-email-bundle"]
+	path = external/chordify-org/mautic-rss-to-email-bundle
+	url = https://github.com/chordify/mautic-rss-to-email-bundle.git
+[submodule "external/chordify-org/modern-uri"]
+	path = external/chordify-org/modern-uri
+	url = https://github.com/chordify/modern-uri.git
+[submodule "external/chordify-org/mysql-haskell"]
+	path = external/chordify-org/mysql-haskell
+	url = https://github.com/chordify/mysql-haskell.git
+[submodule "external/chordify-org/openapi3"]
+	path = external/chordify-org/openapi3
+	url = https://github.com/chordify/openapi3.git
+[submodule "external/chordify-org/orchestrator"]
+	path = external/chordify-org/orchestrator
+	url = https://github.com/chordify/orchestrator.git
+[submodule "external/chordify-org/persistent"]
+	path = external/chordify-org/persistent
+	url = https://github.com/chordify/persistent.git
+[submodule "external/chordify-org/progress-reporting"]
+	path = external/chordify-org/progress-reporting
+	url = https://github.com/chordify/progress-reporting.git
+[submodule "external/chordify-org/redis-schema"]
+	path = external/chordify-org/redis-schema
+	url = https://github.com/chordify/redis-schema.git
+[submodule "external/chordify-org/repa"]
+	path = external/chordify-org/repa
+	url = https://github.com/chordify/repa.git
+[submodule "external/chordify-org/servant"]
+	path = external/chordify-org/servant
+	url = https://github.com/chordify/servant.git
+[submodule "external/chordify-org/servant-multipart"]
+	path = external/chordify-org/servant-multipart
+	url = https://github.com/chordify/servant-multipart.git
+[submodule "external/chordify-org/stacklock2nix"]
+	path = external/chordify-org/stacklock2nix
+	url = https://github.com/chordify/stacklock2nix.git
+[submodule "external/chordify-org/tapcorrect"]
+	path = external/chordify-org/tapcorrect
+	url = https://github.com/chordify/tapcorrect.git
+[submodule "external/chordify-org/tensorflow-haskell"]
+	path = external/chordify-org/tensorflow-haskell
+	url = https://github.com/chordify/tensorflow-haskell.git
+[submodule "external/chordify-org/text-icu-translit"]
+	path = external/chordify-org/text-icu-translit
+	url = https://github.com/chordify/text-icu-translit.git
+[submodule "external/chordify-org/time"]
+	path = external/chordify-org/time
+	url = https://github.com/chordify/time.git
+[submodule "external/chordify-org/typelits-witnesses"]
+	path = external/chordify-org/typelits-witnesses
+	url = https://github.com/chordify/typelits-witnesses.git
+[submodule "external/chordify-org/wire-streams"]
+	path = external/chordify-org/wire-streams
+	url = https://github.com/chordify/wire-streams.git
+[submodule "external/chordify-org/zmidi-score"]
+	path = external/chordify-org/zmidi-score
+	url = https://github.com/chordify/zmidi-score.git

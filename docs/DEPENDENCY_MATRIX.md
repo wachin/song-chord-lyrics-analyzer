@@ -655,3 +655,22 @@ chord/structure work, but neither needs the clone.
 **Revisit only if** a GPU path enters the project, quantized checkpoints are published,
 *and* the timestamped chord/ASR benchmarks appear.
 
+**2026-09-27 — Chordify's own GitHub organisation mounted as reference submodules (35
+repos).** All 35 public repositories of `github.com/chordify` are now shallow submodules
+under `external/chordify-org/` (read-only reference only — nothing is imported, executed
+or copied, per the `external/` policy). The organisation is almost entirely Haskell (the
+backend language) plus two Python research repos. The relevant ones: `HarmTrace-Base`
+(their harmonic parsing model, LGPL-3.0), `CASD` (Chordify Annotator Subjectivity
+Dataset — multiple human chord annotations per song, the company's own evidence of chord-
+label subjectivity), `tapcorrect` (automatic tap-tempo correction), `zmidi-score` and
+`billboard-parser` (MIDI/chart tooling), `repa` (parallel arrays) and a `tensorflow-haskell`
+fork, signalling ML inside their Haskell backend. Their published pipeline (ISMIR 2012
+and 2015 papers, team AMA) extracts downbeat positions and tonal content with Sonic
+Annotator and Vamp plugins (NNLS Chordino) and serves results from Haskell — the
+architecture re-implemented as our roadmap 24.1 baseline. A decompiled
+`net.chordify.chordify` Android app (local, gitignored) adds on-device evidence: a native
+library named `mirimba` exposing JNI symbols for live chord detection
+(`mirimba_livechorddetection_new/process/get_hop_size/get_sample_rate`) and tuning, plus
+TensorFlow Lite classes with no model bundled — song analysis stays server-side at
+`chordify.net/api/v2/songs/`.
+

@@ -149,8 +149,17 @@ investigation, not a `songlab benchmark` run, and no chord adapter is registered
   rewards the bass stem. For the first time **three of six inputs mis-estimated the key**
   (E minor for an A-minor song), and the raw mix was again the most consistent input.
   Conclusion back to *no stem is reliably best*, with the raw mix the safest
-  no-separation choice; detected chord counts matching the reference (98 vs 101) proved no
-guarantee of accuracy.
+  no-separation choice; detected chord counts matching the reference (98 vs 101) proved no  guarantee of accuracy.
+* **Fourth song (same day).** A fifth user-supplied commercial MP3 with its own hand-written
+  chart (79 chords, only 4 distinct, key E major, plain triads; 296.8 s) — the first song
+  taken from the user's private `mp3-library` submodule, which now feeds the harness
+  directly. `no_vocals` led (multiset F1 0.795) with `bass`+`other` second (0.780), `bass`
+  alone was worst again (0.649), and **the raw mix mis-estimated the key for the first time**
+  (B major for an E-major song — the dominant-heavy chart pulled it; `vocals` failed the
+  same way). With n = 4: `bass`+`other` is the steadiest stem input (second or third on
+  three songs, fourth only on song 3's raw-label view), `vocals` never left the bottom two,
+  and `other`'s best penalty on this song
+  was 0.30 (0.822), not 0.40. Cost ~35–36 s per 296.8 s (RTF 0.12, peak RSS ≈ 0.95 GiB).
 
 ### Reference repositories
 

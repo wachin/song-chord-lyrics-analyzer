@@ -1787,6 +1787,16 @@ Store provenance.
 
 # [ ] 44. Metrics
 
+*Status (2026-09-28): partial — in the gitignored chord harness, the chord views now cover
+exact/root/quality F1 (timing-free alignment), multiset and palette F1, key agreement, and
+— new — AceEval's **MIREX-2010** equality view (measured: 0.636 mean F1 vs 0.575 for the
+historical exact view, with a max-match tie-break control at 0.619) plus a
+duration-weighted **Chord Sequence Recall** whose machinery is fixture-validated
+(11/16 = 0.6875) but cannot run on real songs because the charts carry no timestamps
+(roadmap 43): segment overlap, change-detection and timing error stay unmeasured rather
+than invented. Lyrics WER/CER exist from the ASR passes (roadmap 25); key and tempo
+metrics await their engines; nothing is integrated in `src/` yet.*
+
 ## [ ] Chord metrics
 
 Implement:

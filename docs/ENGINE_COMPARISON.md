@@ -331,6 +331,45 @@ scored instead by:
 * **multiset F1** (repeat-aware chord distribution) and **palette F1** (distinct chords);
 * **key** agreement (Krumhansl-Schmuckler on the reference's chord tones vs on the audio).
 
+**Two more scoring views (roadmap 44, 2026-09-28), from AceEval.** Both were read in
+`external/chordify-org/AceEval` and re-implemented in the harness (ideas, not code), then
+measured on the same 5 songs × 6 inputs:
+
+* **MIREX-2010 equality** (`ChordEq.hs: mirex2010`): two chords match when their
+  pitch-class intersection reaches 3 (2 when the *ground truth* is augmented or
+  diminished), plus 1 for each non-root bass note sounding inside the other chord; `N`
+  matches only `N`. Used as the substitution predicate of the same alignment.
+  Consequence for our charts: `D7`/`E7` finally match `D`/`E` (shared triad = 3 pitch
+  classes) without editing the reference, while a power chord such as `E5` (2 pitch
+  classes) still never matches.
+* **Duration-weighted Chord Sequence Recall** (`Func.hs: crossSegment`/`overlapRatio`):
+  `csr = equal_duration / (equal + not_equal)` over the common refinement of the two
+  segmentations. The machinery is validated by the harness's `metrics` command on a
+  hand-computed fixture (12 equality cases asserted; 11 s equal / 5 s not equal → CSR
+  0.6875), but it **cannot yet run on real songs**: the charts carry no timestamps
+  (roadmap 43), and inventing reference timings would be exactly the kind of fake number
+  this project forbids. Implemented and waiting for timed ground truth.
+
+| View (mean F1 over the 30 condition–song rows) | F1 |
+| --- | ---: |
+| exact, historical tie-break (all tables above) | 0.575 |
+| exact, max-match tie-break (control) | 0.619 |
+| **MIREX-2010 equality, max-match ties** | **0.636** |
+| triad-reduced exact (songs C/E views) | 0.597 |
+| multiset / palette | 0.691 / 0.760 |
+
+Two effects stack in the MIREX row, and the control separates them: the equality itself
+is worth +0.017, while **+0.044 comes from the tie-break** — Needleman-Wunsch had been
+reconstructing an arbitrary minimum-cost path rather than the max-match one (song E's
+`bass` yields 36 matches under the historical rule and 33 under a differently-tied
+min-cost path with the *same* edit cost). The historical views keep their rule so every
+recorded number still reproduces, and every configuration was scored with the same rule,
+so the rankings in this document are unaffected — but a future `songlab benchmark` should
+adopt the max-match rule. Per-song MIREX means: 0.687 / 0.715 / 0.491 / 0.664 / 0.626
+(A–E). Under the MIREX view the per-stem winner changes only on song C (`bass`+`other`
+0.612 instead of `bass` 0.475, agreeing with the triad-reduced view); the other four
+winners are unchanged.
+
 **Results (engine v2), song A** at change penalty 0.40 (reference: 86 chords; chart key
 D major).
 
@@ -573,7 +612,10 @@ The chord pass lives in the gitignored `.cache/chords/` (`chords.py`, now per-so
 `--song` flag, with per-song subdirectories holding the extracted audio, the Demucs stems,
 cached chroma/beat features, per-input `results/*.json`, `summary.json`, the
 `sweep.json`/`robust.json` parameter grids, the `variants.json` nine-configuration
-ablation behind the `variants` command, a fetched LRCLIB response for song B and a
+ablation behind the `variants` command, the `transitions.json` 16-configuration
+tapcorrect grid behind `transitions`, the `metrics.json` MIREX/CSR rows behind `metrics`
+(whose built-in fixture asserts both AceEval pieces), a fetched LRCLIB response for song
+B and a
 triad-reduced scoring view (`report --triads`, used for the seventh/fifth labels of songs
 C and E). The
 commercial MP3s and chord charts stay in the gitignored `mp3/` directory (the user

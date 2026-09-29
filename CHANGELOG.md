@@ -203,6 +203,22 @@ investigation, not a `songlab benchmark` run, and no chord adapter is registered
   byte-identically — and re-tuning the engine around the corrected loop is recorded as
   an open question. Tables in `docs/ENGINE_COMPARISON.md`, verdict in
   `docs/DEPENDENCY_MATRIX.md` §13.12.
+* **AceEval's MIREX metrics implemented (roadmap 44, 2026-09-28).** `mirex2010` equality
+  (pitch-class intersection ≥ 3, ≥ 2 for an augmented/diminished ground truth, +1 bass
+  boosts, `N` only matches `N`) is re-implemented from the source we read and wired into
+  the sequence alignment as a fourth scoring view: mean F1 **0.636** over 5 songs × 6
+  inputs vs **0.575** for the historical exact view. The gain splits into +0.017 from the
+  equality (`D7`/`E7` now match `D`/`E`; power chords like `E5` still cannot) and
+  **+0.044 from a max-match tie-break** that the control measurement exposed —
+  Needleman-Wunsch had been reconstructing arbitrary minimum-cost paths. Historical views
+  keep their rule so every recorded number still reproduces and rankings are unaffected,
+  but `songlab benchmark` should adopt the max-match rule. The duration-weighted **Chord
+  Sequence Recall** (`crossSegment` + equal/not-equal durations) is also implemented and
+  validated on a hand-computed fixture (11/16 = 0.6875), yet cannot run on real songs:
+  the charts have no timestamps (roadmap 43) and reference timings will not be invented.
+  Per-stem winners under MIREX change only on song C (`bass`+`other`, agreeing with the
+  triad-reduced view). Tables in `docs/ENGINE_COMPARISON.md`, verdict in
+  `docs/DEPENDENCY_MATRIX.md` §13.12, status in roadmap §44.
 
 ### Reference repositories
 

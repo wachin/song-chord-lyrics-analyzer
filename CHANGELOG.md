@@ -259,6 +259,19 @@ investigation, not a `songlab benchmark` run, and no chord adapter is registered
   `--ref-index`, and CSR rows for both annotation views. Tables in
   `docs/ENGINE_COMPARISON.md`, source records in `docs/DATASET.md`, verdict in
   `docs/DEPENDENCY_MATRIX.md` §13.12, statuses in roadmap §43/§44.
+* **The CSR sweep was extended to all 360 GuitarSet excerpts (2026-09-29).** A
+  resumable driver (`guitarset_all.py` → `guitarset_all.jsonl`, aggregated by
+  `guitarset_aggregate.py`) decoded every take, 0 failures. The 24-excerpt sample turned
+  out **mildly optimistic**: the other 156 comping takes move instructed CSR 0.476 →
+  **0.457**, the performed-triad view 0.465 → 0.423 and exact F1 0.577 → 0.541, because
+  the sample over-weighted the two strongest players. The comping takes (180) are the
+  meaningful chord test; the **soloing** takes (180) are a negative control — the mic
+  records a melody over headphones-only comping — and the CSR correctly collapses there
+  (0.198, keys 33 %), which is evidence the metric measures the right thing. Style order
+  tracks harmonic density (Singer-Songwriter 0.485 > Rock 0.378 > Bossa 0.314 > Jazz
+  0.262 > Funk 0.197), 8 takes collapse to one chord and 26 score 0.000, and key
+  agreement on comping takes is 58 % against 90 % on the five user songs. Full tables in
+  `docs/ENGINE_COMPARISON.md`.
 
 ### Reference repositories
 

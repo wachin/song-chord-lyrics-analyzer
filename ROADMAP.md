@@ -1770,8 +1770,8 @@ songs × 4 annotators, JAMS with real `time`/`duration`, verified locally, **CC 
 audio partitions, human timed chords, **CC BY 4.0** for most partitions, no audio) are
 recorded in `docs/DATASET.md`. Neither of those ships audio, but on 2026-09-29
 **GuitarSet** (Zenodo, **CC BY 4.0**, MD5-verified) supplied the missing combination —
-360 real acoustic-guitar excerpts with timed chord, beat and key JAMS — of which 24
-comping excerpts now serve as the first ground truth with real timings
+360 real acoustic-guitar excerpts with timed chord, beat and key JAMS — of which all 360
+takes (180 comping, 180 soloing) now serve as the first ground truth with real timings
 (`docs/ENGINE_COMPARISON.md`, "Chords"). The five user charts still have no timestamps
 and none of them exists in ChoCo, so the reference is GuitarSet rather than our own
 songs. The harness reads timed JAMS references (`csr --ref [--ref-index N]`, Harte →
@@ -1811,12 +1811,13 @@ historical exact view, with a max-match tie-break control at 0.619) plus a
 duration-weighted **Chord Sequence Recall** (fixture-validated, 11/16 = 0.6875) which now
 runs on real songs in *agreement* mode — each Demucs stem's timed output vs the raw
 mix's over 5 songs: mean CSR **0.744 `no_vocals` > 0.692 `bass`+`other` > 0.519 `bass` >
-0.515 `other` > 0.400 `vocals`** — and its *accuracy* mode now runs too: against 24
-GuitarSet excerpts (CC BY 4.0 real guitar audio + timed JAMS, 2026-09-29) the mean CSR
-is **0.476** against the instructed lead sheet and **0.465** against the triad-reduced
-performed voicings, with 17/24 keys matching the annotation. References are still
-scarce (roadmap 43): segment overlap, change-detection and timing error stay unmeasured
-rather than invented. Lyrics WER/CER exist from the ASR passes (roadmap 25); key and tempo
+0.515 `other` > 0.400 `vocals`** — and its *accuracy* mode now runs too: against all 360
+GuitarSet excerpts (CC BY 4.0 real guitar audio + timed JAMS, 2026-09-29) the 180
+comping takes score mean CSR **0.457** against the instructed lead sheet and **0.423**
+against the triad-reduced performed voicings (the 180 soloing takes, which contain no
+chords, drop to 0.198 and act as a negative control), with keys 58 %. References are
+still scarce (roadmap 43): segment overlap, change-detection and timing error stay
+unmeasured rather than invented. Lyrics WER/CER exist from the ASR passes (roadmap 25); key and tempo
 metrics await their engines; nothing is integrated in `src/` yet.*
 
 ## [ ] Chord metrics

@@ -43,9 +43,10 @@ timestamps + a permissive licence.
 * **GuitarSet** — `annotation.zip` (39.1 MB) and `audio_mono-mic.zip` (656.9 MB); the
   MD5s match the Zenodo record exactly (`b39b78e6…`, `275966d6…`). 360 `.jams` + 360
   `_mic.wav` files are extracted flat into `.cache/chords/guitarset/`. A 24-excerpt
-  sample (6 players × 5 styles, the *comp* performances) was measured: the chord
-  vocabulary is 42 instructed labels, almost all major/minor triads plus a few
-  `:7`/`:sus`, so a 24-triad decoder can be scored against it directly.
+  sample (6 players × 5 styles, the *comp* performances) was measured first, then the
+  whole set: the chord vocabulary is 42 instructed labels, almost all major/minor triads
+  plus a few `:7`/`:sus`, so a 24-triad decoder can be scored against it directly. All
+  360 takes were decoded on 2026-09-29 (see `docs/ENGINE_COMPARISON.md`).
 * **ChoCo** — the `v1.0.0` release zip (179 MB; JAMS only, the knowledge graph was
   skipped). 20,086 JAMS files, 2,283 of them in the audio partitions. Intersecting its
   `meta.csv` titles/artists with the user's five charts gave **zero matches** (its audio

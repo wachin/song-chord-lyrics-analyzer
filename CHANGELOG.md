@@ -170,6 +170,23 @@ investigation, not a `songlab benchmark` run, and no chord adapter is registered
   IV of E), softening key scoring for this song; 6 of 30 condition–song pairs get the key
   wrong overall. The 0.40 penalty transferred to songs B–D but song E's mix peaks at 0.50
   (0.829). Cost ~38–42 s per 315.7 s (RTF 0.12–0.13, peak RSS ≈ 0.98 GiB).
+* **Engine v2 (2026-09-28), informed by Chordify's own repositories.** After all 35 public
+  `github.com/chordify` repos were mounted as read-only references, the chord-relevant
+  ones were read for **ideas only — no code copied**: `HarmTrace-Base` (LGPL-3.0)
+  suggested rewarding the *fraction* of a chord's tones inside the estimated key instead
+  of only its root (plus a conditional leading tone in minor keys), and `AceEval` and
+  `tapcorrect` supplied metric/decoding ideas that stay recorded as candidates. The
+  engine now also runs a **gated two-pass key estimate**: a legacy-prior probe, a
+  duration-weighted chroma re-estimated with Krumhansl-Schmuckler, adopted only when the
+  mode is unchanged and the correlation holds. Measured as a **nine-configuration
+  ablation** over 5 songs × 6 inputs, the default v2 configuration raises the aggregate
+  exact F1 **0.534 → 0.575** (triad-reduced **0.568 → 0.597**, multiset **0.655 → 0.691**)
+  and key agreement **24/30 → 27/30** (the raw mix now gets all five keys right).
+  Always-adopt/averaged key modes were measured worse (25/30), and the 12 optional
+  dominant-seventh templates were measured and **rejected** (0.531 vs 0.534 on v1,
+  0.570 vs 0.575 on v2). The hyper-parameters were selected on these same five songs, so
+  the gain is recorded as in-sample. Every chord table in `docs/ENGINE_COMPARISON.md`
+  was regenerated; the adoption record is in `docs/DEPENDENCY_MATRIX.md` §13.12.
 
 ### Reference repositories
 
@@ -247,6 +264,14 @@ investigation, not a `songlab benchmark` run, and no chord adapter is registered
   (DeepStack cross-layer injection, time-marker insertion) are recorded in
   `docs/DEPENDENCY_MATRIX.md` §13.11, and the submodule was removed. The pool went from 10 to
   9 submodules.
+* Mounted **all 35 public repositories of the Chordify organisation**
+  (`github.com/chordify`) as shallow read-only submodules under `external/chordify-org/`
+  (2026-09-27), the company's own source as study material for the chord engine. They are
+  almost entirely Haskell plus two Python research repos; the chord-relevant ones
+  (`HarmTrace-Base`, `AceEval`, `tapcorrect`, `CASD`) were read on 2026-09-28 and the
+  ideas that survived measurement were implemented ourselves as engine v2 (see the chord
+  investigation entry above); `docs/DEPENDENCY_MATRIX.md` §13.12 holds the per-repo
+  verdicts. Same rules as every `external/` clone: never imported, executed or copied.
 
 ### Documentation
 

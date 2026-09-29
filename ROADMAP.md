@@ -940,10 +940,18 @@ Do not assume it will work unchanged on every current Python version.
 
 # [ ] 23. PitchPerfect Investigation
 
-*Status (2026-09-26): the PitchPerfect ecosystem itself has not been investigated. The
+*Status (2026-09-28): the PitchPerfect ecosystem itself has not been investigated. The
 chordify architecture from §24.1 was instead re-implemented as our own chroma + template +
 Viterbi baseline and measured on five real songs against user chord charts
-(`docs/ENGINE_COMPARISON.md`, "Chords"); no chord adapter has been registered in `src/` yet.*
+(`docs/ENGINE_COMPARISON.md`, "Chords"). On 2026-09-28 that baseline became **engine v2**
+after reading Chordify's own 35 public repositories (mounted under
+`external/chordify-org/`; ideas only, no code copied): a diatonic-tone-fraction key prior
+and a conditional leading tone from `HarmTrace-Base`'s `isChordInKey`, plus a gated
+two-pass key estimate, while optional dominant-seventh templates were measured and
+rejected. Aggregate over five songs × six inputs: exact F1 0.534 → 0.575 (triad-reduced
+0.568 → 0.597), multiset F1 0.655 → 0.691, key agreement 24/30 → 27/30. Ablation in
+`docs/ENGINE_COMPARISON.md`, adoption record in `docs/DEPENDENCY_MATRIX.md` §13.12. No
+chord adapter has been registered in `src/` yet.*
 
 Investigate:
 
@@ -1215,9 +1223,10 @@ real 272 s commercial song (5 min 38 s, real-time factor 1.23), producing `vocal
 were used locally only and never bundled. **Chord recognition on real stems was measured on
 2026-09-26/27** on five songs (327 s, 268.5 s, 254.3 s, 296.8 s and 315.7 s: `original`,
 `vocals`, `other`, `bass`, `bass+other`, `drums+bass+other` on each, against user chord
-charts — the stem ranking keeps inverting: `other` led the first two, `bass`/the raw mix
-the third, `no_vocals` the fourth, the raw mix the fifth (a modulating song), and 6 of 30
-condition–song pairs mis-estimated the key; `docs/ENGINE_COMPARISON.md`,
+charts — after the 2026-09-28 engine v2 the five songs are led by the raw mix, `other`
+(twice), `bass` and `bass`+`other` respectively (four winners in five songs), and 3 of 30
+condition–song pairs still mis-estimate the key, down from 6 of 30 before the two-pass key
+gate (`docs/ENGINE_COMPARISON.md`,
 "Chords"). Still open: the
 `fast`/`balanced`/`accurate` configurable strategy, 6-stem separation, `htdemucs_ft` and UVR
 alternatives.*
@@ -1263,18 +1272,20 @@ accurate
 
 ---
 
-# [ ] 28. Stem Selection Strategy*Status (2026-09-26/27): partial — measured on five real songs with our chord baseline
-(`docs/ENGINE_COMPARISON.md`, "Chords"). For chords there is **no stable stem winner** —
-five songs, four different winners: `other` ranked first on songs 1–2 (multiset F1
-0.859/0.866), collapsed on song 3 (0.371), placed third on song 4 and fourth on song 5;
-`bass` swung from worst to best (song 3's triad-reduced view, 0.707) and back to worst;
-`no_vocals` led song 4 (0.795); the raw mix led song 5 (0.778) — a modulating D→E song
-where the mix beat every stem. `bass`+`other` never finished far
-from the top on any song, and `vocals` never left the bottom two. The raw mix never
-collapsed but is not key-safe — 6 of 30 condition–song pairs mis-estimated the key
-(dominant-heavy arrangements pull the KK profile to the dominant; modulations blur the
-reference key itself). The change penalty remains the dominant knob (0.40 transferred
-to songs B–D; song E's best sat at 0.50). The earlier
+# [ ] 28. Stem Selection Strategy*Status (2026-09-28): partial — measured on five real songs with our chord engine, which
+was revised to **v2** on 2026-09-28 after reading Chordify's own 35 public repositories
+(ideas only, no code copied; aggregate exact F1 0.534 → 0.575, multiset 0.655 → 0.691, key
+24/30 → 27/30; ablation in `docs/ENGINE_COMPARISON.md`, adoption record in
+`docs/DEPENDENCY_MATRIX.md` §13.12). For chords there is still **no stable stem winner** —
+five songs, four different winners: the raw mix led song 1 (multiset F1 0.826), `other`
+songs 2 and 4 (0.922/0.795), `bass` song 3 (0.508 on the chart's labels, where `bass`+`other`
+takes the triad-reduced view) and `bass`+`other` song 5 (0.812, the modulating D→E song).
+The raw mix is now the steadiest input (never below third on any song) but the key is
+still not stem-safe: 3 of 30 condition–song pairs fail (song 3's `other`, `vocals` on songs
+4 and 5 — dominant and relative-key pulls), down from 6 of 30 before v2's two-pass gate.
+`bass`+`other` never finished below fourth, `vocals` never above fifth. The change penalty
+remains the dominant knob (0.40 the default; the mix's best is 0.50 on song 5 and
+marginally on song 2). The earlier
 n = 2 "`other` is best" reading was overfit
 — exactly what its caveat predicted. For lyrics, `vocals` was tested separately in the
 roadmap 26 pass.*

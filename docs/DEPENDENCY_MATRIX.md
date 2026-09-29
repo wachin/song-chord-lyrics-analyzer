@@ -281,6 +281,12 @@ tests:
     penalty still mattered most. No
     chord adapter is registered in `src/` yet, so this remains an exploratory data point,
     not a selected engine. See `docs/ENGINE_COMPARISON.md` "Chords".
+    *2026-09-28 update:* the baseline became **engine v2** — a diatonic-tone-fraction key
+    prior and a conditional leading tone (ideas from `HarmTrace-Base`, §13.12) plus a
+    gated two-pass key estimate — raising the aggregate exact F1 from 0.534 to 0.575 and
+    key agreement from 24/30 to 27/30 on the same five songs (nine-configuration ablation
+    in `docs/ENGINE_COMPARISON.md`, "Chords"). It is still not adopted: no adapter in
+    `src/`.
 
 Phase 1 is therefore **complete for the candidates needed by the first analysis
 phases** (audio, lyrics, chords, beats; each has an installable, licence-cleared
@@ -657,6 +663,8 @@ chord/structure work, but neither needs the clone.
 **Revisit only if** a GPU path enters the project, quantized checkpoints are published,
 *and* the timestamped chord/ASR benchmarks appear.
 
+### 13.12 Chordify organisation — 35 repos mounted (2026-09-27), ideas read and adopted (2026-09-28)
+
 **2026-09-27 — Chordify's own GitHub organisation mounted as reference submodules (35
 repos).** All 35 public repositories of `github.com/chordify` are now shallow submodules
 under `external/chordify-org/` (read-only reference only — nothing is imported, executed
@@ -675,4 +683,25 @@ library named `mirimba` exposing JNI symbols for live chord detection
 (`mirimba_livechorddetection_new/process/get_hop_size/get_sample_rate`) and tuning, plus
 TensorFlow Lite classes with no model bundled — song analysis stays server-side at
 `chordify.net/api/v2/songs/`.
+
+**2026-09-28 — what was read, and what was adopted.** The chord-relevant repos were read
+for **ideas only**: nothing was imported, executed or copied (the `external/` policy, and
+their LGPL/GPL-family licences make copying pointless risk when the same behaviour can be
+reimplemented from the idea alone). Everything below was then **measured** in the
+gitignored chord harness on the same five songs × six inputs; the nine-configuration
+ablation lives in `docs/ENGINE_COMPARISON.md`, "Chords".
+
+| Source repo (licence) | Idea read | Verdict |
+| --- | --- | --- |
+| `HarmTrace-Base` (LGPL-3.0), `Analysis.hs`/`PitchClass.hs` — `isChordInKey`, `toScaleDegree` | a chord belongs to the key when **all** its tones are diatonic, not only its root | **adopted** as `key_prior="tones"` (+0.05 × diatonic-tone fraction, −0.12 for a non-diatonic root) plus a conditional leading tone (tonic + 11) in minor keys; with it alone the aggregate exact F1 goes 0.534 → 0.571 |
+| `HarmTrace-Base`, `analyseTriad`/`analyseTetra` | analyse triad *and* seventh | **measured, rejected**: 12 optional dominant-seventh templates cost accuracy on both bases (v1 0.531 vs 0.534; v2 0.570 vs 0.575, key 26/30 vs 27/30) — the charts' two or three `D7`/`E7` labels are outnumbered by spurious sevenths |
+| our own follow-up to the above | estimate the key from the **hypothesis** (duration-weighted chroma) and adopt only when the mode matches and the correlation holds | **adopted** as the two-pass gate (`key_passes=2`, `key_pass_mode="gate"`): key agreement 24/30 → 27/30 with the chord scores untouched; always-adopt and average-the-priors modes measured worse (both 25/30) |
+| `AceEval` (LGPL-3.0), `ChordEq.hs`/`EqIgnore.hs`/`Func.hs` — `majMinEq`, `mirex2010`, duration-weighted overlap | MIREX-style pitch-class-intersection equality and a duration-weighted Chord Sequence Recall | **not adopted yet** — recorded as metric candidates for roadmap 44 and the future `songlab benchmark`; the charts have no timestamps, so duration weighting cannot be exercised on them |
+| `tapcorrect` (ISMIR 2019, Python) — Viterbi transitions `T[i,j] = exp(−λ·|i−j|)` | transitions smoothed by state distance instead of a flat change penalty | **not adopted** — a plausible refinement, but the change penalty is our dominant knob and changing its shape would invalidate the recorded sweep |
+| `CASD` | four expert annotators per song (JAMS): chord ground truth is genuinely subjective | **context only** — reinforces roadmap 43: charts are editorial choices, never definitive truth |
+
+Net effect of the adopted ideas on the same 30 condition–song rows: exact F1
+**0.534 → 0.575**, triad-reduced exact F1 **0.568 → 0.597**, multiset F1 **0.655 → 0.691**,
+key agreement **24/30 → 27/30**. The hyper-parameters (bonus 0.05, gate rule) were
+selected on these same five songs, so the gain is in-sample until a sixth song tests it.
 

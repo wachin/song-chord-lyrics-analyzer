@@ -1,12 +1,15 @@
 # Engine Comparison
 
-**Status: partially written (2026-09-26).** A first measured lyrics-ASR comparison
-(roadmap sections 25, 26 and 27) is recorded below, on isolated vocals, on synthetic
-mixes, and on one real commercial mix. A first **chord** measurement (roadmap sections
-23, 24, 27 and 28) was added on 2026-09-26: a chroma + Viterbi baseline scored against a
-user-supplied chord chart, on the mix and on Demucs stems. Key and tempo comparisons do
-not exist yet — no key or tempo engine has been integrated — so those rows stay empty
-rather than invented (roadmap rule 6).
+**Status: partially written (2026-09-26; chord engine revised 2026-09-28).** A first
+measured lyrics-ASR comparison (roadmap sections 25, 26 and 27) is recorded below, on
+isolated vocals, on synthetic mixes, and on one real commercial mix. A first **chord**
+measurement (roadmap sections 23, 24, 27 and 28) was added on 2026-09-26: a chroma +
+Viterbi baseline scored against a user-supplied chord chart, on the mix and on Demucs
+stems; on 2026-09-28 that engine was revised to **v2** from ideas read in Chordify's own
+public repositories and every chord table below was regenerated (the v1 numbers survive
+as the baseline row of the v2 ablation table and in git history). Key and tempo
+comparisons do not exist yet — no key or tempo engine has been integrated — so those rows
+stay empty rather than invented (roadmap rule 6).
 
 > **This is a pre-harness investigation, not `songlab benchmark`.** The phase-11 benchmark
 > command does not exist yet; the numbers below come from a throwaway harness run on
@@ -204,8 +207,8 @@ LRCLIB lyrics API was also queried as a feasibility check: a plain and a line-ti
 of the song exist there and match its duration, and the response is kept in the gitignored
 cache as a possible future lyric reference — the chord pass did not use it.
 
-**The engine (baseline, our own code).** The section-24.1 pipeline, re-implemented from the
-recorded design:
+**The engine (v1 baseline, our own code).** The section-24.1 pipeline, re-implemented from
+the recorded design:
 
 1. HPSS harmonic component (`margin=3.0`) and tuning estimated with `librosa.estimate_tuning`;
 2. `chroma_cqt` (from C2, 5 octaves) and `chroma_cens`, blended 0.3 CQT / 0.7 CENS and
@@ -222,6 +225,53 @@ recorded design:
 The change penalty is expressed in this implementation's own emission units, so it does
 **not** transfer from chordify's value; it was tuned on song A's sweep and then held fixed
 for song B (robustness rows below), which is the honest cross-song test.
+
+**Engine v2 (roadmap 28, 2026-09-28), informed by Chordify's own repositories.** Once all
+35 public `github.com/chordify` repos were mounted as read-only references (recorded in
+`docs/DEPENDENCY_MATRIX.md` §13.12), the chord-relevant ones were read for **ideas only —
+no code was copied** (they are LGPL/GPL-family, and the `external/` policy forbids
+importing from reference clones anyway). Three changes:
+
+1. **Diatonic-fraction key prior** — idea from `HarmTrace-Base` (`Analysis.hs`:
+   `isChordInKey` accepts a chord when its tones sit inside the key's scale). Instead of
+   rewarding only the root, each candidate now gains a bonus proportional to the
+   **fraction of its tones inside the estimated key** (`key_prior="tones"`, +0.05 when
+   fully diatonic, −0.12 when the root is not), and minor keys additionally treat the
+   leading tone (tonic + 11) as diatonic (`minor_leading_tone`).
+2. **A gated second pass for the key.** A first decode with the legacy root-only prior
+   yields a hypothesis; a duration-weighted chroma of that hypothesis (the same
+   arithmetic used to score the chart) is re-estimated with Krumhansl-Schmuckler, and the
+   new prior is adopted for a second decode only when the mode is unchanged and the
+   correlation is at least the plain chroma's (`key_passes=2`, `key_pass_mode="gate"`).
+3. **Optional dominant-seventh templates** — idea from `HarmTrace-Base`'s
+   `analyseTriad`/`analyseTetra` (triad + seventh): 12 extra `*7` templates, off by
+   default.
+
+Every switch was **measured, not assumed**: nine explicit configurations, each run over
+5 songs × 6 inputs (`variants` command; means over the 30 condition–song rows):
+
+| Configuration | exact F1 | exact F1, triad-reduced | multiset F1 | key |
+| --- | ---: | ---: | ---: | :---: |
+| v1 baseline (root prior, single pass) | 0.534 | 0.568 | 0.655 | 24/30 |
+| `tones` prior alone | 0.571 | 0.586 | 0.683 | 24/30 |
+| `tones` + leading tone | 0.572 | 0.590 | 0.686 | 24/30 |
+| key gate alone (v1 scores, second key pass) | 0.534 | 0.568 | 0.655 | 27/30 |
+| key gate, adopt always | 0.507 | 0.543 | 0.631 | 25/30 |
+| key gate, average both priors | 0.527 | 0.563 | 0.651 | 25/30 |
+| **v2 default (`tones` + lead + gate)** | **0.575** | **0.597** | **0.691** | **27/30** |
+| v1 + dominant-seventh templates | 0.531 | 0.569 | 0.648 | 24/30 |
+| v2 + dominant-seventh templates | 0.570 | 0.594 | 0.685 | 26/30 |
+
+Relative to the v1 baseline that produced the tables previously recorded here, the default
+v2 configuration gains **+0.041 exact F1, +0.029 triad-reduced exact F1, +0.036 multiset
+F1, and 3 more correct keys (24/30 → 27/30)**. The diatonic prior does the accuracy work;
+the gate alone recovers all three key fixes without moving the scores; the seventh
+templates were measured and **rejected** (they cost accuracy on both bases because the
+charts' two or three `D7`/`E7` labels are outnumbered by spurious sevenths), and
+*unconditional* key adoption is harmful — it repairs some keys and breaks others (25/30).
+The three key failures that remain are song C's `other` and `vocals` on songs D and E;
+all five raw-mix keys are now correct. Every result table below is v2, at the same change
+penalty 0.40.
 
 **Reference and metrics (timing-free).** Each chart is a complete chord sheet in song order
 with section headers but **no timestamps** — the standard chord-sheet format (as found on
@@ -244,64 +294,65 @@ scored instead by:
 * **multiset F1** (repeat-aware chord distribution) and **palette F1** (distinct chords);
 * **key** agreement (Krumhansl-Schmuckler on the reference's chord tones vs on the audio).
 
-**Results, song A** at change penalty 0.40 (reference: 86 chords; chart key D major).
+**Results (engine v2), song A** at change penalty 0.40 (reference: 86 chords; chart key
+D major).
 
 | Input (327 s) | chords detected | exact F1 | root F1 | quality F1 | multiset F1 | palette F1 | key |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | :---: |
-| original mix | 87 | 0.694 | 0.751 | 0.694 | 0.809 | **0.824** | D major ✓ |
-| Demucs `other` | 91 | **0.701** | 0.701 | **0.701** | **0.859** | 0.800 | D major ✓ |
-| Demucs `bass`+`other` | 89 | 0.663 | 0.697 | 0.663 | 0.720 | 0.667 | D major ✓ |
-| Demucs `no_vocals` (drums+bass+other) | 86 | 0.558 | 0.616 | 0.558 | 0.698 | 0.667 | D major ✓ |
-| Demucs `vocals` | 66 | 0.447 | 0.513 | 0.447 | 0.684 | 0.750 | D major ✓ |
-| Demucs `bass` | 119 | 0.429 | 0.585 | 0.429 | 0.537 | 0.667 | D major ✓ |
+| original mix | 81 | **0.731** | **0.778** | **0.731** | **0.826** | **0.875** | D major ✓ |
+| Demucs `other` | 84 | 0.659 | 0.659 | 0.659 | 0.824 | 0.769 | D major ✓ |
+| Demucs `no_vocals` (drums+bass+other) | 67 | 0.693 | 0.693 | 0.693 | 0.784 | 0.714 | D major ✓ |
+| Demucs `bass`+`other` | 77 | 0.663 | 0.687 | 0.663 | 0.749 | 0.714 | D major ✓ |
+| Demucs `vocals` | 63 | 0.510 | 0.523 | 0.510 | 0.725 | 0.824 | D major ✓ |
+| Demucs `bass` | 112 | 0.616 | 0.646 | 0.616 | 0.707 | 0.750 | D major ✓ |
 
 **Results, song B** at the same change penalty 0.40, held over from song A (reference:
 64 chords; chart key A major).
 
 | Input (268.5 s) | chords detected | exact F1 | root F1 | quality F1 | multiset F1 | palette F1 | key |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | :---: |
-| Demucs `other` | 70 | **0.791** | **0.806** | **0.791** | **0.866** | **0.889** | A major ✓ |
-| Demucs `bass`+`other` | 73 | 0.642 | 0.745 | 0.642 | 0.701 | 0.727 | A major ✓ |
-| original mix | 64 | 0.641 | 0.656 | 0.641 | 0.688 | 0.727 | A major ✓ |
-| Demucs `no_vocals` (drums+bass+other) | 61 | 0.624 | 0.720 | 0.624 | 0.704 | 0.727 | A major ✓ |
-| Demucs `vocals` | 50 | 0.544 | 0.597 | 0.544 | 0.579 | 0.615 | A major ✓ |
-| Demucs `bass` | 40 | 0.308 | 0.654 | 0.308 | 0.308 | 0.600 | A major ✓ |
+| Demucs `other` | 64 | **0.828** | **0.844** | **0.828** | **0.922** | **0.889** | A major ✓ |
+| Demucs `bass`+`other` | 63 | 0.756 | 0.819 | 0.756 | 0.787 | 0.800 | A major ✓ |
+| original mix | 58 | 0.672 | 0.738 | 0.672 | 0.738 | 0.800 | A major ✓ |
+| Demucs `no_vocals` (drums+bass+other) | 60 | 0.677 | 0.726 | 0.677 | 0.726 | 0.727 | A major ✓ |
+| Demucs `vocals` | 46 | 0.582 | 0.618 | 0.582 | 0.673 | 0.800 | A major ✓ |
+| Demucs `bass` | 51 | 0.522 | 0.643 | 0.522 | 0.556 | 0.727 | A major ✓ |
 
 **Results, song C** at the same change penalty 0.40, held over from song A (reference:
 101 chords; chart key A minor). First against the chart's own labels:
 
 | Input (254.3 s) | chords detected | exact F1 | root F1 | quality F1 | multiset F1 | palette F1 | key |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | :---: |
-| original mix | 98 | 0.372 | 0.623 | 0.372 | 0.502 | 0.667 | A minor ✓ |
-| Demucs `no_vocals` (drums+bass+other) | 101 | 0.396 | 0.653 | 0.396 | 0.505 | 0.667 | E minor ✗ |
-| Demucs `bass` | 97 | 0.384 | 0.748 | 0.384 | 0.495 | 0.706 | A minor ✓ |
-| Demucs `bass`+`other` | 103 | 0.343 | 0.686 | 0.343 | 0.490 | 0.667 | E minor ✗ |
-| Demucs `vocals` | 39 | 0.371 | 0.457 | 0.371 | 0.443 | 0.615 | A minor ✓ |
-| Demucs `other` | 93 | 0.216 | 0.433 | 0.216 | 0.371 | 0.625 | E minor ✗ |
+| Demucs `bass` | 80 | **0.453** | **0.818** | 0.453 | **0.508** | **0.714** | A minor ✓ |
+| Demucs `bass`+`other` | 105 | 0.388 | 0.680 | 0.388 | 0.505 | 0.667 | A minor ✓ |
+| original mix | 100 | 0.368 | 0.627 | 0.368 | 0.497 | 0.667 | A minor ✓ |
+| Demucs `no_vocals` (drums+bass+other) | 101 | 0.406 | 0.653 | 0.406 | 0.495 | 0.706 | A minor ✓ |
+| Demucs `vocals` | 34 | 0.370 | 0.430 | 0.370 | 0.430 | 0.667 | A minor ✓ |
+| Demucs `other` | 89 | 0.210 | 0.421 | 0.210 | 0.326 | 0.500 | E minor ✗ |
 
 And against the reference reduced to triads (`D7`→`D`, `E5`→`E`), which is the fair
 comparison for a triad-only decoder:
 
 | Input | exact F1 | root F1 | multiset F1 | palette F1 | key |
 | --- | ---: | ---: | ---: | ---: | :---: |
-| Demucs `bass` | 0.596 | **0.748** | **0.707** | **0.875** | A minor ✓ |
-| Demucs `bass`+`other` | 0.598 | 0.686 | 0.667 | 0.824 | E minor ✗ |
-| Demucs `no_vocals` | 0.594 | 0.653 | 0.644 | 0.824 | E minor ✗ |
-| original mix | 0.533 | 0.623 | 0.613 | 0.824 | A minor ✓ |
-| Demucs `vocals` | 0.414 | 0.457 | 0.486 | 0.833 | A minor ✓ |
-| Demucs `other` | 0.320 | 0.433 | 0.474 | 0.800 | E minor ✗ |
+| Demucs `bass`+`other` | 0.602 | 0.680 | **0.670** | 0.824 | A minor ✓ |
+| Demucs `no_vocals` | 0.584 | 0.653 | 0.624 | **0.875** | A minor ✓ |
+| original mix | 0.507 | 0.627 | 0.607 | 0.824 | A minor ✓ |
+| Demucs `bass` | 0.497 | **0.818** | 0.530 | 0.769 | A minor ✓ |
+| Demucs `other` | 0.316 | 0.421 | 0.432 | 0.667 | E minor ✗ |
+| Demucs `vocals` | 0.370 | 0.430 | 0.430 | 0.727 | A minor ✓ |
 
 **Results, song D** at the same change penalty 0.40, held over from song A (reference:
 79 chords; chart key E major).
 
 | Input (296.8 s) | chords detected | exact F1 | root F1 | quality F1 | multiset F1 | palette F1 | key |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | :---: |
-| Demucs `no_vocals` (drums+bass+other) | 97 | 0.659 | **0.761** | 0.659 | **0.795** | 0.800 | E major ✓ |
-| Demucs `bass`+`other` | 98 | 0.644 | 0.757 | 0.644 | 0.780 | 0.800 | E major ✓ |
-| Demucs `other` | 88 | 0.659 | **0.790** | 0.659 | 0.766 | **0.889** | E major ✓ |
-| original mix | 94 | 0.624 | 0.705 | 0.624 | 0.763 | 0.800 | B major ✗ |
-| Demucs `vocals` | 92 | 0.526 | 0.573 | 0.526 | 0.702 | 0.727 | B major ✗ |
-| Demucs `bass` | 72 | 0.570 | 0.702 | 0.570 | 0.649 | 0.727 | E major ✓ |
+| Demucs `other` | 87 | **0.663** | **0.783** | 0.663 | **0.795** | **0.889** | E major ✓ |
+| original mix | 93 | 0.651 | 0.733 | 0.651 | 0.791 | 0.800 | E major ✓ |
+| Demucs `no_vocals` (drums+bass+other) | 99 | 0.652 | 0.753 | 0.652 | 0.786 | 0.800 | E major ✓ |
+| Demucs `bass`+`other` | 96 | 0.629 | 0.743 | 0.629 | 0.766 | 0.800 | E major ✓ |
+| Demucs `bass` | 75 | 0.610 | 0.714 | 0.610 | 0.701 | 0.727 | E major ✓ |
+| Demucs `vocals` | 88 | 0.527 | 0.527 | 0.527 | 0.671 | 0.727 | B major ✗ |
 
 **Results, song E** at the same change penalty 0.40, held over from song A (reference:
 85 chords; the chart's own chord tones estimate A major — a modulating D→E song puts A
@@ -309,66 +360,74 @@ in both keys, so the reference key itself is soft). Triad-reduced scores in pare
 
 | Input (315.7 s) | chords detected | exact F1 | root F1 | multiset F1 | palette F1 | key |
 | --- | ---: | ---: | ---: | ---: | ---: | :---: |
-| original mix | 95 | 0.667 (0.678) | 0.733 | **0.778 (0.811)** | **0.857 (0.947)** | A major ✓ |
-| Demucs `bass`+`other` | 89 | 0.575 (0.621) | 0.701 | 0.770 (0.805) | 0.783 (0.857) | A major ✓ |
-| Demucs `no_vocals` | 95 | 0.656 (0.678) | 0.711 | 0.767 (0.800) | 0.783 (0.857) | A major ✓ |
-| Demucs `other` | 103 | 0.521 (0.532) | 0.649 | 0.692 (0.713) | 0.783 (0.857) | A major ✓ |
-| Demucs `vocals` | 102 | 0.385 | 0.460 | 0.674 (0.684) | 0.667 (0.727) | F# minor ✗ |
-| Demucs `bass` | 60 | 0.414 (0.372) | 0.621 | 0.552 (0.566) | 0.636 (0.700) | A major ✓ |
+| Demucs `bass`+`other` | 80 | 0.654 (0.654) | 0.727 | **0.812 (0.861)** | 0.818 (0.900) | A major ✓ |
+| original mix | 95 | **0.678 (0.689)** | **0.744** | 0.778 (0.822) | **0.857 (0.947)** | A major ✓ |
+| Demucs `no_vocals` | 95 | 0.656 (0.678) | 0.700 | 0.756 (0.789) | 0.818 (0.900) | A major ✓ |
+| Demucs `other` | 95 | 0.556 (0.556) | 0.656 | 0.733 (0.756) | 0.818 (0.900) | A major ✓ |
+| Demucs `vocals` | 92 | 0.384 (0.373) | 0.520 | 0.723 (0.735) | 0.696 (0.762) | F# minor ✗ |
+| Demucs `bass` | 64 | 0.483 (0.443) | 0.577 | 0.631 (0.644) | 0.727 (0.800) | A major ✓ |
 
-**Robustness to the change penalty** (multiset F1), because a single tuned value would hide
-the sensitivity:
+**Robustness to the change penalty** (multiset F1, engine v2), because a single tuned
+value would hide the sensitivity. Songs A–D:
 
 | Input | song A 0.30 | song A 0.40 | song A 0.50 | song B 0.30 | song B 0.40 | song B 0.50 | song C 0.30 | song C 0.40 | song C 0.50 | song D 0.30 | song D 0.40 | song D 0.50 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| original mix | **0.726** | 0.809 | 0.765 | 0.721 | 0.688 | **0.727** | 0.451 | 0.502 | 0.452 | 0.759 | 0.763 | 0.713 |
-| Demucs `other` | 0.652 | **0.859** | 0.752 | 0.749 | 0.866 | **0.924** | 0.326 | 0.371 | 0.388 | **0.822** | 0.766 | 0.737 |
-| Demucs `bass`+`other` | 0.700 | 0.720 | **0.787** | 0.719 | 0.701 | 0.711 | 0.400 | 0.490 | 0.484 | 0.806 | 0.780 | 0.741 |
-| Demucs `no_vocals` | 0.687 | 0.698 | 0.715 | 0.703 | 0.704 | 0.588 | 0.407 | 0.505 | 0.450 | 0.800 | 0.795 | 0.790 |
-| Demucs `vocals` | 0.652 | 0.684 | 0.567 | 0.579 | 0.579 | 0.596 | 0.395 | 0.443 | 0.378 | 0.698 | 0.702 | 0.694 |
-| Demucs `bass` | 0.560 | 0.537 | 0.526 | 0.403 | 0.308 | 0.408 | 0.473 | 0.495 | 0.447 | 0.698 | 0.649 | 0.606 |
-| original mix (E) | — | — | — | — | — | — | — | — | — | 0.631 | 0.778 | **0.829** |
-| Demucs `other` (E) | — | — | — | — | — | — | — | — | — | 0.641 | 0.692 | 0.746 |
-| Demucs `bass`+`other` (E) | — | — | — | — | — | — | — | — | — | 0.697 | 0.770 | 0.818 |
-| Demucs `no_vocals` (E) | — | — | — | — | — | — | — | — | — | 0.633 | 0.767 | 0.812 |
-| Demucs `vocals` (E) | — | — | — | — | — | — | — | — | — | 0.551 | 0.674 | 0.644 |
-| Demucs `bass` (E) | — | — | — | — | — | — | — | — | — | 0.553 | 0.552 | 0.515 |
+| original mix | **0.786** | **0.826** | 0.800 | 0.734 | 0.738 | 0.741 | 0.487 | 0.497 | 0.459 | 0.779 | 0.791 | 0.744 |
+| Demucs `other` | 0.759 | 0.824 | 0.752 | **0.831** | **0.922** | **0.924** | 0.360 | 0.326 | 0.335 | 0.778 | **0.795** | 0.781 |
+| Demucs `bass`+`other` | 0.734 | 0.749 | **0.803** | 0.682 | 0.787 | 0.836 | 0.398 | 0.505 | **0.492** | 0.779 | 0.766 | 0.762 |
+| Demucs `no_vocals` | 0.732 | 0.784 | 0.778 | 0.711 | 0.726 | 0.667 | 0.403 | 0.495 | 0.380 | **0.806** | 0.786 | 0.805 |
+| Demucs `vocals` | 0.726 | 0.725 | 0.576 | 0.662 | 0.673 | 0.641 | 0.427 | 0.430 | 0.391 | 0.618 | 0.671 | 0.717 |
+| Demucs `bass` | 0.635 | 0.707 | 0.765 | 0.662 | 0.556 | 0.430 | **0.494** | **0.508** | 0.456 | 0.739 | 0.701 | 0.671 |
+
+Song E:
+
+| Input | 0.30 | 0.40 | 0.50 |
+| --- | ---: | ---: | ---: |
+| Demucs `bass`+`other` | **0.707** | **0.812** | **0.839** |
+| original mix | 0.654 | 0.778 | 0.805 |
+| Demucs `no_vocals` | 0.648 | 0.756 | 0.815 |
+| Demucs `other` | 0.635 | 0.733 | 0.751 |
+| Demucs `vocals` | 0.604 | 0.723 | 0.676 |
+| Demucs `bass` | 0.695 | 0.631 | 0.603 |
 
 **Cost.** Song A: ~38–40 s per 327 s song (real-time factor ≈ 0.12, peak RSS ≈ 1.04 GiB);
 song B: ~33–34 s per 268.5 s (real-time factor ≈ 0.12, peak RSS ≈ 0.90 GiB); song C: ~31–33
 s per 254.3 s (real-time factor 0.12–0.13, peak RSS ≈ 0.86 GiB); song D: ~35–36 s per 296.8 s
 (real-time factor 0.12, peak RSS ≈ 0.95 GiB); song E: ~38–42 s per 315.7 s (real-time factor
 0.12–0.13, peak RSS ≈ 0.98 GiB). Feature
-extraction is essentially all of it — decoding is 0.03–0.05 s.
+extraction is essentially all of it — decoding is 0.03–0.05 s. Engine v2 adds a key probe
+and a second decode on the same cached features; given those decode times, the extra cost
+is hundredths of a second. These timings were measured before v2 and were **not**
+re-timed after it.
 
 **Reading it.**
 
-* **Key estimation is not stem-proof — in either direction.** On songs A and B all six
-  inputs recovered the correct key. On song C three of six (`other`, `bass`+`other`,
-  `no_vocals`) estimated E minor for an A-minor song; on song D two of six — **including
-  the raw mix** — estimated B major for an E-major song; on song E `vocals` estimated
-  F# minor (the relative) for a song centred on A major/D→E. Across five songs, 6 of 30
-  condition–song pairs get the key wrong, and the failure modes differ: dominant-heavy
-  arrangements pull the Krumhansl-Schmuckler profile to the dominant, and modulating songs
-  blur the reference key itself (song E's chart *also* estimates A major).
-* **The per-stem rankings swing from song to song.** `other`: first on songs A and B,
-  collapsed on C (0.371 on the chart's labels, 0.474 triad-reduced), third on D, fourth on
-  E — and its best penalty on D was 0.30 (0.822). `bass`: worst on A, B, D and E, best on
-  C's triad view (0.707). *No stem is reliably best*, and the earlier n = 2
-  "`other` is best" reading was overfit — exactly what its caveat predicted.
-* **`bass`+`other` is the steadiest stem input**: third on A and B, second on D and E, and
-  on C second in the triad view (fourth on the raw labels) — it never finishes far from the
-  top. `no_vocals` led song D (0.795) and was third on E. `vocals` is consistently bad for
-  chords: bottom two on all five songs.
-* **The raw mix finally won one — and its peak penalty moved.** Across five songs it
-  lands second on A, C and E and fourth on B and D, and on song E it is the **best** input
-  (0.778, palette 0.857) — yet its best penalty there is 0.50 (0.829), not the 0.40 that
-  peaked on songs A–D. The safest no-separation choice, but its tuned penalty is not
-  universal.
-* **The penalty tuned on song A transferred to songs B, C and D, with a wrinkle on E.**
-  The mix peaks at 0.40 on songs A–D, but on song E its best sits at 0.50 (0.829 vs 0.778)
-  while `bass`+`other` and `no_vocals` also climb at 0.50 — the value is a good default,
-  not a per-song optimum, though the full sweep ran only on song A.
+* **Key estimation is not stem-proof — but v2 halved the failures.** On songs A and B all
+  six inputs recover the correct key, and after the 2026-09-28 revision only 3 of 30
+  condition–song pairs still fail (they were 6 of 30 before it): song C's `other`
+  estimates E minor for an A-minor song, song D's `vocals` estimates B major for an
+  E-major song, and song E's `vocals` estimates F# minor (the relative) for a song centred
+  on A major/D→E. The two-pass gate repaired exactly three v1 failures (song C's
+  `bass`+`other` and `no_vocals`, song D's raw mix) and refused the one false adoption it
+  attempted (song E's `bass`, a mode flip) — **the raw mix now gets all five keys right**.
+  The failure modes that remain are the known ones: dominant-heavy arrangements pull the
+  Krumhansl-Schmuckler profile to the dominant, and modulating songs blur the reference
+  key itself (song E's chart *also* estimates A major).
+* **The per-stem rankings still swing from song to song.** `other`: first on songs B and
+  D (multiset 0.922/0.795), collapsed on C (0.326 on the chart's labels, 0.432
+  triad-reduced), fourth on E. `bass`: last on A, B, D and E, first on C's raw labels
+  (0.508). *No stem is reliably best* — five songs, four different winners (the mix on A,
+  `other` on B and D, `bass` on C, `bass`+`other` on E) — and the earlier n = 2 "`other`
+  is best" reading was overfit, exactly what its caveat predicted.
+* **The raw mix is now the steadiest input of all**: first on A and second or third on
+  every other song (never below third, the best average rank); `bass`+`other` is the
+  steadiest stem (never below fourth, first on E with multiset 0.812) and `no_vocals` sits
+  in the middle third everywhere. `vocals` is consistently bad for chords: never above
+  fifth on any song.
+* **The penalty tuned on song A remains a good default, not a per-song optimum.** The mix
+  peaks at 0.40 on songs A, C and D, and at 0.50 on song E (0.805 vs 0.778) — marginally
+  on B too (0.741 vs 0.738) — and several stems (`bass`+`other`, `no_vocals` on E) also
+  climb at 0.50; the full sweep still ran only on song A.
 * **Separation is not required for chords, and it is not a free win.** As in the lyrics pass,
   the extra processing does not buy a stable improvement over the mix.
 * **What an arrangement rewards, a stem inherits.** Song C's bass-led solo-guitar style
@@ -376,22 +435,28 @@ extraction is essentially all of it — decoding is 0.03–0.05 s.
   (worst or second-worst every other time). The
   chart's bass line dominates what the bass stem can show, so `bass` alone swings hardest
   between songs. `vocals` stays weak on all five: it carries melody, not harmony.
-* **The dominant knob is the change penalty**, not the input: moving it from 0.40 to 0.50
-  roughly halves the detected chord count (87 → 63 on the mix).
-* **The error pattern is systematic**: the engine confuses major with the parallel minor
-  (on song A it emits `Dm` and `Gm` where the chart has `D` and `G`, and misses the single
-  borrowed `C`; at penalty 0.40 the mix recovers 7 of 8 reference chords). Song B shows the
-  same shape: `other` recovers all 4 reference chords with a single false parallel (`Em`),
-  while the mix recovers all 4 but adds three (`Bm`, `Dm`, `Em`). Song C adds a new one:
-  detected chord *counts* can match the chart (98 vs 101) while the content is wrong, so
-  count alone is not evidence of accuracy.
+* **The dominant knob is the change penalty**, not the input: on song A's mix, moving it
+  from 0.30 to 0.50 takes the detected count from 115 to 59 (0.40: 81).
+* **The error pattern is still systematic, and v2 did not remove it.** The parallel-minor
+  confusion persists: song A's mix recovers 7 of 8 reference chords but emits `Dm` where
+  the chart has `D` (and misses `Am`), and song B's mix recovers all 4 with two false
+  additions (`Dm`, `Em`) while `other` adds only `Em`. Seventh and fifth labels can never
+  match — songs C and E lose their `D7`/`E7`/`E5` to a triad-only decoder (their
+  triad-reduced views exist for that reason). On the four-chord charts the engine's
+  diatonic vocabulary simply exceeds the chart's: song D's mix misses nothing yet adds
+  `Em` and `F#m`. And detected chord *counts* still prove nothing: song C's mix detects
+  100 against the chart's 101 at exact F1 0.368.
 
 **Limits.** Five songs and charts (n = 5), from the same user and the same genre (simple
 diatonic worship arrangements; song C is from the same arranger as song A): still no
 statistical claim, and songs B and D have 4-chord palettes, which
 makes the palette metric easy. The charts have no timestamps, so no frame-level accuracy
 exists. The change penalty was selected on song A's sweep — a tuned, not a default, value —
-though it transferred to songs B–D (song E's best sits at 0.50). Song C's and song E's
+though it transferred to songs B–D (the mix's best is 0.50 on E and marginally on B). The
+**v2 hyper-parameters were selected on these same five songs** (the diatonic bonus was
+swept over four values with and without the leading tone, and the key gate's adoption rule
+over three modes), so the +0.041 exact-F1 gain is an in-sample gain until a sixth song
+tests it. Song C's and song E's
 triad-reduced views mean their seventh and
 fifth labels can never be scored exactly against a triad-only decoder, song E's modulation
 makes its reference key soft, and the reference
@@ -423,18 +488,17 @@ transcriptions.
   the packaged ONNX Parakeet path returned 8 garbled words, and the upstream VAD route returned
   nothing at all (a speech VAD does not treat singing as speech). Only our own fixed-window
   chunking worked.
-* **Chord input: no stable winner across five songs.** `other` led songs 1–2 (multiset F1
-  0.859/0.866), collapsed on song 3 (0.371/0.474), placed third on song 4 and fourth on
-  song 5; `bass` swung from worst to first (song 3's triad view) and back to worst;
-  `no_vocals` led song 4 (0.795); the raw mix led song 5 (0.778) — five songs, four
-  different winners. `bass`+`other` never finished far from the top (third, third, fourth on raw
-  labels / second triad-reduced, second, second), `vocals` never left the bottom two, and
-  key estimation failed on 6 of 30
-  condition–song pairs. The change penalty still matters more than anything else. This is
-  the "separation is not a free win" result of the lyrics pass, now strengthened on the
-  chord task.
+* **Chord input: no stable winner across five songs (engine v2).** The raw mix led song 1
+  (multiset F1 0.826), `other` songs 2 and 4 (0.922/0.795), `bass` song 3 (0.508) and
+  `bass`+`other` song 5 (0.812) — five songs, four different winners. The mix is the
+  steadiest input (never below third), `bass`+`other` never below fourth, `vocals` never
+  above fifth, and key estimation now fails on 3 of 30 condition–song pairs (6 of 30
+  before the 2026-09-28 v2 revision). The change penalty still matters more than anything
+  else. This is the "separation is not a free win" result of the lyrics pass, now
+  strengthened on the chord task.
 * **The chord engine's errors are systematic, not random**: parallel major/minor confusion
-  and missed borrowed chords, at a chord count (87) that closely matches the chart (86).
+  and labels outside the triad vocabulary (`D7`, `E7`, `E5`), at a chord count (81 on song
+  A's mix) that closely matches the chart (86).
 
 ## What this is not
 
@@ -445,8 +509,9 @@ transcriptions.
   UVR and no 6-stem model. Two inputs are not enough to rank separators.
 * Not a full-transcript evaluation of the real song: its embedded lyrics are a partial
   reference, so no whole-song WER against a verbatim transcript exists.
-* Not a chord-engine benchmark: the section-23/24 engine is a hand-written baseline with no
-  sibling to compare against, tested on five songs with timestamp-free charts, so it measures
+* Not a chord-engine benchmark: the section-23/24 engine is our own hand-written baseline
+  (revised to v2 on 2026-09-28) with no sibling to compare against, tested on five songs
+  with timestamp-free charts, so it measures
   *this* engine against *these* references, not chord recognition in general.
 * Not a claim that one engine should be adopted. It is a first data point to inform phase 3.
 
@@ -470,8 +535,10 @@ like the rest of `results/`.
 The chord pass lives in the gitignored `.cache/chords/` (`chords.py`, now per-song via a
 `--song` flag, with per-song subdirectories holding the extracted audio, the Demucs stems,
 cached chroma/beat features, per-input `results/*.json`, `summary.json`, the
-`sweep.json`/`robust.json` parameter grids, a fetched LRCLIB response for song B and a
-triad-reduced scoring view (`report --triads`, used for song C's seventh/fifth labels). The
+`sweep.json`/`robust.json` parameter grids, the `variants.json` nine-configuration
+ablation behind the `variants` command, a fetched LRCLIB response for song B and a
+triad-reduced scoring view (`report --triads`, used for the seventh/fifth labels of songs
+C and E). The
 commercial MP3s and chord charts stay in the gitignored `mp3/` directory (the user
 also mirrors them in the private `mp3-library/` submodule, whose reference hash is the only
 thing committed). **Neither

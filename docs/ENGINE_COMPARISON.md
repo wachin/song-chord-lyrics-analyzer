@@ -346,9 +346,14 @@ measured on the same 5 songs × 6 inputs:
   `csr = equal_duration / (equal + not_equal)` over the common refinement of the two
   segmentations. The machinery is validated by the harness's `metrics` command on a
   hand-computed fixture (12 equality cases asserted; 11 s equal / 5 s not equal → CSR
-  0.6875), but it **cannot yet run on real songs**: the charts carry no timestamps
+  0.6875, plus a JAMS/Harte loader round-trip), and it now runs on real songs in
+  **agreement mode** — each stem's timed output against the raw mix's, both
+  segmentations starting at 0, which needs no ground truth (measured below). The
+  **accuracy mode** (`csr --ref song.jams`, reading timed Harte annotations) is
+  implemented and loader-tested but has no input: the five charts carry no timestamps
   (roadmap 43), and inventing reference timings would be exactly the kind of fake number
-  this project forbids. Implemented and waiting for timed ground truth.
+  this project forbids. A search for timestamped chart sources is recorded in
+  `docs/DATASET.md`.
 
 | View (mean F1 over the 30 condition–song rows) | F1 |
 | --- | ---: |
@@ -369,6 +374,29 @@ adopt the max-match rule. Per-song MIREX means: 0.687 / 0.715 / 0.491 / 0.664 / 
 (A–E). Under the MIREX view the per-stem winner changes only on song C (`bass`+`other`
 0.612 instead of `bass` 0.475, agreeing with the triad-reduced view); the other four
 winners are unchanged.
+
+**CSR in agreement mode (roadmap 44, 2026-09-28).** With no timed ground truth
+available, the duration CSR's first real measurement is *self-consistency*: the raw
+mix's timed chord sequence against each stem's, on the same song (`csr` command with
+`--condition original`, one `csr.json` per song). Both sides are our own predictions,
+so this is agreement, not accuracy — it measures how far source separation moves the
+detected chord *boundaries*.
+
+| Stem compared with the raw mix | A | B | C | D | E | mean |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Demucs `no_vocals` (drums+bass+other) | 0.775 | 0.653 | 0.715 | 0.739 | 0.836 | **0.744** |
+| Demucs `bass`+`other` | 0.758 | 0.610 | 0.621 | 0.742 | 0.729 | 0.692 |
+| Demucs `bass` | 0.656 | 0.516 | 0.402 | 0.624 | 0.399 | 0.519 |
+| Demucs `other` | 0.551 | 0.559 | 0.283 | 0.586 | 0.598 | 0.515 |
+| Demucs `vocals` | 0.435 | 0.337 | 0.422 | 0.555 | 0.250 | 0.400 |
+
+The aggregate order is stable and consistent with the accuracy tables: `no_vocals`
+finishes first on four of five songs (`bass`+`other` edges it on D by 0.003) and
+`vocals` finishes last on four of five (on C, `other` 0.283 and `bass` 0.402 are both
+lower). Dropping the vocals leaves boundaries most like the mix's; keeping *only* the
+vocals changes them the most — the separation-is-not-a-free-win result of the accuracy
+pass, now visible on timing as well. A stem can still agree with the mix while both
+are wrong the same way, so no accuracy claim follows from this table.
 
 **Results (engine v2), song A** at change penalty 0.40 (reference: 86 chords; chart key
 D major).
@@ -614,7 +642,8 @@ cached chroma/beat features, per-input `results/*.json`, `summary.json`, the
 `sweep.json`/`robust.json` parameter grids, the `variants.json` nine-configuration
 ablation behind the `variants` command, the `transitions.json` 16-configuration
 tapcorrect grid behind `transitions`, the `metrics.json` MIREX/CSR rows behind `metrics`
-(whose built-in fixture asserts both AceEval pieces), a fetched LRCLIB response for song
+(whose built-in fixture asserts both AceEval pieces and the JAMS loader), the per-song
+`csr.json` agreement rows behind `csr`, a fetched LRCLIB response for song
 B and a
 triad-reduced scoring view (`report --triads`, used for the seventh/fifth labels of songs
 C and E). The

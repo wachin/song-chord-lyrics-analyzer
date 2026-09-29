@@ -1762,7 +1762,18 @@ Document every dataset license.
 
 # [ ] 43. Ground Truth
 
-*Status (2026-09-23): partial — the intended format is documented in `docs/DATASET.md`; no annotations exist.*
+*Status (2026-09-28): partial — the intended format is documented in `docs/DATASET.md`;
+no annotations exist for this project's songs. A search for timestamped chart sources
+(2026-09-28) found timed ground truth elsewhere but never audio with it: **CASD** (50
+songs × 4 annotators, JAMS with real `time`/`duration`, verified locally, **CC BY-NC-SA
+4.0**, audio only via a `youtube_url` per song) and **ChoCo** (20,080 JAMS files, 2,283
+audio partitions, human timed chords, **CC BY 4.0** for most partitions, no audio) are
+recorded in `docs/DATASET.md`; no source combines audio + timestamps + a permissive
+licence. The harness now reads timed JAMS references (`csr --ref`, Harte → canonical,
+fixture-tested), so chord boundaries become scoreable the moment a licensed timed chart
+meets audio the user owns — or one of our charts is hand-annotated with provenance, which
+section 43 explicitly permits (`chord boundaries` stored with provenance; what it
+forbids is inventing them).*
 
 Ground truth must be explicit.
 
@@ -1791,9 +1802,12 @@ Store provenance.
 exact/root/quality F1 (timing-free alignment), multiset and palette F1, key agreement, and
 — new — AceEval's **MIREX-2010** equality view (measured: 0.636 mean F1 vs 0.575 for the
 historical exact view, with a max-match tie-break control at 0.619) plus a
-duration-weighted **Chord Sequence Recall** whose machinery is fixture-validated
-(11/16 = 0.6875) but cannot run on real songs because the charts carry no timestamps
-(roadmap 43): segment overlap, change-detection and timing error stay unmeasured rather
+duration-weighted **Chord Sequence Recall** (fixture-validated, 11/16 = 0.6875) which now
+runs on real songs in *agreement* mode — each Demucs stem's timed output vs the raw
+mix's over 5 songs: mean CSR **0.744 `no_vocals` > 0.692 `bass`+`other` > 0.519 `bass` >
+0.515 `other` > 0.400 `vocals`** — while its *accuracy* mode is implemented but awaits
+timed ground truth (roadmap 43; timed-source search in `docs/DATASET.md`): frame/segment
+scores against a reference, change-detection and timing error stay unmeasured rather
 than invented. Lyrics WER/CER exist from the ASR passes (roadmap 25); key and tempo
 metrics await their engines; nothing is integrated in `src/` yet.*
 

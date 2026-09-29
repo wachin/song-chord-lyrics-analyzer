@@ -219,6 +219,24 @@ investigation, not a `songlab benchmark` run, and no chord adapter is registered
   Per-stem winners under MIREX change only on song C (`bass`+`other`, agreeing with the
   triad-reduced view). Tables in `docs/ENGINE_COMPARISON.md`, verdict in
   `docs/DEPENDENCY_MATRIX.md` §13.12, status in roadmap §44.
+* **CSR runs on real songs; timestamped-source search recorded (roadmap 43/44,
+  2026-09-28).** The duration-weighted Chord Sequence Recall left the fixture. In
+  **agreement mode** — each Demucs stem's timed output against the raw mix's, no ground
+  truth needed — it scored all five songs (`csr` command, per-song `csr.json`): mean CSR
+  `no_vocals` **0.744** > `bass`+`other` 0.692 > `bass` 0.519 > `other` 0.515 > `vocals`
+  **0.400**, with `no_vocals` first on 4 of 5 songs and `vocals` last on 4 of 5 — the
+  separation-is-not-a-free-win result now holds on chord *timing* too (agreement, not
+  accuracy: a stem can agree with a mix that is wrong the same way). The **accuracy
+  mode** is implemented as well (`csr --ref song.jams`, with a JAMS loader that converts
+  Harte labels like `Bb:min`/`F#:7/5` to the canonical form, fixture-tested) but has no
+  input: the charts carry no timestamps. The search for timed sources found none with
+  audio *and* a permissive licence — **CASD** has 50 songs × 4 annotators with real
+  times (verified locally in `external/chordify-org/CASD/`) but is CC BY-NC-SA 4.0 and
+  ships no audio (only `youtube_url`s), and **ChoCo** offers 20,080 timed JAMS files
+  under CC BY 4.0 (most partitions) but also no audio. Both are recorded with their
+  routes forward in `docs/DATASET.md`: pair a licensed timed chart with audio the user
+  owns, or hand-annotate boundaries on one of our charts with provenance. Verdicts in
+  `docs/DEPENDENCY_MATRIX.md` §13.12, statuses in roadmap §43/§44.
 
 ### Reference repositories
 

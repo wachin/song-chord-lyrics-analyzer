@@ -350,10 +350,10 @@ measured on the same 5 songs × 6 inputs:
   **agreement mode** — each stem's timed output against the raw mix's, both
   segmentations starting at 0, which needs no ground truth (measured below). The
   **accuracy mode** (`csr --ref song.jams`, reading timed Harte annotations) is
-  implemented and loader-tested but has no input: the five charts carry no timestamps
-  (roadmap 43), and inventing reference timings would be exactly the kind of fake number
-  this project forbids. A search for timestamped chart sources is recorded in
-  `docs/DATASET.md`.
+  implemented, and it finally has real ground truth: a 24-excerpt GuitarSet sample
+  (CC BY 4.0, real acoustic-guitar audio + timed JAMS chords) is measured below. The
+  five user charts still carry no timestamps, so the reference here is GuitarSet, not
+  our own songs; a search for timestamped chart sources is recorded in `docs/DATASET.md`.
 
 | View (mean F1 over the 30 condition–song rows) | F1 |
 | --- | ---: |
@@ -397,6 +397,59 @@ lower). Dropping the vocals leaves boundaries most like the mix's; keeping *only
 vocals changes them the most — the separation-is-not-a-free-win result of the accuracy
 pass, now visible on timing as well. A stem can still agree with the mix while both
 are wrong the same way, so no accuracy claim follows from this table.
+
+**CSR in accuracy mode: 24 excerpts of GuitarSet (roadmap 43/44, 2026-09-29).** This is
+the first duration-CSR measurement against a reference that has **both audio and chord
+boundaries** (the five user charts have neither timestamps nor, for the fixture, real
+musical content). GuitarSet was downloaded from Zenodo (v1.1.0, **CC BY 4.0**, MD5s
+verified; 360 excerpts), and a 24-excerpt sample was measured — 6 players × 5 styles
+(Rock, Singer-Songwriter, Bossa Nova, Jazz, Funk), the *comping* takes only, 14–46 s
+each, solo acoustic guitar, all with hand-aligned beats. Each excerpt ships **two** chord
+annotations, so both are used: the **instructed** lead sheet (plain triads, what the
+player was given) and the **performed** voicings (what was actually played, full of
+`B7(13,*5)/A`-style extensions), each scored raw and triad-reduced.
+
+| Reference view (24 excerpts) | mean CSR | median | min | max |
+| --- | ---: | ---: | ---: | ---: |
+| instructed lead sheet, raw | 0.476 | 0.451 | 0.000 | 0.900 |
+| instructed lead sheet, triad-reduced | 0.478 | 0.451 | 0.000 | 0.900 |
+| performed voicings, raw | 0.412 | 0.401 | 0.000 | 0.887 |
+| performed voicings, triad-reduced | 0.465 | 0.511 | 0.000 | 0.900 |
+| *exact F1 (instructed, triad-reduced, timing-free)* | 0.577 | 0.608 | 0.000 | 0.923 |
+| *MIREX-2010 F1 (same reference)* | 0.585 | 0.608 | 0.000 | 0.923 |
+
+Reading the table:
+
+* **These are the hardest conditions measured so far, and the numbers say so.** A
+  full-mix stadium-pop song scores 0.575 exact F1 on the user's charts; solo guitar
+  comping of jazz/funk voicings over 14–46 s excerpts scores 0.476 CSR. Unlike the
+  five-song pass (Demucs stems, 254–327 s songs, one chord chart per song), nothing here
+  is separated or rehearsed for the engine: dense extensions, percussive attacks and
+  room reverberation smear the chroma, and a short excerpt gives a few beats of context.
+* **The reference matters as much as the engine.** Scoring against the performed
+  voicings raw costs ~0.06 mean CSR versus the instructed lead sheet (0.412 vs 0.476)
+  purely because our vocabulary is 24 triads: `B7(13,*5)/A` shares only its `B`, `D#`
+  and `G#` with the decoder's states. Triad-reducing the performed labels recovers it
+  (0.412 → 0.465) and gives the best *median* of all four views (0.511). The two
+  annotations are not interchangeable and neither is "the" ground truth — the same
+  subjectivity lesson CASD makes for human annotators.
+* **One collapse, four weak excerpts.** `03_Jazz1-200-B_comp` decodes to a single
+  `G#m` for all 14.4 s (CSR 0.000): its chroma is smeared across adjacent semitones
+  (top classes `G#` 0.27, `A` 0.25, `G` 0.15, `A#` 0.11, `B` only 0.06) because the
+  player comps `B7(13,*5)/A`, `E9(*1)/G#`-style voicings, and the flat change penalty
+  then keeps one state the whole way — the same decoder weakness the `tapcorrect`
+  experiment exposed. Three more excerpts sit below 0.2 CSR (`01_Funk2-119-G` 0.187,
+  `04_Funk2-108-Eb` 0.120, `01_SS2-107-Ab` 0.127, all dense funk/jazz comping).
+* **Key estimation holds up less well than on the five songs:** the audio key matches
+  the JAMS `key_mode` annotation on **17 of 24** excerpts (71 %), and four of the seven
+  misses are the documented relative-major/minor confusion (C major → A minor three
+  times, B major → `03_Jazz1`'s G# minor). On the five songs the engine reaches 27/30
+  after the two-pass gate; solo-guitar chroma is evidently a harder input for
+  Krumhansl-Schmuckler.
+* **Scope.** 24 of 360 excerpts, comping takes only, one player per excerpt, no stem
+  conditions (a solo guitar has no stems to separate), no full songs, and a decoder
+  tuned on the five user charts. It is a first real-timing data point, not an accuracy
+  claim about chord recognition.
 
 **Results (engine v2), song A** at change penalty 0.40 (reference: 86 chords; chart key
 D major).
@@ -643,7 +696,9 @@ cached chroma/beat features, per-input `results/*.json`, `summary.json`, the
 ablation behind the `variants` command, the `transitions.json` 16-configuration
 tapcorrect grid behind `transitions`, the `metrics.json` MIREX/CSR rows behind `metrics`
 (whose built-in fixture asserts both AceEval pieces and the JAMS loader), the per-song
-`csr.json` agreement rows behind `csr`, a fetched LRCLIB response for song
+`csr.json` rows behind `csr` (agreement, or accuracy with `--ref … [--ref-index N]` —
+the GuitarSet sample above), the `guitarset_summary.json` aggregate behind those runs, a
+fetched LRCLIB response for song
 B and a
 triad-reduced scoring view (`report --triads`, used for the seventh/fifth labels of songs
 C and E). The

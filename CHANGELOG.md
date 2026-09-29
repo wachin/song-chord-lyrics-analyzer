@@ -237,6 +237,28 @@ investigation, not a `songlab benchmark` run, and no chord adapter is registered
   routes forward in `docs/DATASET.md`: pair a licensed timed chart with audio the user
   owns, or hand-annotate boundaries on one of our charts with provenance. Verdicts in
   `docs/DEPENDENCY_MATRIX.md` §13.12, statuses in roadmap §43/§44.
+* **Duration CSR measured against real ground truth (roadmap 43/44, 2026-09-29).** The
+  accuracy mode left the fixture. **ChoCo** v1.0.0 was fetched first (179 MB, 20,086
+  JAMS) as an annotation index — its audio partitions are Beatles/Billboard/jazz/RWC-Pop/
+  Schubert, its `meta.csv` intersects the user's five charts in **zero** songs — and its
+  loader path was validated on real Isophonics/Billboard/CASD/JAAH files (segment
+  coverage matches every metadata duration). Audio came from **GuitarSet** (Zenodo
+  10.5281/zenodo.3371780, v1.1.0, **CC BY 4.0**, MD5s verified; 360 excerpts of real
+  acoustic guitar with 16 timed JAMS annotations each) — the first source found with
+  audio *and* chord boundaries under a permissive licence. A 24-excerpt sample (6 players
+  × 5 styles, comping takes, 14–46 s, ~11 min of audio) gives the first duration CSR
+  scored against real reference timings: **mean 0.476** against the instructed lead sheet
+  and **0.465** against the triad-reduced performed voicings (raw performed 0.412, best
+  median 0.511), with exact F1 0.577 and key agreement 17/24. Findings recorded: scoring
+  the triad decoder against the *performed* jazz voicings costs ~0.06 CSR before
+  triad-reduction; one excerpt collapses to a single chord (smeared chroma from
+  `B7(13,*5)/A`-style voicings plus the flat change penalty, the same decoder weakness as
+  the tapcorrect study); four more sit below 0.2; and four of the seven key misses are
+  the documented relative major/minor confusion. Harness additions (gitignored):
+  GuitarSet song entries, chart auto-derivation from the instructed annotation,
+  `--ref-index`, and CSR rows for both annotation views. Tables in
+  `docs/ENGINE_COMPARISON.md`, source records in `docs/DATASET.md`, verdict in
+  `docs/DEPENDENCY_MATRIX.md` §13.12, statuses in roadmap §43/§44.
 
 ### Reference repositories
 

@@ -1762,18 +1762,24 @@ Document every dataset license.
 
 # [ ] 43. Ground Truth
 
-*Status (2026-09-28): partial — the intended format is documented in `docs/DATASET.md`;
+*Status (2026-09-29): partial — the intended format is documented in `docs/DATASET.md`;
 no annotations exist for this project's songs. A search for timestamped chart sources
 (2026-09-28) found timed ground truth elsewhere but never audio with it: **CASD** (50
 songs × 4 annotators, JAMS with real `time`/`duration`, verified locally, **CC BY-NC-SA
 4.0**, audio only via a `youtube_url` per song) and **ChoCo** (20,080 JAMS files, 2,283
 audio partitions, human timed chords, **CC BY 4.0** for most partitions, no audio) are
-recorded in `docs/DATASET.md`; no source combines audio + timestamps + a permissive
-licence. The harness now reads timed JAMS references (`csr --ref`, Harte → canonical,
-fixture-tested), so chord boundaries become scoreable the moment a licensed timed chart
-meets audio the user owns — or one of our charts is hand-annotated with provenance, which
-section 43 explicitly permits (`chord boundaries` stored with provenance; what it
-forbids is inventing them).*
+recorded in `docs/DATASET.md`. Neither of those ships audio, but on 2026-09-29
+**GuitarSet** (Zenodo, **CC BY 4.0**, MD5-verified) supplied the missing combination —
+360 real acoustic-guitar excerpts with timed chord, beat and key JAMS — of which 24
+comping excerpts now serve as the first ground truth with real timings
+(`docs/ENGINE_COMPARISON.md`, "Chords"). The five user charts still have no timestamps
+and none of them exists in ChoCo, so the reference is GuitarSet rather than our own
+songs. The harness reads timed JAMS references (`csr --ref [--ref-index N]`, Harte →
+canonical, fixture-tested, also validated on ChoCo's Isophonics/Billboard/CASD/JAAH
+partitions), so our songs become scoreable the moment a licensed timed chart meets audio
+the user owns — or one of our charts is hand-annotated with provenance, which this
+section permits (`chord boundaries` stored with provenance; what it forbids is inventing
+them).*
 
 Ground truth must be explicit.
 
@@ -1805,10 +1811,12 @@ historical exact view, with a max-match tie-break control at 0.619) plus a
 duration-weighted **Chord Sequence Recall** (fixture-validated, 11/16 = 0.6875) which now
 runs on real songs in *agreement* mode — each Demucs stem's timed output vs the raw
 mix's over 5 songs: mean CSR **0.744 `no_vocals` > 0.692 `bass`+`other` > 0.519 `bass` >
-0.515 `other` > 0.400 `vocals`** — while its *accuracy* mode is implemented but awaits
-timed ground truth (roadmap 43; timed-source search in `docs/DATASET.md`): frame/segment
-scores against a reference, change-detection and timing error stay unmeasured rather
-than invented. Lyrics WER/CER exist from the ASR passes (roadmap 25); key and tempo
+0.515 `other` > 0.400 `vocals`** — and its *accuracy* mode now runs too: against 24
+GuitarSet excerpts (CC BY 4.0 real guitar audio + timed JAMS, 2026-09-29) the mean CSR
+is **0.476** against the instructed lead sheet and **0.465** against the triad-reduced
+performed voicings, with 17/24 keys matching the annotation. References are still
+scarce (roadmap 43): segment overlap, change-detection and timing error stay unmeasured
+rather than invented. Lyrics WER/CER exist from the ASR passes (roadmap 25); key and tempo
 metrics await their engines; nothing is integrated in `src/` yet.*
 
 ## [ ] Chord metrics

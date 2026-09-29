@@ -948,7 +948,9 @@ after reading Chordify's own 35 public repositories (mounted under
 `external/chordify-org/`; ideas only, no code copied): a diatonic-tone-fraction key prior
 and a conditional leading tone from `HarmTrace-Base`'s `isChordInKey`, plus a gated
 two-pass key estimate, while optional dominant-seventh templates were measured and
-rejected. Aggregate over five songs × six inputs: exact F1 0.534 → 0.575 (triad-reduced
+rejected — as were tapcorrect's distance-smoothed transitions, measured across 16
+configurations and rejected on every accuracy metric (§13.12). Aggregate over five
+songs × six inputs: exact F1 0.534 → 0.575 (triad-reduced
 0.568 → 0.597), multiset F1 0.655 → 0.691, key agreement 24/30 → 27/30. Ablation in
 `docs/ENGINE_COMPARISON.md`, adoption record in `docs/DEPENDENCY_MATRIX.md` §13.12. No
 chord adapter has been registered in `src/` yet.*

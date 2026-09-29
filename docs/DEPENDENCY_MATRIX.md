@@ -697,8 +697,24 @@ ablation lives in `docs/ENGINE_COMPARISON.md`, "Chords".
 | `HarmTrace-Base`, `analyseTriad`/`analyseTetra` | analyse triad *and* seventh | **measured, rejected**: 12 optional dominant-seventh templates cost accuracy on both bases (v1 0.531 vs 0.534; v2 0.570 vs 0.575, key 26/30 vs 27/30) — the charts' two or three `D7`/`E7` labels are outnumbered by spurious sevenths |
 | our own follow-up to the above | estimate the key from the **hypothesis** (duration-weighted chroma) and adopt only when the mode matches and the correlation holds | **adopted** as the two-pass gate (`key_passes=2`, `key_pass_mode="gate"`): key agreement 24/30 → 27/30 with the chord scores untouched; always-adopt and average-the-priors modes measured worse (both 25/30) |
 | `AceEval` (LGPL-3.0), `ChordEq.hs`/`EqIgnore.hs`/`Func.hs` — `majMinEq`, `mirex2010`, duration-weighted overlap | MIREX-style pitch-class-intersection equality and a duration-weighted Chord Sequence Recall | **not adopted yet** — recorded as metric candidates for roadmap 44 and the future `songlab benchmark`; the charts have no timestamps, so duration weighting cannot be exercised on them |
-| `tapcorrect` (ISMIR 2019, Python) — Viterbi transitions `T[i,j] = exp(−λ·|i−j|)` | transitions smoothed by state distance instead of a flat change penalty | **not adopted** — a plausible refinement, but the change penalty is our dominant knob and changing its shape would invalidate the recorded sweep |
+| `tapcorrect` (ISMIR 2019, Python) — Viterbi transitions `T[i,j] = exp(−λ·|i−j|)` | transitions smoothed by state distance instead of a flat change penalty | **measured, rejected (2026-09-28)** — 16 configurations over the 5-song set: distance transitions lose on every accuracy metric at every λ; only +2 keys for fifths (25/30). Detail below. |
 | `CASD` | four expert annotators per song (JAMS): chord ground truth is genuinely subjective | **context only** — reinforces roadmap 43: charts are editorial choices, never definitive truth |
+
+**tapcorrect detail (2026-09-28).** λ ∈ {0.40, 0.60, 0.80, 1.00, 1.60, 2.00} ×
+{chromatic, fifths} plus flat 0.30/0.40/0.50 and the shipped loop, all over 5 songs ×
+6 inputs (`transitions` command, `transitions.json`): the best distance row (fifths,
+λ 0.40) reaches exact F1 **0.549 vs 0.575** for the shipped flat penalty (0.596 for flat
+on the corrected decoder), and raising λ until the mean chord count matches flat 0.30
+still loses (**0.531 vs 0.605**). Chromatic is strictly worse than fifths (harmonic
+motion runs along the circle of fifths); the only gain is +2 correct keys (25/30) for
+fifths at λ ≤ 1.0. The same run exposed that the harness's legacy flat loop mutates `dp`
+in place while iterating over states and therefore **fails to optimise even its own
+objective** (verified against brute force), which is why it behaves as if the penalty
+were lower than its parameter value. It still ships as the default, because every
+recorded artifact reproduces byte-identically with it and its multiset/key scores are
+better, while the corrected loop wins on exact/palette F1 (its flat optimum is penalty
+0.30). Re-tuning the engine (bonus, gate, penalty) around the corrected loop is recorded
+as an open question.
 
 Net effect of the adopted ideas on the same 30 condition–song rows: exact F1
 **0.534 → 0.575**, triad-reduced exact F1 **0.568 → 0.597**, multiset F1 **0.655 → 0.691**,

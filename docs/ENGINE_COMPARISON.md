@@ -273,6 +273,43 @@ The three key failures that remain are song C's `other` and `vocals` on songs D 
 all five raw-mix keys are now correct. Every result table below is v2, at the same change
 penalty 0.40.
 
+**tapcorrect's smoothed transitions — measured, rejected (2026-09-28).** The same
+repositories suggest replacing the flat change penalty with transitions that decay with
+state distance (`tapcorrect`, ISMIR 2019: `T[i,j] = exp(-λ·|i-j|)`, which in this
+log-domain decode becomes `cost(i→j) = λ·d(i,j)` with `d ∈ [0,1]`: root distance on the
+chromatic circle or on the circle of fifths, +0.5 for a quality change, 1.0 for entering
+or leaving no-chord). Sixteen configurations (λ ∈ 0.40–2.00 × both distance metrics, plus
+flat 0.30/0.40/0.50 and the shipped loop) were run over the same 5 songs × 6 inputs.
+Every row except the first runs on the corrected Viterbi loop described below:
+
+| transition cost (mean over 30 rows) | exact F1 | exact, triad-reduced | multiset F1 | key | mean chords |
+| --- | ---: | ---: | ---: | :---: | ---: |
+| flat 0.40, **production loop** | 0.575 | 0.597 | **0.691** | **27/30** | 79.8 |
+| flat 0.40, corrected loop | 0.596 | 0.618 | 0.650 | 23/30 | 52.4 |
+| flat 0.30, corrected loop | **0.605** | **0.631** | 0.677 | 23/30 | 59.4 |
+| chromatic λ=0.40 (best of six λ) | 0.534 | 0.566 | 0.636 | 24/30 | 93.8 |
+| fifths λ=0.40 (best of six λ) | 0.549 | 0.575 | 0.639 | 25/30 | 116.7 |
+| fifths λ=2.00 (chord-count matched) | 0.531 | 0.548 | 0.620 | 24/30 | 64.8 |
+
+The distance costs **lose on every accuracy metric at every λ**, and raising λ until the
+chord count matches flat 0.30 does not close the gap (0.531 vs 0.605 exact). The only
+gain is +2 correct keys for fifths at λ ≤ 1.0, not enough to offset the F1 loss.
+Chromatic is strictly worse than fifths — musically sensible, since harmonic motion runs
+along the circle of fifths. **Rejected.**
+
+**A decoder-loop finding that came out of this experiment.** The legacy flat-penalty loop
+updates `dp` in place while iterating over states, so transitions out of the argmax state
+into higher-indexed states are scored with that state's *current*-time emission — and the
+loop consequently **fails to optimise even its own objective** (verified against
+brute-force search on random emissions), behaving as if the penalty were lower than 0.40
+(79.8 vs 52.4 mean detected chords at the same parameter). Neither loop dominates: the
+corrected loop is better on exact and palette F1 (its flat optimum is penalty 0.30), while
+the legacy loop is better on multiset F1 and on key — where the two-pass gate and the
+bonus sweep were tuned, on the legacy loop. The harness therefore keeps the legacy loop
+as the default (every recorded artifact stays byte-reproducible) and runs only the
+`transitions` table on the corrected one. Re-tuning the whole engine (bonus, gate,
+penalty) around the corrected loop is recorded as an open question, not smuggled in here.
+
 **Reference and metrics (timing-free).** Each chart is a complete chord sheet in song order
 with section headers but **no timestamps** — the standard chord-sheet format (as found on
 ultimate-guitar), so frame accuracy, segment overlap and chord-change timing error cannot

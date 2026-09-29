@@ -187,6 +187,22 @@ investigation, not a `songlab benchmark` run, and no chord adapter is registered
   0.570 vs 0.575 on v2). The hyper-parameters were selected on these same five songs, so
   the gain is recorded as in-sample. Every chord table in `docs/ENGINE_COMPARISON.md`
   was regenerated; the adoption record is in `docs/DEPENDENCY_MATRIX.md` §13.12.
+* **tapcorrect's transition smoothing measured and rejected (2026-09-28).** The
+  `tapcorrect` repo (ISMIR 2019) suggests Viterbi transitions that decay with state
+  distance (`T[i,j] = exp(-λ|i-j|)`), implemented in the harness as
+  `cost(i→j) = λ·d(i,j)` with `d` on the chromatic circle or the circle of fifths
+  (+0.5 for a quality change, 1.0 for no-chord). 16 configurations (λ 0.40–2.00 × both
+  metrics, plus flat 0.30/0.40/0.50) × 5 songs × 6 inputs: the best distance row
+  (fifths, λ 0.40) reaches exact F1 **0.549 vs 0.575** for the shipped flat penalty,
+  never closes the gap at chord-count-matched λ (0.531 vs 0.605), and only buys +2
+  correct keys (25/30); chromatic is strictly worse than fifths. The run also exposed
+  that the harness's legacy flat loop mutates `dp` in place while iterating states and
+  **misses its own optimum** (brute-force verified): the corrected loop wins on
+  exact/palette F1 but loses on multiset/key (where the gate and bonus were tuned on
+  it), so the legacy loop stays the default — every recorded artifact reproduces
+  byte-identically — and re-tuning the engine around the corrected loop is recorded as
+  an open question. Tables in `docs/ENGINE_COMPARISON.md`, verdict in
+  `docs/DEPENDENCY_MATRIX.md` §13.12.
 
 ### Reference repositories
 

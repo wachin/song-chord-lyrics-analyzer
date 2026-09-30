@@ -272,6 +272,24 @@ investigation, not a `songlab benchmark` run, and no chord adapter is registered
   0.262 > Funk 0.197), 8 takes collapse to one chord and 26 score 0.000, and key
   agreement on comping takes is 58 % against 90 % on the five user songs. Full tables in
   `docs/ENGINE_COMPARISON.md`.
+* **The 8 single-chord collapses were ablated — measured, fix identified, not adopted
+  (2026-09-29).** Every take was re-decoded over a `change_penalty` (0.15–0.60) ×
+  `palette_pass` × `viterbi_impl` grid (all 360 takes, plus the five songs × six inputs;
+  `guitarset_ablation.py` / `song_ablation.py` in the gitignored harness). Verdict: the
+collapses are a **penalty artefact of the legacy in-place Viterbi loop, not a decoder
+  bug** — at the nominal 0.40 the *corrected* loop collapses more takes (28 vs 8) because
+  it finally charges the penalty the legacy loop under-collects, and within each loop the
+  collapse count is monotone in the penalty. The measured best combination is the
+  corrected loop at flat penalty **0.20**: GuitarSet comping CSR 0.457 → **0.524**,
+  collapses 8 → **3** (the worst take, one `G#m` for 14.4 s, moves 0.000 → 0.083),
+  soloing negative control unchanged (0.198 → 0.191); on the five songs exact F1 0.575 →
+  **0.610**, triad-reduced 0.597 → **0.640**, multiset 0.691 → **0.707**, palette 0.760 →
+  0.797. The single regression is **key agreement 27/30 → 23/30**, because the two-pass
+  key gate and the diatonic bonus were tuned on the legacy loop. The production default
+  therefore stays `legacy + 0.40` (byte-reproducible artifacts); re-tuning the key gate
+  around the corrected loop is the recorded next step before adoption. Tables in
+  `docs/ENGINE_COMPARISON.md` ("Collapse ablation"), verdict in
+  `docs/DEPENDENCY_MATRIX.md` §13.12, statuses in roadmap §43/§44.
 
 ### Reference repositories
 

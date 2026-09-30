@@ -451,6 +451,40 @@ separate those two subsets would be measuring something else.
   27/30 (90 %) on the five user songs; the misses are dominated by the documented
   relative-major/minor confusion (typically C major ↔ A minor, and `03_Jazz1`'s B major →
   G# minor).
+* **Collapse ablation: the collapses are a penalty artefact, not a decoder bug — and the
+  fix was measured but not adopted (2026-09-29).** All 360 takes were re-decoded over a
+  grid of `change_penalty` (0.15–0.60) × `palette_pass` × `viterbi_impl` (the legacy loop
+  vs the corrected matrix loop). Collapse counts are monotone in the penalty *within*
+  each loop, and the two loops differ exactly as the in-place-update bug predicts: at the
+  nominal 0.40 the corrected loop collapses **more** takes (28 vs 8, zeros 40 vs 26)
+  because it finally charges the penalty the legacy loop under-collected; at a matched
+  effective penalty the corrected loop collapses fewer. The combination measured best on
+  every count — **corrected loop + penalty 0.20**: comping CSR 0.457 → 0.524, all-360 CSR
+  0.327 → 0.358, collapses 8 → 3, and the worst takes un-collapse (the `G#m` take above
+  moves 0.000 → 0.083 at 0.25; `01_Funk1-97-C_comp` 0.000 → 0.321; only
+  `04_Jazz3-150-C_comp` stays collapsed, and it stays wrong at 0.000). The same
+  configuration on the five user songs (30 rows, same columns as the `transitions`
+  table) **improves exact 0.575 → 0.610, triad-reduced 0.597 → 0.640, multiset 0.691 →
+  0.707 and palette 0.760 → 0.797** — every accuracy metric, no trade-off — except one:
+  **key agreement drops 27/30 → 23/30**, because the two-pass key gate and the diatonic
+  bonus were tuned on the legacy loop. Re-tuning the gate around the corrected loop to
+  recover the four keys is the remaining step before the default can move; until then the
+  production default stays `legacy + 0.40` and this table is the record of what the fix
+  would buy.
+  | config (5 songs × 6 inputs) | exact | triad-reduced | multiset | palette | key | mean chords |
+  | --- | ---: | ---: | ---: | ---: | :---: | ---: |
+  | flat-legacy@0.40 (production) | 0.575 | 0.597 | 0.691 | 0.760 | **27/30** | 79.8 |
+  | flat corrected@0.40 | 0.596 | 0.618 | 0.650 | 0.798 | 23/30 | 52.4 |
+  | flat corrected@0.30 | 0.605 | 0.631 | 0.676 | 0.802 | 23/30 | 59.4 |
+  | flat corrected@0.25 | 0.608 | 0.636 | 0.696 | 0.791 | 23/30 | 65.9 |
+  | flat corrected@0.20 | **0.610** | **0.640** | **0.707** | 0.797 | 23/30 | 72.7 |
+  | flat corrected@0.15 | 0.608 | 0.642 | **0.715** | **0.804** | 24/30 | 83.9 |
+
+  And on GuitarSet (360 takes, CSR against the instructed lead sheet; the soloing half is
+  the negative control): collapses go 8 → 28 → 14 → 5 → 3 for penalties
+  0.40-legacy → 0.40 → 0.30 → 0.25 → 0.20 corrected, comping CSR 0.457 → 0.478 → 0.498 →
+  0.510 → 0.524, soloing CSR 0.198 → 0.199 → 0.201 → 0.197 → 0.191 — the negative control
+  stays flat while the signal subset improves, which is what a real fix looks like.
 * **Scope.** Real audio and real reference timings, but solo acoustic guitar only, no
   stems (a solo guitar has nothing to separate), 14–46 s excerpts rather than full songs,
   and a decoder hyper-parameter set tuned on the five user charts. It is the first
@@ -706,7 +740,10 @@ tapcorrect grid behind `transitions`, the `metrics.json` MIREX/CSR rows behind `
 `csr.json` rows behind `csr` (agreement, or accuracy with `--ref … [--ref-index N]` —
 the GuitarSet runs above), plus the GuitarSet companion scripts (`guitarset_all.py`
 resumable sweep → `guitarset_all.jsonl`, `guitarset_aggregate.py` →
-`guitarset_all_summary.json`; `guitarset_summary.json` holds the earlier 24-excerpt pass),
+`guitarset_all_summary.json`; `guitarset_summary.json` holds the earlier 24-excerpt pass;
+`guitarset_ablation.py` → `guitarset_ablation.json` (180 comping takes) and
+`guitarset_ablation_all.json` (all 360) behind the collapse-ablation grid, and
+`song_ablation.py` → `song_ablation.json` behind the five-song re-tuning table above),
 a fetched LRCLIB response for song
 B and a
 triad-reduced scoring view (`report --triads`, used for the seventh/fifth labels of songs

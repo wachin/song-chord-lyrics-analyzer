@@ -231,7 +231,12 @@ tests:
    on timestamp-free charts; revised to engine v2 on 2026-09-28), plus since 2026-09-29 a
    duration-weighted **CSR** against GuitarSet's timed annotations (all 360 excerpts;
    180 comping takes mean 0.457 instructed / 0.423 performed-triad-reduced) — the first
-   chord number whose reference has real timings. All of it comes from throwaway harnesses, not from
+   chord number whose reference has real timings. The 8 single-chord collapses in that
+   sweep were ablated (2026-09-29): a penalty artefact of the legacy in-place Viterbi
+   loop, fixable with the corrected loop at penalty 0.20 (CSR 0.524 comping, collapses
+   3) at the cost of 4/30 key matches — see §13.12 and
+   `docs/ENGINE_COMPARISON.md`; the default does not move until the key gate is
+   re-tuned. All of it comes from throwaway harnesses, not from
    `songlab benchmark`, and no number may be quoted as production quality until that
    command produces it (roadmap rules 6 and 13).
 3. **The basic-pitch Python-version conflict needs a decision:** either pin that
@@ -718,6 +723,22 @@ recorded artifact reproduces byte-identically with it and its multiset/key score
 better, while the corrected loop wins on exact/palette F1 (its flat optimum is penalty
 0.30). Re-tuning the engine (bonus, gate, penalty) around the corrected loop is recorded
 as an open question.
+
+**Collapse ablation closes half of that open question (2026-09-29).** The 8 single-chord
+collapses in the GuitarSet sweep were investigated with a full grid over `change_penalty`
+× `palette_pass` × `viterbi_impl` (comping 180 and all 360 takes, plus the five songs ×
+6 inputs; `guitarset_ablation.py` / `song_ablation.py` in the gitignored harness, tables
+in `docs/ENGINE_COMPARISON.md`). Verdict: the collapses are a **penalty artefact of the
+legacy in-place loop, not a decoder bug** — at the nominal 0.40 the corrected loop
+collapses *more* takes (28 vs 8) because it finally charges the under-collected penalty,
+and collapse counts are monotone in the penalty within each loop. The measured best
+combination is **corrected loop + flat penalty 0.20**: GuitarSet comping CSR 0.457 →
+0.524, collapses 8 → 3, and on the five songs exact F1 0.575 → 0.610, multiset 0.691 →
+0.707, palette 0.760 → 0.797 — every accuracy metric up, no trade-off — **except key
+agreement, 27/30 → 23/30**, which was tuned on the legacy loop. The default stays
+`legacy + 0.40` (byte-reproducible artifacts); re-tuning the two-pass key gate around
+the corrected loop to recover the four keys is the recorded next step before the default
+can move.
 
 Net effect of the adopted ideas on the same 30 condition–song rows: exact F1
 **0.534 → 0.575**, triad-reduced exact F1 **0.568 → 0.597**, multiset F1 **0.655 → 0.691**,

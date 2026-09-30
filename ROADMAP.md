@@ -1779,7 +1779,12 @@ canonical, fixture-tested, also validated on ChoCo's Isophonics/Billboard/CASD/J
 partitions), so our songs become scoreable the moment a licensed timed chart meets audio
 the user owns — or one of our charts is hand-annotated with provenance, which this
 section permits (`chord boundaries` stored with provenance; what it forbids is inventing
-them).*
+them). The 8 single-chord decoding collapses in that sweep were ablated the same day
+(2026-09-29): they are a penalty artefact of the legacy in-place Viterbi loop, not a
+decoder bug — the corrected loop at flat penalty 0.20 removes 5 of the 8 and lifts
+comping CSR 0.457 → 0.524, held back from adoption only by a 4/30 key-regression on the
+five user songs whose key gate was tuned on the old loop (`docs/ENGINE_COMPARISON.md`,
+"Collapse ablation").*
 
 Ground truth must be explicit.
 
@@ -1815,7 +1820,14 @@ mix's over 5 songs: mean CSR **0.744 `no_vocals` > 0.692 `bass`+`other` > 0.519 
 GuitarSet excerpts (CC BY 4.0 real guitar audio + timed JAMS, 2026-09-29) the 180
 comping takes score mean CSR **0.457** against the instructed lead sheet and **0.423**
 against the triad-reduced performed voicings (the 180 soloing takes, which contain no
-chords, drop to 0.198 and act as a negative control), with keys 58 %. References are
+chords, drop to 0.198 and act as a negative control), with keys 58 %. A 2026-09-29
+ablation of the sweep's 8 single-chord collapses (penalty × palette × decoder grid over
+all 360 takes and the 5 songs × 6 inputs) showed they are a penalty artefact of the
+legacy in-place Viterbi loop: the corrected loop at penalty 0.20 scores CSR **0.524**
+comping / collapses **3** and raises the five-song exact F1 to 0.610, multiset to 0.707
+— with key agreement 27/30 → 23/30 as the one regression, so the production default
+stays `legacy + 0.40` until the key gate is re-tuned around the corrected loop
+(`docs/ENGINE_COMPARISON.md`, "Collapse ablation"). References are
 still scarce (roadmap 43): segment overlap, change-detection and timing error stay
 unmeasured rather than invented. Lyrics WER/CER exist from the ASR passes (roadmap 25); key and tempo
 metrics await their engines; nothing is integrated in `src/` yet.*

@@ -1838,10 +1838,20 @@ F1 **0.614**, triad-reduced **0.642**, multiset **0.716**, keys **27/30**. The s
 semantics themselves were pinned to the pre-reconstruction oracle the same day (88/88
 duration-CSR targets; instructed view 360/360 vs the recorded sweep) after the harness
 that computed them was accidentally deleted and rebuilt (`docs/ENGINE_COMPARISON.md`,
-"Collapse ablation" and "Engine v3"). References are
+"Collapse ablation" and "Engine v3"). That oracle is now **committed as a pytest
+fixture** (2026-10-01): the verified semantics live in the new
+`song_chord_lyrics_analyzer.evaluation` subpackage, the gitignored harness re-exports
+them as the single source of truth (a full 360-take v3 re-decode reproduced every
+recorded mean byte-for-byte), and `tests/fixtures/csr_oracle.json` pins the oracle
+itself — 22 GuitarSet comping takes × both annotations × raw/triad views, with the raw
+Harte references, the v2 hypothesis segmentation, the 88 expected duration-CSR targets
+with tolerances and the GuitarSet CC BY 4.0 provenance (annotations only, no audio) —
+re-scored by 116 tests in `tests/unit/test_csr_oracle.py`. References are
 still scarce (roadmap 43): segment overlap, change-detection and timing error stay
 unmeasured rather than invented. Lyrics WER/CER exist from the ASR passes (roadmap 25); key and tempo
-metrics await their engines; nothing is integrated in `src/` yet.*
+metrics await their engines; no metric is wired into the engines yet (the chord
+scoring semantics ship as library code in `src/song_chord_lyrics_analyzer/evaluation/`,
+see above).*
 
 ## [ ] Chord metrics
 

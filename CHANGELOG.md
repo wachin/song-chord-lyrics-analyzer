@@ -310,11 +310,31 @@ collapses are a **penalty artefact of the legacy in-place Viterbi loop, not a de
   — a Harte degree slash like `D#/5` — sounds in the hypothesis) — were re-fitted to
   and verified against the pre-destruction oracle log: **88/88** duration-CSR targets
   (44 raw + 44 triad), the fixture case list extended with the rescue rules, and the
-  instructed view of the 360-take sweep identical (the performed view keeps 37
+  instructed view of the 360-take sweep identical  (the performed view keeps 37
   documented per-take residuals on out-of-dictionary jazz voicings, without affecting
   any recorded mean beyond ±0.002). Tables in `docs/ENGINE_COMPARISON.md` ("Collapse
   ablation" and "Engine default v3"), verdict in `docs/DEPENDENCY_MATRIX.md` §13.12,
   statuses in roadmap §43/§44.
+* **The verified scoring semantics moved into the package and the CSR oracle was
+  committed as a pytest fixture (2026-10-01).** The harness's fitted implementations —
+  `harte_to_label`, `chord_pcs`, `triad_reduce`, `mirex_equal`, `duration_csr` — now
+  live in the new `song_chord_lyrics_analyzer.evaluation` subpackage (built only on the
+  existing normalization/models modules), and the gitignored harness re-exports them as
+  the single source of truth: re-running `song_ablation.py` and re-decoding all 360
+  GuitarSet takes under v3 reproduced every recorded mean byte-for-byte. The oracle log
+  itself became `tests/fixtures/csr_oracle.json`: 22 GuitarSet comping takes × both
+  annotations × raw/triad views, each with the raw Harte reference observations, the
+  v2-default hypothesis segmentation and the 88 expected duration-CSR targets, plus
+  per-take tolerances, the label vocabulary and the dataset provenance (GuitarSet,
+  CC BY 4.0, recorded inside the JSON; no audio is committed). The new
+  `tests/unit/test_csr_oracle.py` (116 tests) re-scores every fixture target from the
+  package implementation and pins the corner rules the oracle forced: the bass rescue
+  and its failure modes (`F/1` denies, `C/E` vs `Cm` returns exactly 0.0), bracketed
+  voicing tuples replacing the base voicing and opting out of the rescue, the
+  augmented/diminished threshold of 2, triad reduction collapsing `A#m11` to its root,
+  and the `E9(*1)/3` empty-voicing corner. Pytest's `pythonpath` now lists `tests/`
+  explicitly so the fixture modules resolve deterministically. Full suite: 335 passed,
+  1 skipped (environment-dependent executable test).
 
 ### Reference repositories
 

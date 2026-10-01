@@ -55,7 +55,7 @@ song_chord_lyrics_analyzer = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["src", "tests"]
 addopts = "-ra"
 # external/ holds third-party reference repositories (git submodules), never tests
 # of this project. They must not be collected even for an explicit `pytest .`.

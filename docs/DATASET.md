@@ -41,12 +41,21 @@ timestamps + a permissive licence.
 **What was downloaded and checked (2026-09-29).**
 
 * **GuitarSet** — `annotation.zip` (39.1 MB) and `audio_mono-mic.zip` (656.9 MB); the
-  MD5s match the Zenodo record exactly (`b39b78e6…`, `275966d6…`). 360 `.jams` + 360
+  MD5s match the Zenodo record exactly (`b39b78e6…`, `275966d6…`).  360 `.jams` + 360
   `_mic.wav` files are extracted flat into `.cache/chords/guitarset/`. A 24-excerpt
   sample (6 players × 5 styles, the *comp* performances) was measured first, then the
   whole set: the chord vocabulary is 42 instructed labels, almost all major/minor triads
   plus a few `:7`/`:sus`, so a 24-triad decoder can be scored against it directly. All
   360 takes were decoded on 2026-09-29 (see `docs/ENGINE_COMPARISON.md`).
+  A **derived fixture is committed** (2026-10-01):
+  `tests/fixtures/csr_oracle.json` pins the chord-scoring semantics for pytest —
+  for 22 comping takes it stores the timed chord annotations (both the instructed
+  and the performed JAMS `chord` namespaces, as raw Harte observations), the recorded
+  hypothesis segmentation and the expected duration-CSR numbers for four views. Only
+  annotations and numbers travel, no audio, and the dataset licence (CC BY 4.0) and
+  provenance are recorded inside the fixture's own `provenance` field; re-derivation
+  from the downloaded source is documented in the fixture and in the harness that
+  generated it.
 * **ChoCo** — the `v1.0.0` release zip (179 MB; JAMS only, the knowledge graph was
   skipped). 20,086 JAMS files, 2,283 of them in the audio partitions. Intersecting its
   `meta.csv` titles/artists with the user's five charts gave **zero matches** (its audio
@@ -79,6 +88,10 @@ alongside the metric itself.
 * Ground truth is explicit and never manufactured (roadmap section 43).
 * Text fixtures are generated where possible: `tests/fixtures/audio.py` writes
   synthetic WAV tones, so tests need no committed audio at all.
+* Committed derived fixtures stay annotation-only: `tests/fixtures/csr_oracle.json`
+  (2026-10-01) carries GuitarSet chord annotations and expected metric values under
+  the dataset's CC BY 4.0 terms, with the licence and provenance recorded inside the
+  fixture; no audio, no commercial recording, nothing non-redistributable.
 
 ## Planned categories (roadmap section 42)
 

@@ -230,13 +230,15 @@ tests:
    25/26) and chord figures do: five real songs × six inputs on 2026-09-26 (timing-free,
    on timestamp-free charts; revised to engine v2 on 2026-09-28), plus since 2026-09-29 a
    duration-weighted **CSR** against GuitarSet's timed annotations (all 360 excerpts;
-   180 comping takes mean 0.457 instructed / 0.423 performed-triad-reduced) — the first
+   180 comping takes mean 0.457 instructed / 0.423 performed-triad-reduced under the v2
+   default; 0.521 / 0.436 under the promoted v3 default) — the first
    chord number whose reference has real timings. The 8 single-chord collapses in that
    sweep were ablated (2026-09-29): a penalty artefact of the legacy in-place Viterbi
-   loop, fixable with the corrected loop at penalty 0.20 (CSR 0.524 comping, collapses
-   3) at the cost of 4/30 key matches — see §13.12 and
-   `docs/ENGINE_COMPARISON.md`; the default does not move until the key gate is
-   re-tuned. All of it comes from throwaway harnesses, not from
+   loop; the key-gate regression of the corrected loop was closed on 2026-10-01 by
+   pinning the gate's probe to the v2 reference decoder, and the combination
+   (**corrected loop @ 0.20 + reference probe**) is now the **engine default v3** (CSR
+   0.521 comping, collapses 2/180, five-song keys 27/30) — see §13.12 and
+   `docs/ENGINE_COMPARISON.md`. All of it comes from throwaway harnesses, not from
    `songlab benchmark`, and no number may be quoted as production quality until that
    command produces it (roadmap rules 6 and 13).
 3. **The basic-pitch Python-version conflict needs a decision:** either pin that
@@ -735,10 +737,22 @@ and collapse counts are monotone in the penalty within each loop. The measured b
 combination is **corrected loop + flat penalty 0.20**: GuitarSet comping CSR 0.457 →
 0.524, collapses 8 → 3, and on the five songs exact F1 0.575 → 0.610, multiset 0.691 →
 0.707, palette 0.760 → 0.797 — every accuracy metric up, no trade-off — **except key
-agreement, 27/30 → 23/30**, which was tuned on the legacy loop. The default stays
-`legacy + 0.40` (byte-reproducible artifacts); re-tuning the two-pass key gate around
-the corrected loop to recover the four keys is the recorded next step before the default
-can move.
+agreement, 27/30 → 23/30**, which was tuned on the legacy loop.
+
+**That closed the open question (2026-10-01).** The key regression was a *circularity*:
+the two-pass gate's stage-1 probe used the segment decoder itself, so re-tuning the
+decoder moved the key estimate out from under the gate. Pinning the probe to the v2
+reference decoder (`legacy`@0.40) while the segment decoder takes the corrected loop at
+flat 0.20 recovers all four keys on the five songs (27/30) **and** keeps every accuracy
+gain (exact 0.614, triad-reduced 0.642, multiset 0.716; GuitarSet comping CSR 0.457 →
+0.521, single-chord collapses 5 → 2 of 180 takes). This combination is **promoted as
+engine default v3**; the legacy loop survives as the pinned key probe (and as
+`viterbi_impl="legacy"` for byte-reproducibility of the recorded v2 artifacts). Before
+the promotion, the gitignored harness's scoring functions (chord pitch-class sets,
+triad reduction, MIREX equality with a degree-slash bass rescue) were re-fitted to and
+verified against the pre-destruction oracle log: 88/88 duration-CSR targets and the
+instructed view of the 360-take sweep identical, so the promoted numbers rest on the
+same metric that produced the earlier tables.
 
 Net effect of the adopted ideas on the same 30 condition–song rows: exact F1
 **0.534 → 0.575**, triad-reduced exact F1 **0.568 → 0.597**, multiset F1 **0.655 → 0.691**,

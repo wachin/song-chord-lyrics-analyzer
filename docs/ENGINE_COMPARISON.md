@@ -415,6 +415,9 @@ extensions), each raw and triad-reduced. All CSR/F1 figures below are means.
 | soloing takes (negative control) | 180 | 0.198 | 0.187 | 0.174 | 0.311 | 0.352 | 59/180 (33 %) | 3 |
 | all takes | 360 | 0.327 | 0.291 | 0.299 | 0.426 | 0.460 | 164/360 (46 %) | 8 |
 | the earlier 24-excerpt sample | 24 | 0.476 | 0.412 | 0.465 | 0.577 | 0.585 | 17/24 (71 %) | 1 |
+| **all takes under engine default v3** (2026-10-01) | 360 | **0.357** | 0.310 | 0.336 | 0.452 | 0.479 | 164/360 (46 %) | 4 |
+| — comping half under v3 | 180 | **0.521** | 0.436 | 0.496 | 0.598 | 0.609 | 105/180 (58 %) | 2 |
+| — soloing half under v3 (negative control) | 180 | 0.193 | 0.185 | 0.177 | 0.306 | 0.348 | 59/180 (33 %) | 2 |
 
 The `guitarset_all.jsonl` sweep row per excerpt and the `guitarset_all_summary.json`
 aggregates behind this table live in the gitignored cache.
@@ -467,10 +470,37 @@ separate those two subsets would be measuring something else.
   table) **improves exact 0.575 → 0.610, triad-reduced 0.597 → 0.640, multiset 0.691 →
   0.707 and palette 0.760 → 0.797** — every accuracy metric, no trade-off — except one:
   **key agreement drops 27/30 → 23/30**, because the two-pass key gate and the diatonic
-  bonus were tuned on the legacy loop. Re-tuning the gate around the corrected loop to
-  recover the four keys is the remaining step before the default can move; until then the
-  production default stays `legacy + 0.40` and this table is the record of what the fix
-  would buy.
+  bonus were tuned on the legacy loop — closed the next day by the probe re-tune below.
+
+**Engine default v3 (2026-10-01): the corrected loop + penalty 0.20 + a reference-decoder
+key probe is promoted.** The key regression turned out to be a *circularity*, not a
+tuning problem: stage 1 of the two-pass key gate probed with the very decoder whose
+emissions the gate was about to steer, so re-tuning the segment decoder silently moved
+the key estimate. The fix gives stage 1 its own decoder: the key probe runs on the
+shipped v2 reference (`legacy` loop at flat 0.40) while the segment decoder moves to the
+corrected matrix loop at flat **0.20** (`key_probe_impl`/`key_probe_penalty` knobs). The
+five-song sweep (30 rows) shows every corrected row recovering **27/30 keys** at any
+penalty once the probe is pinned, and the penalty sweep lands on 0.20:
+
+  | config (5 songs × 6 inputs) | exact | triad-reduced | multiset | palette | key | mean chords |
+  | --- | ---: | ---: | ---: | ---: | :---: | ---: |
+  | v2 production `legacy@0.40` | 0.575 | 0.597 | 0.691 | 0.760 | **27/30** | 79.8 |
+  | corrected@0.20, self-probe (v2-style) | 0.610 | 0.640 | 0.707 | 0.797 | 23/30 | 72.7 |
+  | **v3 default: corrected@0.20, probe=ref** | **0.614** | **0.642** | **0.716** | 0.810 | **27/30** | 72.6 |
+  | corrected@0.25, probe=ref | 0.610 | 0.637 | 0.703 | 0.803 | 27/30 | 65.6 |
+  | corrected@0.15, probe=ref | 0.611 | 0.642 | **0.722** | **0.816** | **27/30** | 83.8 |
+
+  GuitarSet confirms it (180 comping takes, instructed CSR, v3 default vs v2
+  production): CSR **0.457 → 0.521**, single-chord collapses **5 → 2**, zero-CSR takes
+  12 → 12, keys 105/180 (unchanged — the probe pins the key estimate), soloing negative
+  control 0.198 → 0.193. This closes the tapcorrect-era open question: the corrected loop
+  is now the default and the legacy loop is retained (as `viterbi_impl="legacy"` and the
+  pinned key probe) only to keep the recorded v2 artifacts and the CSR oracle
+  reproducible. Along the way the harness that computed every duration-CSR number in
+  this section was accidentally deleted and had to be rebuilt; the rebuilt scoring
+  functions were pinned against the pre-destruction oracle log (**88/88** raw+triad
+  targets, plus the instructed view of the 360-take sweep byte-identical) before the
+  default moved, so the numbers above were not re-derived to fit a new metric.
   | config (5 songs × 6 inputs) | exact | triad-reduced | multiset | palette | key | mean chords |
   | --- | ---: | ---: | ---: | ---: | :---: | ---: |
   | flat-legacy@0.40 (production) | 0.575 | 0.597 | 0.691 | 0.760 | **27/30** | 79.8 |

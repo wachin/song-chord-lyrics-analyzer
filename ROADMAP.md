@@ -1782,9 +1782,13 @@ section permits (`chord boundaries` stored with provenance; what it forbids is i
 them). The 8 single-chord decoding collapses in that sweep were ablated the same day
 (2026-09-29): they are a penalty artefact of the legacy in-place Viterbi loop, not a
 decoder bug — the corrected loop at flat penalty 0.20 removes 5 of the 8 and lifts
-comping CSR 0.457 → 0.524, held back from adoption only by a 4/30 key-regression on the
-five user songs whose key gate was tuned on the old loop (`docs/ENGINE_COMPARISON.md`,
-"Collapse ablation").*
+comping CSR 0.457 → 0.524. On 2026-10-01 the key gate was re-tuned around the corrected
+loop (the stage-1 key probe now runs on the shipped v2 reference decoder, legacy@0.40,
+while the segment decoder moves to the corrected loop at 0.20), recovering all four lost
+keys on the five user songs (27/30) — so the fix was **promoted as engine default v3**
+the same day: comping CSR 0.521, single-chord collapses 5 → 2 (180 takes), five-song
+exact F1 0.614 and keys 27/30 (`docs/ENGINE_COMPARISON.md`, "Collapse ablation" and
+"Engine v3").*
 
 Ground truth must be explicit.
 
@@ -1825,9 +1829,16 @@ ablation of the sweep's 8 single-chord collapses (penalty × palette × decoder 
 all 360 takes and the 5 songs × 6 inputs) showed they are a penalty artefact of the
 legacy in-place Viterbi loop: the corrected loop at penalty 0.20 scores CSR **0.524**
 comping / collapses **3** and raises the five-song exact F1 to 0.610, multiset to 0.707
-— with key agreement 27/30 → 23/30 as the one regression, so the production default
-stays `legacy + 0.40` until the key gate is re-tuned around the corrected loop
-(`docs/ENGINE_COMPARISON.md`, "Collapse ablation"). References are
+— with key agreement 27/30 → 23/30 as the one regression. On 2026-10-01 that regression
+was closed by re-tuning the two-pass key gate around the corrected loop (probe on the
+v2 reference decoder), and the combination was **promoted as engine default v3**:
+GuitarSet comping CSR **0.521**, collapses 5 → **2** (of 180 comping takes, under the
+final default; the v2 sweep's 8 collapses include 3 in soloing takes), five-song exact
+F1 **0.614**, triad-reduced **0.642**, multiset **0.716**, keys **27/30**. The scoring
+semantics themselves were pinned to the pre-reconstruction oracle the same day (88/88
+duration-CSR targets; instructed view 360/360 vs the recorded sweep) after the harness
+that computed them was accidentally deleted and rebuilt (`docs/ENGINE_COMPARISON.md`,
+"Collapse ablation" and "Engine v3"). References are
 still scarce (roadmap 43): segment overlap, change-detection and timing error stay
 unmeasured rather than invented. Lyrics WER/CER exist from the ASR passes (roadmap 25); key and tempo
 metrics await their engines; nothing is integrated in `src/` yet.*

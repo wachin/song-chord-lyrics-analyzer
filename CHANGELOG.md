@@ -290,6 +290,31 @@ collapses are a **penalty artefact of the legacy in-place Viterbi loop, not a de
   around the corrected loop is the recorded next step before adoption. Tables in
   `docs/ENGINE_COMPARISON.md` ("Collapse ablation"), verdict in
   `docs/DEPENDENCY_MATRIX.md` §13.12, statuses in roadmap §43/§44.
+* **The key gate was re-tuned around the corrected loop and engine default v3 was
+  promoted (2026-10-01).** The collapse fix's one regression — five-song key agreement
+  27/30 → 23/30 — turned out to be a *circularity*, not a tuning problem: stage 1 of
+  the two-pass key gate probed with the segment decoder itself, so re-tuning that
+  decoder moved the key estimate out from under the gate. The gate's probe now runs on
+  the shipped v2 reference decoder (`legacy` loop, flat 0.40) while the segment decoder
+  takes the corrected matrix loop at the re-tuned flat penalty **0.20**. Measured on the
+  five songs × six inputs: exact F1 0.575 → **0.614**, triad-reduced 0.597 → **0.642**,
+  multiset 0.691 → **0.716**, keys held at **27/30**; GuitarSet comping (180 takes)
+  instructed CSR 0.457 → **0.521** and single-chord collapses **5 → 2**, soloing
+  negative control flat. This was promoted as **engine default v3** in the harness; the
+  legacy loop stays as the pinned probe and for byte-reproducibility of the v2
+  artifacts. Before promoting anything, the harness's scoring semantics — chord
+  pitch-class sets (bracket-voicing tuples replace the base voicing; out-of-vocabulary
+  heads re-parse and fall back major/dominant), triad reduction (every quality
+  collapses to its root or minor root; `E5`/`Ehdim7`/`A#m11` reduce to root), and
+  MIREX equality (an intersection of 2 is rescued when the reference's non-root bass
+  — a Harte degree slash like `D#/5` — sounds in the hypothesis) — were re-fitted to
+  and verified against the pre-destruction oracle log: **88/88** duration-CSR targets
+  (44 raw + 44 triad), the fixture case list extended with the rescue rules, and the
+  instructed view of the 360-take sweep identical (the performed view keeps 37
+  documented per-take residuals on out-of-dictionary jazz voicings, without affecting
+  any recorded mean beyond ±0.002). Tables in `docs/ENGINE_COMPARISON.md` ("Collapse
+  ablation" and "Engine default v3"), verdict in `docs/DEPENDENCY_MATRIX.md` §13.12,
+  statuses in roadmap §43/§44.
 
 ### Reference repositories
 

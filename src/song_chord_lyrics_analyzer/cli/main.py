@@ -14,7 +14,7 @@ import traceback
 from collections.abc import Sequence
 
 from song_chord_lyrics_analyzer import CLI_NAME, PROJECT_NAME, __version__
-from song_chord_lyrics_analyzer.cli.commands import doctor, info
+from song_chord_lyrics_analyzer.cli.commands import benchmark, doctor, info
 from song_chord_lyrics_analyzer.utils.errors import SongLabError
 from song_chord_lyrics_analyzer.utils.logging import configure_logging, get_logger
 
@@ -31,7 +31,6 @@ Planned commands (added phase by phase, see ROADMAP.md):
   separate  separate the mix into stems
   fuse      combine engine results into one consensus analysis
   export    export the canonical document (JSON, ChordPro, ...)
-  benchmark evaluate engines against a dataset
 
 Environment variables:
   SONGLAB_FFMPEG, SONGLAB_FFPROBE   explicit paths to the FFmpeg tools
@@ -96,6 +95,18 @@ def build_parser() -> argparse.ArgumentParser:
     )
     doctor.add_arguments(doctor_parser)
     doctor_parser.set_defaults(handler=doctor.run)
+
+    benchmark_parser = subparsers.add_parser(
+        "benchmark",
+        help="score stored engine results against ground truth",
+        description=(
+            "Score a directory of benchmark cases (a reference/hypothesis pair per "
+            "song) with the section 44 metrics and write benchmark/{json,csv,md}. "
+            "No engine runs here: it reports on results that were already produced."
+        ),
+    )
+    benchmark.add_arguments(benchmark_parser)
+    benchmark_parser.set_defaults(handler=benchmark.run)
 
     return parser
 

@@ -121,7 +121,7 @@ before the CLI is allowed to grow. Current state and direction:
 | Dependency and licence research (candidates adopted/deferred/rejected) | **done** |
 | Chord metrics — timing-free (align, exact/root/quality/MIREX views) and boundary-aware (segment overlap, change detection, timing error) | **library code, dependency-free** |
 | Lyrics / key / tempo / beat engines behind the interfaces | next |
-| `songlab benchmark` — `benchmark/{benchmark.json,csv,md}` over `samples/` | next |
+| `songlab benchmark` — `benchmark/{benchmark.json,csv,md}` over stored results | implemented; running an engine to fill it is next |
 | Stem separation, alignment, fusion, exports | later |
 | GUI | last (phase 15) |
 
@@ -186,7 +186,6 @@ songlab compare   song.mp3                    several engines side by side
 songlab separate  song.mp3                    stem separation
 songlab fuse      song.mp3                    consensus over engines
 songlab export    song.mp3 --format chordpro  ChordPro, JSON, Markdown, ...
-songlab benchmark samples/                    metrics + benchmark/ reports
 ```
 
 ## What works today
@@ -200,7 +199,9 @@ songlab benchmark samples/                    metrics + benchmark/ reports
 | Audio validation, FFmpeg discovery, metadata probing (WAV without FFmpeg) | implemented |
 | `songlab info`, `songlab doctor`, error handling and exit codes | implemented |
 | Chord metrics (`metrics/`) — timing-free and boundary-aware scoring views | implemented as library code |
+| Key, tempo and lyrics metrics (`metrics/`) — WER/CER, key relation, half/double BPM | implemented as library code |
 | Chord scoring semantics (`evaluation/`) — MIREX equality, duration-weighted CSR | implemented as library code |
+| `songlab benchmark` — scores stored reference/hypothesis cases into `benchmark/{json,csv,md}` | implemented (no engine runs yet) |
 | Lyrics/chords/key/tempo/beat engines, separation, alignment, fusion, exports, GUI | not started |
 
 ## Development

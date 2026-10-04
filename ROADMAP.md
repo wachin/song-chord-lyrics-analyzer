@@ -1976,6 +1976,17 @@ where applicable.
 
 # [ ] 46. Benchmark Command
 
+*Status (2026-10-03): implemented for **stored results**. `songlab benchmark <dir> --output
+<dir>` reads a directory of case JSON files (a reference/hypothesis pair per song, format in
+`docs/BENCHMARK.md`), scores them with the section 44 metric family
+(`src/song_chord_lyrics_analyzer/benchmark/`) and writes
+`benchmark/{benchmark.json,benchmark.csv,benchmark.md}` with engine, song, duration,
+processing time, peak memory and every metric a case actually supports. No engine runs yet, so
+nothing is invented: a metric is reported only when both sides of a case provide what it
+needs. `tests/unit/test_benchmark.py` covers loading, scoring, the writers and the command.
+Running an actual engine on audio and filling `processing_time`/`memory` from the run is the
+remaining piece, to arrive with the first integrated engine.*
+
 Implement:
 
 ```bash

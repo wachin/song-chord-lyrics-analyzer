@@ -386,6 +386,21 @@ collapses are a **penalty artefact of the legacy in-place Viterbi loop, not a de
   `LyricSegment`/`LyricWord`. Tests: `tests/unit/test_lyrics_metrics.py`. Full
   suite: 962 passed, 1 skipped.
 
+### Benchmark command (roadmap 44/46)
+
+* **`songlab benchmark` scores stored results (2026-10-03).** The new
+  `song_chord_lyrics_analyzer.benchmark` package reads a directory of case JSON files —
+  a reference/hypothesis pair per song plus run provenance — scores every metric family
+  the case supports with the section 44 library, and writes
+  `benchmark/{benchmark.json,benchmark.csv,benchmark.md}` with engine, engine version,
+  model, song, duration, processing time, peak memory and the metrics. No engine runs
+  yet, so nothing is invented: a family is scored only when both sides of the case
+  provide it, and the per-engine summary averages each numeric metric (the mean of
+  `key.exact` *is* exact key accuracy). The command is registered in the CLI
+  (`songlab benchmark <dir> [--output DIR] [--json]`); the case format is documented in
+  `docs/BENCHMARK.md`. Tests: `tests/unit/test_benchmark.py`. Full suite: 978 passed,
+  1 skipped.
+
 ### Reference repositories
 
 * Added `external/`, holding third-party study references as read-only git submodules, plus

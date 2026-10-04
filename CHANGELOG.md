@@ -350,8 +350,15 @@ collapses are a **penalty artefact of the legacy in-place Viterbi loop, not a de
   evaluations produced by the original NumPy harness, plus 44 segmentation cases
   produced by `mir_eval` 0.8.2, all over the committed GuitarSet takes (labels/segments
   rebuilt from `csr_oracle.json`); the new `tests/unit/test_chord_metrics.py` (115 tests)
-  and `tests/unit/test_chord_segmentation.py` (55 tests) reproduce every value. Full
-  suite: 505 passed, 1 skipped.
+  and `tests/unit/test_chord_segmentation.py` (55 tests) reproduce every value. The
+  canonical model is now wired to them too: `metrics/adapters.py` adds
+  `chord_labels` (the label sequence from `ChordEvent` objects) and
+  `chord_segments` (timed `(start, end, label)` triples, filling a missing end from
+  the next chord's start), so a pipeline no longer re-implements the extraction.
+  No boundary is invented (roadmap §43): an undetermined end, a reversed interval
+  or overlapping events raise instead of being silently mis-scored. Covered by
+  `tests/unit/test_chord_adapters.py` (16 tests). Full suite: 521 passed,
+  1 skipped.
 
 ### Reference repositories
 

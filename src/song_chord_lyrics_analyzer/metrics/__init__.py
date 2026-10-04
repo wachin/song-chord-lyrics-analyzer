@@ -8,6 +8,9 @@ Implemented: chord metrics (roadmap section 44).
   semantics.
 * :func:`segment_overlap`, :func:`chord_change_detection` and
   :func:`timing_error` are the timing-aware boundary views.
+* :func:`chord_labels` and :func:`chord_segments` adapt canonical
+  :class:`~song_chord_lyrics_analyzer.models.music.ChordEvent` objects to those
+  input shapes, so a real pipeline never re-implements the extraction.
 
 All of it is dependency-free Python and pinned by
 ``tests/fixtures/chord_metrics_oracle.json``.
@@ -23,6 +26,10 @@ invented numbers are never acceptable.
 from __future__ import annotations
 
 from song_chord_lyrics_analyzer.evaluation import duration_csr
+from song_chord_lyrics_analyzer.metrics.adapters import (
+    chord_labels,
+    chord_segments,
+)
 from song_chord_lyrics_analyzer.metrics.chords import (
     align,
     evaluate,
@@ -38,6 +45,8 @@ from song_chord_lyrics_analyzer.metrics.segmentation import (
 __all__ = [
     "align",
     "chord_change_detection",
+    "chord_labels",
+    "chord_segments",
     "duration_csr",
     "evaluate",
     "same_quality",

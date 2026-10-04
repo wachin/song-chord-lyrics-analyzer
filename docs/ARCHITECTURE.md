@@ -49,7 +49,7 @@ src/song_chord_lyrics_analyzer/
 ├── evaluation/           chord scoring semantics (roadmap §44): MIREX equality, CSR
 ├── alignment/            (phase 9) shared timeline
 ├── fusion/               (phase 10) multi-engine consensus
-├── metrics/              (phase 11) chord metrics live here; lyrics/key/tempo pending
+├── metrics/              (phase 11) chord metrics + canonical-model adapters; lyrics/key/tempo pending
 ├── export/               (phase 12) JSON, CSV, TXT, ChordPro, MIDI, MusicXML
 ├── i18n/                 (phase 17) Qt Linguist catalogues
 └── utils/                paths, executables, logging, errors, time

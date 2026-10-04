@@ -1858,7 +1858,12 @@ NumPy harness (11 alignment cases + 88 evaluations, byte-for-byte), reproduced b
 hit-rate precision/recall/F at 0.5 s and 0.25 s) and `timing_error` (median change-point
 deviation) are dependency-free re-implementations of published definitions, pinned to
 `mir_eval` 0.8.2 over the same 22 takes × both annotations (44 cases) in
-`tests/unit/test_chord_segmentation.py`. References are
+`tests/unit/test_chord_segmentation.py`. The canonical model is now wired to the suite
+(2026-10-03): `metrics/adapters.py` exposes `chord_labels` and `chord_segments` to turn
+`ChordEvent` objects into the plain label sequences and timed triples the metrics
+consume (missing ends filled from the next chord's start, never invented — an
+undetermined end, a reversed interval or overlapping events raise), pinned by
+`tests/unit/test_chord_adapters.py`. References are
 still scarce (roadmap 43) for the engines still to come. Lyrics WER/CER exist from the ASR passes (roadmap 25); key and tempo
 metrics await their engines; no metric is wired into the engines yet (the chord
 scoring semantics ship as library code in `src/song_chord_lyrics_analyzer/evaluation/`
@@ -1870,7 +1875,8 @@ and `src/song_chord_lyrics_analyzer/metrics/`, see above).*
 `src/song_chord_lyrics_analyzer/metrics/` and `evaluation/` — exact/root/quality F1,
 MIREX-2010 F1, multiset/palette F1 and duration-weighted CSR, plus segment overlap
 (MIREX MeanSeg), timing error (median change-point deviation) and chord-change detection
-(boundary hit-rate). They are pinned to recorded oracles (a NumPy harness and
+(boundary hit-rate), plus the `chord_labels`/`chord_segments` adapters that feed them from
+the canonical `ChordEvent` model. They are pinned to recorded oracles (a NumPy harness and
 `mir_eval`); a `songlab benchmark` report carrying them per engine is still pending.*
 
 Implement:

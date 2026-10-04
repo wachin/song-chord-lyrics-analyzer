@@ -31,6 +31,9 @@ Chord metrics: exact chord accuracy, root accuracy, quality accuracy, segment
 overlap, timing error, chord-change detection accuracy. (A first timing-free pass — exact /
 root / quality sequence F1, chord multiset and palette F1, and key, but no frame metrics — is
 recorded in `docs/ENGINE_COMPARISON.md`, because its reference chart has no timestamps.)
+All six chord metrics now exist as dependency-free library code in
+`song_chord_lyrics_analyzer.metrics` (roadmap §44), pinned to recorded oracles; this
+command still has to wire them into a per-engine report.
 
 Lyric metrics: WER, CER, word timestamp error.
 

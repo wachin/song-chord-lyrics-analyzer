@@ -2873,9 +2873,1024 @@
   }
  ],
  "provenance": {
+  "boundary_reference": "mir_eval 0.8.2 (chord.seg, segment.detection, segment.deviation)",
   "dataset": "GuitarSet v1.1.0 (Zenodo 10.5281/zenodo.3371780), CC BY 4.0",
   "generated": "2026-10-03",
   "harness": ".cache/chords/chords.py (NumPy Needleman-Wunsch)",
   "source_fixture": "tests/fixtures/csr_oracle.json"
- }
+ },
+ "segmentations": [
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.6153846153846153,
+      "precision": 0.6666666666666666,
+      "recall": 0.5714285714285714
+     },
+     "0.5": {
+      "f1": 0.6153846153846153,
+      "precision": 0.6666666666666666,
+      "recall": 0.5714285714285714
+     }
+    },
+    "segment_overlap": 0.720986902223576,
+    "timing_error": {
+     "hypothesis_to_reference": 0.18855000000000022,
+     "reference_to_hypothesis": 0.19730000000000025
+    }
+   },
+   "ref_index": 0,
+   "take": "00_BN1-129-Eb_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.6153846153846153,
+      "precision": 0.6666666666666666,
+      "recall": 0.5714285714285714
+     },
+     "0.5": {
+      "f1": 0.6153846153846153,
+      "precision": 0.6666666666666666,
+      "recall": 0.5714285714285714
+     }
+    },
+    "segment_overlap": 0.720986902223576,
+    "timing_error": {
+     "hypothesis_to_reference": 0.18855000000000022,
+     "reference_to_hypothesis": 0.19730000000000025
+    }
+   },
+   "ref_index": 1,
+   "take": "00_BN1-129-Eb_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.5333333333333333,
+      "precision": 0.5,
+      "recall": 0.5714285714285714
+     },
+     "0.5": {
+      "f1": 0.5333333333333333,
+      "precision": 0.5,
+      "recall": 0.5714285714285714
+     }
+    },
+    "segment_overlap": 0.8636453615430906,
+    "timing_error": {
+     "hypothesis_to_reference": 0.3792,
+     "reference_to_hypothesis": 0.1625999999999994
+    }
+   },
+   "ref_index": 0,
+   "take": "00_Funk1-114-Ab_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.5333333333333333,
+      "precision": 0.5,
+      "recall": 0.5714285714285714
+     },
+     "0.5": {
+      "f1": 0.5333333333333333,
+      "precision": 0.5,
+      "recall": 0.5714285714285714
+     }
+    },
+    "segment_overlap": 0.8636453615430906,
+    "timing_error": {
+     "hypothesis_to_reference": 0.3792,
+     "reference_to_hypothesis": 0.1625999999999994
+    }
+   },
+   "ref_index": 1,
+   "take": "00_Funk1-114-Ab_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.5,
+      "precision": 0.6,
+      "recall": 0.42857142857142855
+     },
+     "0.5": {
+      "f1": 0.5,
+      "precision": 0.6,
+      "recall": 0.42857142857142855
+     }
+    },
+    "segment_overlap": 0.6321927828348504,
+    "timing_error": {
+     "hypothesis_to_reference": 0.16350000000000087,
+     "reference_to_hypothesis": 0.6044
+    }
+   },
+   "ref_index": 0,
+   "take": "00_Jazz1-130-D_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.5,
+      "precision": 0.6,
+      "recall": 0.42857142857142855
+     },
+     "0.5": {
+      "f1": 0.5,
+      "precision": 0.6,
+      "recall": 0.42857142857142855
+     }
+    },
+    "segment_overlap": 0.6321927828348504,
+    "timing_error": {
+     "hypothesis_to_reference": 0.16350000000000087,
+     "reference_to_hypothesis": 0.6044
+    }
+   },
+   "ref_index": 1,
+   "take": "00_Jazz1-130-D_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.588235294117647,
+      "precision": 0.5,
+      "recall": 0.7142857142857143
+     },
+     "0.5": {
+      "f1": 0.7058823529411764,
+      "precision": 0.6,
+      "recall": 0.8571428571428571
+     }
+    },
+    "segment_overlap": 0.8142203077589943,
+    "timing_error": {
+     "hypothesis_to_reference": 0.1914499999999988,
+     "reference_to_hypothesis": 0.047399999999999665
+    }
+   },
+   "ref_index": 0,
+   "take": "00_Rock1-130-A_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.588235294117647,
+      "precision": 0.5,
+      "recall": 0.7142857142857143
+     },
+     "0.5": {
+      "f1": 0.7058823529411764,
+      "precision": 0.6,
+      "recall": 0.8571428571428571
+     }
+    },
+    "segment_overlap": 0.8142203077589943,
+    "timing_error": {
+     "hypothesis_to_reference": 0.1914499999999988,
+     "reference_to_hypothesis": 0.047399999999999665
+    }
+   },
+   "ref_index": 1,
+   "take": "00_Rock1-130-A_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.47058823529411764,
+      "precision": 0.4,
+      "recall": 0.5714285714285714
+     },
+     "0.5": {
+      "f1": 0.8235294117647058,
+      "precision": 0.7,
+      "recall": 1.0
+     }
+    },
+    "segment_overlap": 0.8893333333333332,
+    "timing_error": {
+     "hypothesis_to_reference": 0.26229999999999976,
+     "reference_to_hypothesis": 0.24599999999999866
+    }
+   },
+   "ref_index": 0,
+   "take": "00_SS1-100-C#_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.47058823529411764,
+      "precision": 0.4,
+      "recall": 0.5714285714285714
+     },
+     "0.5": {
+      "f1": 0.8235294117647058,
+      "precision": 0.7,
+      "recall": 1.0
+     }
+    },
+    "segment_overlap": 0.8893333333333332,
+    "timing_error": {
+     "hypothesis_to_reference": 0.26229999999999976,
+     "reference_to_hypothesis": 0.24599999999999866
+    }
+   },
+   "ref_index": 1,
+   "take": "00_SS1-100-C#_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.7857142857142856,
+      "precision": 0.8461538461538461,
+      "recall": 0.7333333333333333
+     },
+     "0.5": {
+      "f1": 0.7857142857142856,
+      "precision": 0.8461538461538461,
+      "recall": 0.7333333333333333
+     }
+    },
+    "segment_overlap": 0.7494422827496757,
+    "timing_error": {
+     "hypothesis_to_reference": 0.13730000000000153,
+     "reference_to_hypothesis": 0.14339999999999975
+    }
+   },
+   "ref_index": 0,
+   "take": "01_BN2-166-Ab_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.7857142857142856,
+      "precision": 0.8461538461538461,
+      "recall": 0.7333333333333333
+     },
+     "0.5": {
+      "f1": 0.7857142857142856,
+      "precision": 0.8461538461538461,
+      "recall": 0.7333333333333333
+     }
+    },
+    "segment_overlap": 0.7494422827496757,
+    "timing_error": {
+     "hypothesis_to_reference": 0.13730000000000153,
+     "reference_to_hypothesis": 0.14339999999999975
+    }
+   },
+   "ref_index": 1,
+   "take": "01_BN2-166-Ab_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.3,
+      "precision": 0.6,
+      "recall": 0.2
+     },
+     "0.5": {
+      "f1": 0.5,
+      "precision": 1.0,
+      "recall": 0.3333333333333333
+     }
+    },
+    "segment_overlap": 0.37489151727045056,
+    "timing_error": {
+     "hypothesis_to_reference": 0.07949999999999946,
+     "reference_to_hypothesis": 1.9373000000000005
+    }
+   },
+   "ref_index": 0,
+   "take": "01_Funk2-119-G_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.3,
+      "precision": 0.6,
+      "recall": 0.2
+     },
+     "0.5": {
+      "f1": 0.5,
+      "precision": 1.0,
+      "recall": 0.3333333333333333
+     }
+    },
+    "segment_overlap": 0.37489151727045056,
+    "timing_error": {
+     "hypothesis_to_reference": 0.07949999999999946,
+     "reference_to_hypothesis": 1.9373000000000005
+    }
+   },
+   "ref_index": 1,
+   "take": "01_Funk2-119-G_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.3809523809523809,
+      "precision": 0.6666666666666666,
+      "recall": 0.26666666666666666
+     },
+     "0.5": {
+      "f1": 0.5714285714285715,
+      "precision": 1.0,
+      "recall": 0.4
+     }
+    },
+    "segment_overlap": 0.406170855250341,
+    "timing_error": {
+     "hypothesis_to_reference": 0.09394999999999976,
+     "reference_to_hypothesis": 1.7372999999999998
+    }
+   },
+   "ref_index": 0,
+   "take": "01_Jazz2-187-F#_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.3809523809523809,
+      "precision": 0.6666666666666666,
+      "recall": 0.26666666666666666
+     },
+     "0.5": {
+      "f1": 0.5714285714285715,
+      "precision": 1.0,
+      "recall": 0.4
+     }
+    },
+    "segment_overlap": 0.406170855250341,
+    "timing_error": {
+     "hypothesis_to_reference": 0.09394999999999976,
+     "reference_to_hypothesis": 1.7372999999999998
+    }
+   },
+   "ref_index": 1,
+   "take": "01_Jazz2-187-F#_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.2631578947368421,
+      "precision": 0.23809523809523808,
+      "recall": 0.29411764705882354
+     },
+     "0.5": {
+      "f1": 0.5263157894736842,
+      "precision": 0.47619047619047616,
+      "recall": 0.5882352941176471
+     }
+    },
+    "segment_overlap": 0.6884561977733146,
+    "timing_error": {
+     "hypothesis_to_reference": 0.520900000000001,
+     "reference_to_hypothesis": 0.46089999999999876
+    }
+   },
+   "ref_index": 0,
+   "take": "02_BN3-119-G_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.2631578947368421,
+      "precision": 0.23809523809523808,
+      "recall": 0.29411764705882354
+     },
+     "0.5": {
+      "f1": 0.5263157894736842,
+      "precision": 0.47619047619047616,
+      "recall": 0.5882352941176471
+     }
+    },
+    "segment_overlap": 0.6884561977733146,
+    "timing_error": {
+     "hypothesis_to_reference": 0.520900000000001,
+     "reference_to_hypothesis": 0.46089999999999876
+    }
+   },
+   "ref_index": 1,
+   "take": "02_BN3-119-G_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.14285714285714285,
+      "precision": 0.18181818181818182,
+      "recall": 0.11764705882352941
+     },
+     "0.5": {
+      "f1": 0.7857142857142858,
+      "precision": 1.0,
+      "recall": 0.6470588235294118
+     }
+    },
+    "segment_overlap": 0.5557812500000001,
+    "timing_error": {
+     "hypothesis_to_reference": 0.35410000000000075,
+     "reference_to_hypothesis": 0.36719999999999997
+    }
+   },
+   "ref_index": 0,
+   "take": "02_Jazz3-150-C_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.14285714285714285,
+      "precision": 0.18181818181818182,
+      "recall": 0.11764705882352941
+     },
+     "0.5": {
+      "f1": 0.7857142857142858,
+      "precision": 1.0,
+      "recall": 0.6470588235294118
+     }
+    },
+    "segment_overlap": 0.5557812500000001,
+    "timing_error": {
+     "hypothesis_to_reference": 0.35410000000000075,
+     "reference_to_hypothesis": 0.36719999999999997
+    }
+   },
+   "ref_index": 1,
+   "take": "02_Jazz3-150-C_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.30303030303030304,
+      "precision": 0.3125,
+      "recall": 0.29411764705882354
+     },
+     "0.5": {
+      "f1": 0.6060606060606061,
+      "precision": 0.625,
+      "recall": 0.5882352941176471
+     }
+    },
+    "segment_overlap": 0.7253168753469437,
+    "timing_error": {
+     "hypothesis_to_reference": 0.34160000000000057,
+     "reference_to_hypothesis": 0.3451000000000004
+    }
+   },
+   "ref_index": 0,
+   "take": "02_Rock3-148-C_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.30303030303030304,
+      "precision": 0.3125,
+      "recall": 0.29411764705882354
+     },
+     "0.5": {
+      "f1": 0.6060606060606061,
+      "precision": 0.625,
+      "recall": 0.5882352941176471
+     }
+    },
+    "segment_overlap": 0.7253168753469437,
+    "timing_error": {
+     "hypothesis_to_reference": 0.34160000000000057,
+     "reference_to_hypothesis": 0.3451000000000004
+    }
+   },
+   "ref_index": 1,
+   "take": "02_Rock3-148-C_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.42857142857142855,
+      "precision": 0.5454545454545454,
+      "recall": 0.35294117647058826
+     },
+     "0.5": {
+      "f1": 0.7142857142857143,
+      "precision": 0.9090909090909091,
+      "recall": 0.5882352941176471
+     }
+    },
+    "segment_overlap": 0.5630665842190619,
+    "timing_error": {
+     "hypothesis_to_reference": 0.07969999999999988,
+     "reference_to_hypothesis": 0.4843000000000002
+    }
+   },
+   "ref_index": 0,
+   "take": "02_Funk3-112-C#_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.42857142857142855,
+      "precision": 0.5454545454545454,
+      "recall": 0.35294117647058826
+     },
+     "0.5": {
+      "f1": 0.7142857142857143,
+      "precision": 0.9090909090909091,
+      "recall": 0.5882352941176471
+     }
+    },
+    "segment_overlap": 0.5630665842190619,
+    "timing_error": {
+     "hypothesis_to_reference": 0.07969999999999988,
+     "reference_to_hypothesis": 0.4843000000000002
+    }
+   },
+   "ref_index": 1,
+   "take": "02_Funk3-112-C#_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.5454545454545455,
+      "precision": 0.5625,
+      "recall": 0.5294117647058824
+     },
+     "0.5": {
+      "f1": 0.5454545454545455,
+      "precision": 0.5625,
+      "recall": 0.5294117647058824
+     }
+    },
+    "segment_overlap": 0.7509648074979325,
+    "timing_error": {
+     "hypothesis_to_reference": 0.0699999999999994,
+     "reference_to_hypothesis": 0.07399999999999984
+    }
+   },
+   "ref_index": 0,
+   "take": "02_SS3-98-C_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.5454545454545455,
+      "precision": 0.5625,
+      "recall": 0.5294117647058824
+     },
+     "0.5": {
+      "f1": 0.5454545454545455,
+      "precision": 0.5625,
+      "recall": 0.5294117647058824
+     }
+    },
+    "segment_overlap": 0.7509648074979325,
+    "timing_error": {
+     "hypothesis_to_reference": 0.0699999999999994,
+     "reference_to_hypothesis": 0.07399999999999984
+    }
+   },
+   "ref_index": 1,
+   "take": "02_SS3-98-C_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.588235294117647,
+      "precision": 0.5,
+      "recall": 0.7142857142857143
+     },
+     "0.5": {
+      "f1": 0.588235294117647,
+      "precision": 0.5,
+      "recall": 0.7142857142857143
+     }
+    },
+    "segment_overlap": 0.7689562499999998,
+    "timing_error": {
+     "hypothesis_to_reference": 0.3160000000000007,
+     "reference_to_hypothesis": 0.0522999999999989
+    }
+   },
+   "ref_index": 0,
+   "take": "03_Rock1-90-C#_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.588235294117647,
+      "precision": 0.5,
+      "recall": 0.7142857142857143
+     },
+     "0.5": {
+      "f1": 0.588235294117647,
+      "precision": 0.5,
+      "recall": 0.7142857142857143
+     }
+    },
+    "segment_overlap": 0.7689562499999998,
+    "timing_error": {
+     "hypothesis_to_reference": 0.3160000000000007,
+     "reference_to_hypothesis": 0.0522999999999989
+    }
+   },
+   "ref_index": 1,
+   "take": "03_Rock1-90-C#_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.4444444444444445,
+      "precision": 1.0,
+      "recall": 0.2857142857142857
+     },
+     "0.5": {
+      "f1": 0.4444444444444445,
+      "precision": 1.0,
+      "recall": 0.2857142857142857
+     }
+    },
+    "segment_overlap": 0.33333333333333326,
+    "timing_error": {
+     "hypothesis_to_reference": 0.0,
+     "reference_to_hypothesis": 3.5999999999999996
+    }
+   },
+   "ref_index": 0,
+   "take": "03_Jazz1-200-B_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.4444444444444445,
+      "precision": 1.0,
+      "recall": 0.2857142857142857
+     },
+     "0.5": {
+      "f1": 0.4444444444444445,
+      "precision": 1.0,
+      "recall": 0.2857142857142857
+     }
+    },
+    "segment_overlap": 0.33333333333333326,
+    "timing_error": {
+     "hypothesis_to_reference": 0.0,
+     "reference_to_hypothesis": 3.5999999999999996
+    }
+   },
+   "ref_index": 1,
+   "take": "03_Jazz1-200-B_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.4615384615384615,
+      "precision": 0.5,
+      "recall": 0.42857142857142855
+     },
+     "0.5": {
+      "f1": 0.6153846153846153,
+      "precision": 0.6666666666666666,
+      "recall": 0.5714285714285714
+     }
+    },
+    "segment_overlap": 0.7107926231517033,
+    "timing_error": {
+     "hypothesis_to_reference": 0.1850499999999995,
+     "reference_to_hypothesis": 0.2583000000000002
+    }
+   },
+   "ref_index": 0,
+   "take": "03_BN1-147-Gb_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.4615384615384615,
+      "precision": 0.5,
+      "recall": 0.42857142857142855
+     },
+     "0.5": {
+      "f1": 0.6153846153846153,
+      "precision": 0.6666666666666666,
+      "recall": 0.5714285714285714
+     }
+    },
+    "segment_overlap": 0.7107926231517033,
+    "timing_error": {
+     "hypothesis_to_reference": 0.1850499999999995,
+     "reference_to_hypothesis": 0.2583000000000002
+    }
+   },
+   "ref_index": 1,
+   "take": "03_BN1-147-Gb_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.3703703703703704,
+      "precision": 0.4166666666666667,
+      "recall": 0.3333333333333333
+     },
+     "0.5": {
+      "f1": 0.5185185185185186,
+      "precision": 0.5833333333333334,
+      "recall": 0.4666666666666667
+     }
+    },
+    "segment_overlap": 0.578484545014684,
+    "timing_error": {
+     "hypothesis_to_reference": 0.36875000000000036,
+     "reference_to_hypothesis": 0.7516999999999996
+    }
+   },
+   "ref_index": 0,
+   "take": "04_Funk2-108-Eb_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.3703703703703704,
+      "precision": 0.4166666666666667,
+      "recall": 0.3333333333333333
+     },
+     "0.5": {
+      "f1": 0.5185185185185186,
+      "precision": 0.5833333333333334,
+      "recall": 0.4666666666666667
+     }
+    },
+    "segment_overlap": 0.578484545014684,
+    "timing_error": {
+     "hypothesis_to_reference": 0.36875000000000036,
+     "reference_to_hypothesis": 0.7516999999999996
+    }
+   },
+   "ref_index": 1,
+   "take": "04_Funk2-108-Eb_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.3529411764705882,
+      "precision": 0.3,
+      "recall": 0.42857142857142855
+     },
+     "0.5": {
+      "f1": 0.7058823529411764,
+      "precision": 0.6,
+      "recall": 0.8571428571428571
+     }
+    },
+    "segment_overlap": 0.9003740577711448,
+    "timing_error": {
+     "hypothesis_to_reference": 0.3912000000000013,
+     "reference_to_hypothesis": 0.37129999999999797
+    }
+   },
+   "ref_index": 0,
+   "take": "04_SS1-68-E_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.3529411764705882,
+      "precision": 0.3,
+      "recall": 0.42857142857142855
+     },
+     "0.5": {
+      "f1": 0.7058823529411764,
+      "precision": 0.6,
+      "recall": 0.8571428571428571
+     }
+    },
+    "segment_overlap": 0.9003740577711448,
+    "timing_error": {
+     "hypothesis_to_reference": 0.3912000000000013,
+     "reference_to_hypothesis": 0.37129999999999797
+    }
+   },
+   "ref_index": 1,
+   "take": "04_SS1-68-E_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.4827586206896552,
+      "precision": 0.5,
+      "recall": 0.4666666666666667
+     },
+     "0.5": {
+      "f1": 0.5517241379310344,
+      "precision": 0.5714285714285714,
+      "recall": 0.5333333333333333
+     }
+    },
+    "segment_overlap": 0.7485474111256274,
+    "timing_error": {
+     "hypothesis_to_reference": 0.254150000000001,
+     "reference_to_hypothesis": 0.3088000000000015
+    }
+   },
+   "ref_index": 0,
+   "take": "04_Jazz2-110-Bb_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.4827586206896552,
+      "precision": 0.5,
+      "recall": 0.4666666666666667
+     },
+     "0.5": {
+      "f1": 0.5517241379310344,
+      "precision": 0.5714285714285714,
+      "recall": 0.5333333333333333
+     }
+    },
+    "segment_overlap": 0.7485474111256274,
+    "timing_error": {
+     "hypothesis_to_reference": 0.254150000000001,
+     "reference_to_hypothesis": 0.3088000000000015
+    }
+   },
+   "ref_index": 1,
+   "take": "04_Jazz2-110-Bb_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.4615384615384615,
+      "precision": 0.5454545454545454,
+      "recall": 0.4
+     },
+     "0.5": {
+      "f1": 0.4615384615384615,
+      "precision": 0.5454545454545454,
+      "recall": 0.4
+     }
+    },
+    "segment_overlap": 0.7024895291898736,
+    "timing_error": {
+     "hypothesis_to_reference": 0.06520000000000437,
+     "reference_to_hypothesis": 0.6686999999999994
+    }
+   },
+   "ref_index": 0,
+   "take": "05_Rock2-85-F_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.4615384615384615,
+      "precision": 0.5454545454545454,
+      "recall": 0.4
+     },
+     "0.5": {
+      "f1": 0.4615384615384615,
+      "precision": 0.5454545454545454,
+      "recall": 0.4
+     }
+    },
+    "segment_overlap": 0.7024895291898736,
+    "timing_error": {
+     "hypothesis_to_reference": 0.06520000000000437,
+     "reference_to_hypothesis": 0.6686999999999994
+    }
+   },
+   "ref_index": 1,
+   "take": "05_Rock2-85-F_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.42857142857142855,
+      "precision": 0.46153846153846156,
+      "recall": 0.4
+     },
+     "0.5": {
+      "f1": 0.7142857142857142,
+      "precision": 0.7692307692307693,
+      "recall": 0.6666666666666666
+     }
+    },
+    "segment_overlap": 0.7146050009554228,
+    "timing_error": {
+     "hypothesis_to_reference": 0.2508000000000017,
+     "reference_to_hypothesis": 0.43200000000000216
+    }
+   },
+   "ref_index": 0,
+   "take": "05_BN2-131-B_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.42857142857142855,
+      "precision": 0.46153846153846156,
+      "recall": 0.4
+     },
+     "0.5": {
+      "f1": 0.7142857142857142,
+      "precision": 0.7692307692307693,
+      "recall": 0.6666666666666666
+     }
+    },
+    "segment_overlap": 0.7146050009554228,
+    "timing_error": {
+     "hypothesis_to_reference": 0.2508000000000017,
+     "reference_to_hypothesis": 0.43200000000000216
+    }
+   },
+   "ref_index": 1,
+   "take": "05_BN2-131-B_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.09999999999999999,
+      "precision": 0.08695652173913043,
+      "recall": 0.11764705882352941
+     },
+     "0.5": {
+      "f1": 0.7,
+      "precision": 0.6086956521739131,
+      "recall": 0.8235294117647058
+     }
+    },
+    "segment_overlap": 0.7686489774129466,
+    "timing_error": {
+     "hypothesis_to_reference": 0.3526999999999987,
+     "reference_to_hypothesis": 0.3283000000000005
+    }
+   },
+   "ref_index": 0,
+   "take": "05_SS3-84-Bb_comp"
+  },
+  {
+   "expected": {
+    "change_detection": {
+     "0.25": {
+      "f1": 0.09999999999999999,
+      "precision": 0.08695652173913043,
+      "recall": 0.11764705882352941
+     },
+     "0.5": {
+      "f1": 0.7,
+      "precision": 0.6086956521739131,
+      "recall": 0.8235294117647058
+     }
+    },
+    "segment_overlap": 0.7686489774129466,
+    "timing_error": {
+     "hypothesis_to_reference": 0.3526999999999987,
+     "reference_to_hypothesis": 0.3283000000000005
+    }
+   },
+   "ref_index": 1,
+   "take": "05_SS3-84-Bb_comp"
+  }
+ ]
 }

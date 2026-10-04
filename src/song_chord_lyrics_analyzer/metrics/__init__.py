@@ -1,10 +1,15 @@
 """Metrics stage (roadmap sections 44, 45 and 93).
 
-Implemented: chord metrics (roadmap section 44). :func:`align` and
-:func:`evaluate` cover the timing-free sequence views; :func:`duration_csr`
-(duration-weighted chord sequence recall) is re-exported from
-:mod:`song_chord_lyrics_analyzer.evaluation`, which owns the scoring
-semantics. All of it is dependency-free Python and pinned by
+Implemented: chord metrics (roadmap section 44).
+
+* :func:`align` and :func:`evaluate` are the timing-free sequence views;
+  :func:`duration_csr` (duration-weighted chord sequence recall) is re-exported
+  from :mod:`song_chord_lyrics_analyzer.evaluation`, which owns the scoring
+  semantics.
+* :func:`segment_overlap`, :func:`chord_change_detection` and
+  :func:`timing_error` are the timing-aware boundary views.
+
+All of it is dependency-free Python and pinned by
 ``tests/fixtures/chord_metrics_oracle.json``.
 
 Still pending: lyric metrics (WER, CER, timestamp error), key metrics (exact,
@@ -24,11 +29,19 @@ from song_chord_lyrics_analyzer.metrics.chords import (
     same_quality,
     same_root,
 )
+from song_chord_lyrics_analyzer.metrics.segmentation import (
+    chord_change_detection,
+    segment_overlap,
+    timing_error,
+)
 
 __all__ = [
     "align",
+    "chord_change_detection",
     "duration_csr",
     "evaluate",
     "same_quality",
     "same_root",
+    "segment_overlap",
+    "timing_error",
 ]

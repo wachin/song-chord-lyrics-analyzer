@@ -335,17 +335,23 @@ collapses are a **penalty artefact of the legacy in-place Viterbi loop, not a de
   and the `E9(*1)/3` empty-voicing corner. Pytest's `pythonpath` now lists `tests/`
   explicitly so the fixture modules resolve deterministically. Full suite: 335 passed,
   1 skipped (environment-dependent executable test).
-* **The timing-free chord metric suite is now library code (2026-10-03).** The new
-  `song_chord_lyrics_analyzer.metrics` package (roadmap §44, phase 11) exposes `align`
-  — a dependency-free Python Needleman-Wunsch alignment — and `evaluate`, which returns
-  the exact/root/quality/MIREX F1 triples plus multiset F1, palette F1 and the
-  hypothesis chord count, reusing the scoring semantics already shipped in
-  `evaluation/` (and re-exporting `duration_csr` for a single chord-metrics surface).
-  Nothing is wired to the engines or the CLI yet. `tests/fixtures/chord_metrics_oracle.json`
-  records 11 hand alignment cases and 88 evaluations produced by the original NumPy
-  harness over the committed GuitarSet takes (their labels rebuilt from
-  `csr_oracle.json`), and the new `tests/unit/test_chord_metrics.py` (115 tests)
-  reproduces every value byte-for-byte. Full suite: 450 passed, 1 skipped.
+* **The chord metric suite is now library code (2026-10-03).** The new
+  `song_chord_lyrics_analyzer.metrics` package (roadmap §44, phase 11) exposes the
+  timing-free views — `align`, a dependency-free Python Needleman-Wunsch alignment, and
+  `evaluate`, returning the exact/root/quality/MIREX F1 triples plus multiset F1,
+  palette F1 and the hypothesis chord count — and the timing-aware boundary views —
+  `segment_overlap` (MIREX `MeanSeg`), `chord_change_detection` (boundary hit-rate
+  precision/recall/F at 0.5 s and 0.25 s) and `timing_error` (median change-point
+  deviation). All re-use the scoring semantics already shipped in `evaluation/` (and
+  re-export `duration_csr` for a single chord-metrics surface), and none adds a core
+  dependency: the boundary metrics are re-implementations of published definitions, not
+  new inventions. Nothing is wired to the engines or the CLI yet.
+  `tests/fixtures/chord_metrics_oracle.json` records 11 hand alignment cases and 88
+  evaluations produced by the original NumPy harness, plus 44 segmentation cases
+  produced by `mir_eval` 0.8.2, all over the committed GuitarSet takes (labels/segments
+  rebuilt from `csr_oracle.json`); the new `tests/unit/test_chord_metrics.py` (115 tests)
+  and `tests/unit/test_chord_segmentation.py` (55 tests) reproduce every value. Full
+  suite: 505 passed, 1 skipped.
 
 ### Reference repositories
 

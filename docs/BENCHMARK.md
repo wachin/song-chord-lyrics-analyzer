@@ -37,9 +37,13 @@ command still has to wire them into a per-engine report.
 
 Lyric metrics: WER, CER, word timestamp error.
 
-Key metrics: exact key accuracy, relative-key error.
+Key metrics: exact key accuracy, relative-key error. Both now exist as
+dependency-free library code in `song_chord_lyrics_analyzer.metrics` (roadmap §44),
+pinned to a `mir_eval` oracle; this command still has to wire them into a report.
 
-Tempo metrics: absolute BPM error, half-tempo error, double-tempo error.
+Tempo metrics: absolute BPM error, half-tempo error, double-tempo error. All three
+exist as dependency-free library code (`metrics/tempo.py`), returned together so
+metrical ambiguity is reported rather than normalised away.
 
 ## Performance metrics (roadmap section 45)
 

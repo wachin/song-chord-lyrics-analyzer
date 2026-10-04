@@ -359,6 +359,20 @@ collapses are a **penalty artefact of the legacy in-place Viterbi loop, not a de
   or overlapping events raise instead of being silently mis-scored. Covered by
   `tests/unit/test_chord_adapters.py` (16 tests). Full suite: 521 passed,
   1 skipped.
+* **Key and tempo metrics joined the library (2026-10-03).** `metrics/key.py` adds
+  `exact_key_accuracy` and `relative_key_error` (the relative major/minor confusion
+  this project keeps measuring, made its own metric) on top of `key_relation`
+  (exact / fifth / relative / parallel / other / unknown, enharmonic spellings equal)
+  and `weighted_key_score`, a dependency-free re-implementation of
+  `mir_eval.key.weighted_score`. `tests/fixtures/key_oracle.json` pins the relation and
+  the score for every ordered pair of GuitarSet's 19 distinct annotated keys against
+  `mir_eval` 0.8.2 (the annotation-only fixture records the CC BY 4.0 provenance).
+  `metrics/tempo.py` adds `tempo_error` — absolute, half-time and double-time BPM
+  error returned together, so metrical ambiguity is reported, never normalised — and
+  `tempo_interpretation`. `metrics/adapters.py` gained `key_labels` and `tempo_bpms`
+  for the canonical `KeyEstimate`/`TempoEstimate`, so no caller re-implements the
+  extraction. Tests: `tests/unit/test_key_metrics.py` and
+  `tests/unit/test_tempo_metrics.py`. Full suite: 918 passed, 1 skipped.
 
 ### Reference repositories
 

@@ -12,7 +12,13 @@ re-implements the extraction:
 
 * :func:`chord_labels` - the label sequence, in the order given;
 * :func:`chord_segments` - the timed triples, completing each event's missing
-  ``end`` from the next chord's ``start`` (or an explicit track end).
+  ``end`` from the next chord's ``start`` (or an explicit track end);
+* :func:`key_labels` - the ``"C major"``-style strings
+  :mod:`song_chord_lyrics_analyzer.metrics.key` scores, from
+  :class:`~song_chord_lyrics_analyzer.models.music.KeyEstimate` objects;
+* :func:`tempo_bpms` - the BPM values
+  :mod:`song_chord_lyrics_analyzer.metrics.tempo` scores, from
+  :class:`~song_chord_lyrics_analyzer.models.music.TempoEstimate` objects.
 
 Nothing is invented (roadmap section 43): a chord whose end cannot be
 determined raises :class:`ValueError` instead of guessing a boundary, and an
@@ -25,11 +31,13 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from song_chord_lyrics_analyzer.metrics.segmentation import Segment
-from song_chord_lyrics_analyzer.models.music import ChordEvent
+from song_chord_lyrics_analyzer.models.music import ChordEvent, KeyEstimate, TempoEstimate
 
 __all__ = [
     "chord_labels",
     "chord_segments",
+    "key_labels",
+    "tempo_bpms",
 ]
 
 
@@ -84,3 +92,24 @@ def chord_segments(
             )
         segments.append((start, stop, event.label))
     return segments
+
+
+def key_labels(estimates: Sequence[KeyEstimate]) -> list[str]:
+    """The key labels of key estimates, preserving the given order.
+
+    :attr:`~song_chord_lyrics_analyzer.models.music.KeyEstimate.label` renders
+    ``"C major"`` or ``"unknown"``, exactly the vocabulary
+    :mod:`song_chord_lyrics_analyzer.metrics.key` accepts, so an unresolved key
+    survives as ``"unknown"`` instead of being dropped.
+    """
+    return [estimate.label for estimate in estimates]
+
+
+def tempo_bpms(estimates: Sequence[TempoEstimate]) -> list[float]:
+    """The BPM values of tempo estimates, preserving the given order.
+
+    Only the primary reading is taken; competing half-time/double-time
+    interpretations stay on the estimate's ``alternatives`` and are still
+    reported by :func:`song_chord_lyrics_analyzer.metrics.tempo.tempo_error`.
+    """
+    return [float(estimate.bpm) for estimate in estimates]

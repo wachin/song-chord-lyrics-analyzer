@@ -1864,10 +1864,12 @@ deviation) are dependency-free re-implementations of published definitions, pinn
 consume (missing ends filled from the next chord's start, never invented — an
 undetermined end, a reversed interval or overlapping events raise), pinned by
 `tests/unit/test_chord_adapters.py`. References are
-still scarce (roadmap 43) for the engines still to come. Lyrics WER/CER exist from the ASR passes (roadmap 25); key and tempo
-metrics await their engines; no metric is wired into the engines yet (the chord
+still scarce (roadmap 43) for the engines still to come. Key and tempo metrics joined as
+library code on 2026-10-03 (`metrics/key.py`, `metrics/tempo.py`, pinned by
+`tests/fixtures/key_oracle.json` against `mir_eval` and hand cases); lyrics WER/CER exist
+from the ASR passes (roadmap 25); no metric is wired into the engines yet (the chord
 scoring semantics ship as library code in `src/song_chord_lyrics_analyzer/evaluation/`
-and `src/song_chord_lyrics_analyzer/metrics/`, see above).*
+and the whole metric family lives in `src/song_chord_lyrics_analyzer/metrics/`, see above).*
 
 ## [ ] Chord metrics
 
@@ -1902,6 +1904,14 @@ word timestamp error
 
 ## [ ] Key metrics
 
+*Status (2026-10-03): implemented as dependency-free library code in
+`src/song_chord_lyrics_analyzer/metrics/key.py` — `exact_key_accuracy`,
+`relative_key_error`, `key_relation` (exact/fifth/relative/parallel/other/unknown),
+`same_key` and `weighted_key_score` (a `mir_eval.key.weighted_score`
+re-implementation). Pinned by `tests/fixtures/key_oracle.json`, which scores every
+ordered pair of GuitarSet's 19 distinct annotated keys with `mir_eval` 0.8.2, and by
+`tests/unit/test_key_metrics.py`. No key engine is wired in yet.*
+
 Implement:
 
 ```text
@@ -1910,6 +1920,13 @@ relative-key error
 ```
 
 ## [ ] Tempo metrics
+
+*Status (2026-10-03): implemented as dependency-free library code in
+`src/song_chord_lyrics_analyzer/metrics/tempo.py` — `tempo_error` returns the
+absolute, half-time and double-time BPM errors together (ambiguity reported, never
+normalised) and `tempo_interpretation` names the closest reading. Pinned by the hand
+cases in `tests/fixtures/key_oracle.json` and `tests/unit/test_tempo_metrics.py`. No
+tempo engine is wired in yet.*
 
 Implement:
 

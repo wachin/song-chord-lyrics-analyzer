@@ -1,0 +1,2254 @@
+{
+ "description": "Key metric oracle (roadmap section 44): every ordered pair of GuitarSet's 19 distinct annotated keys scored by mir_eval, plus hand-written tempo cases.",
+ "distinct_keys": [
+  "A major",
+  "Ab major",
+  "Ab minor",
+  "B major",
+  "B minor",
+  "Bb major",
+  "Bb minor",
+  "C major",
+  "C# major",
+  "D major",
+  "D minor",
+  "E major",
+  "Eb major",
+  "Eb minor",
+  "F minor",
+  "F# minor",
+  "G major",
+  "G minor",
+  "Gb major"
+ ],
+ "keys": [
+  {
+   "estimate": "A major",
+   "reference": "A major",
+   "relation": "exact",
+   "weighted_score": 1.0
+  },
+  {
+   "estimate": "Ab major",
+   "reference": "A major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab minor",
+   "reference": "A major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B major",
+   "reference": "A major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B minor",
+   "reference": "A major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb major",
+   "reference": "A major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb minor",
+   "reference": "A major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C major",
+   "reference": "A major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C# major",
+   "reference": "A major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D major",
+   "reference": "A major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D minor",
+   "reference": "A major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "E major",
+   "reference": "A major",
+   "relation": "fifth",
+   "weighted_score": 0.5
+  },
+  {
+   "estimate": "Eb major",
+   "reference": "A major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb minor",
+   "reference": "A major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F minor",
+   "reference": "A major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F# minor",
+   "reference": "A major",
+   "relation": "relative",
+   "weighted_score": 0.3
+  },
+  {
+   "estimate": "G major",
+   "reference": "A major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G minor",
+   "reference": "A major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Gb major",
+   "reference": "A major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "A major",
+   "reference": "Ab major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab major",
+   "reference": "Ab major",
+   "relation": "exact",
+   "weighted_score": 1.0
+  },
+  {
+   "estimate": "Ab minor",
+   "reference": "Ab major",
+   "relation": "parallel",
+   "weighted_score": 0.2
+  },
+  {
+   "estimate": "B major",
+   "reference": "Ab major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B minor",
+   "reference": "Ab major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb major",
+   "reference": "Ab major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb minor",
+   "reference": "Ab major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C major",
+   "reference": "Ab major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C# major",
+   "reference": "Ab major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D major",
+   "reference": "Ab major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D minor",
+   "reference": "Ab major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "E major",
+   "reference": "Ab major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb major",
+   "reference": "Ab major",
+   "relation": "fifth",
+   "weighted_score": 0.5
+  },
+  {
+   "estimate": "Eb minor",
+   "reference": "Ab major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F minor",
+   "reference": "Ab major",
+   "relation": "relative",
+   "weighted_score": 0.3
+  },
+  {
+   "estimate": "F# minor",
+   "reference": "Ab major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G major",
+   "reference": "Ab major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G minor",
+   "reference": "Ab major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Gb major",
+   "reference": "Ab major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "A major",
+   "reference": "Ab minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab major",
+   "reference": "Ab minor",
+   "relation": "parallel",
+   "weighted_score": 0.2
+  },
+  {
+   "estimate": "Ab minor",
+   "reference": "Ab minor",
+   "relation": "exact",
+   "weighted_score": 1.0
+  },
+  {
+   "estimate": "B major",
+   "reference": "Ab minor",
+   "relation": "relative",
+   "weighted_score": 0.3
+  },
+  {
+   "estimate": "B minor",
+   "reference": "Ab minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb major",
+   "reference": "Ab minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb minor",
+   "reference": "Ab minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C major",
+   "reference": "Ab minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C# major",
+   "reference": "Ab minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D major",
+   "reference": "Ab minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D minor",
+   "reference": "Ab minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "E major",
+   "reference": "Ab minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb major",
+   "reference": "Ab minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb minor",
+   "reference": "Ab minor",
+   "relation": "fifth",
+   "weighted_score": 0.5
+  },
+  {
+   "estimate": "F minor",
+   "reference": "Ab minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F# minor",
+   "reference": "Ab minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G major",
+   "reference": "Ab minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G minor",
+   "reference": "Ab minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Gb major",
+   "reference": "Ab minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "A major",
+   "reference": "B major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab major",
+   "reference": "B major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab minor",
+   "reference": "B major",
+   "relation": "relative",
+   "weighted_score": 0.3
+  },
+  {
+   "estimate": "B major",
+   "reference": "B major",
+   "relation": "exact",
+   "weighted_score": 1.0
+  },
+  {
+   "estimate": "B minor",
+   "reference": "B major",
+   "relation": "parallel",
+   "weighted_score": 0.2
+  },
+  {
+   "estimate": "Bb major",
+   "reference": "B major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb minor",
+   "reference": "B major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C major",
+   "reference": "B major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C# major",
+   "reference": "B major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D major",
+   "reference": "B major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D minor",
+   "reference": "B major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "E major",
+   "reference": "B major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb major",
+   "reference": "B major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb minor",
+   "reference": "B major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F minor",
+   "reference": "B major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F# minor",
+   "reference": "B major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G major",
+   "reference": "B major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G minor",
+   "reference": "B major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Gb major",
+   "reference": "B major",
+   "relation": "fifth",
+   "weighted_score": 0.5
+  },
+  {
+   "estimate": "A major",
+   "reference": "B minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab major",
+   "reference": "B minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab minor",
+   "reference": "B minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B major",
+   "reference": "B minor",
+   "relation": "parallel",
+   "weighted_score": 0.2
+  },
+  {
+   "estimate": "B minor",
+   "reference": "B minor",
+   "relation": "exact",
+   "weighted_score": 1.0
+  },
+  {
+   "estimate": "Bb major",
+   "reference": "B minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb minor",
+   "reference": "B minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C major",
+   "reference": "B minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C# major",
+   "reference": "B minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D major",
+   "reference": "B minor",
+   "relation": "relative",
+   "weighted_score": 0.3
+  },
+  {
+   "estimate": "D minor",
+   "reference": "B minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "E major",
+   "reference": "B minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb major",
+   "reference": "B minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb minor",
+   "reference": "B minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F minor",
+   "reference": "B minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F# minor",
+   "reference": "B minor",
+   "relation": "fifth",
+   "weighted_score": 0.5
+  },
+  {
+   "estimate": "G major",
+   "reference": "B minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G minor",
+   "reference": "B minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Gb major",
+   "reference": "B minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "A major",
+   "reference": "Bb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab major",
+   "reference": "Bb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab minor",
+   "reference": "Bb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B major",
+   "reference": "Bb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B minor",
+   "reference": "Bb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb major",
+   "reference": "Bb major",
+   "relation": "exact",
+   "weighted_score": 1.0
+  },
+  {
+   "estimate": "Bb minor",
+   "reference": "Bb major",
+   "relation": "parallel",
+   "weighted_score": 0.2
+  },
+  {
+   "estimate": "C major",
+   "reference": "Bb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C# major",
+   "reference": "Bb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D major",
+   "reference": "Bb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D minor",
+   "reference": "Bb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "E major",
+   "reference": "Bb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb major",
+   "reference": "Bb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb minor",
+   "reference": "Bb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F minor",
+   "reference": "Bb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F# minor",
+   "reference": "Bb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G major",
+   "reference": "Bb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G minor",
+   "reference": "Bb major",
+   "relation": "relative",
+   "weighted_score": 0.3
+  },
+  {
+   "estimate": "Gb major",
+   "reference": "Bb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "A major",
+   "reference": "Bb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab major",
+   "reference": "Bb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab minor",
+   "reference": "Bb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B major",
+   "reference": "Bb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B minor",
+   "reference": "Bb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb major",
+   "reference": "Bb minor",
+   "relation": "parallel",
+   "weighted_score": 0.2
+  },
+  {
+   "estimate": "Bb minor",
+   "reference": "Bb minor",
+   "relation": "exact",
+   "weighted_score": 1.0
+  },
+  {
+   "estimate": "C major",
+   "reference": "Bb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C# major",
+   "reference": "Bb minor",
+   "relation": "relative",
+   "weighted_score": 0.3
+  },
+  {
+   "estimate": "D major",
+   "reference": "Bb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D minor",
+   "reference": "Bb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "E major",
+   "reference": "Bb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb major",
+   "reference": "Bb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb minor",
+   "reference": "Bb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F minor",
+   "reference": "Bb minor",
+   "relation": "fifth",
+   "weighted_score": 0.5
+  },
+  {
+   "estimate": "F# minor",
+   "reference": "Bb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G major",
+   "reference": "Bb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G minor",
+   "reference": "Bb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Gb major",
+   "reference": "Bb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "A major",
+   "reference": "C major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab major",
+   "reference": "C major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab minor",
+   "reference": "C major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B major",
+   "reference": "C major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B minor",
+   "reference": "C major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb major",
+   "reference": "C major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb minor",
+   "reference": "C major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C major",
+   "reference": "C major",
+   "relation": "exact",
+   "weighted_score": 1.0
+  },
+  {
+   "estimate": "C# major",
+   "reference": "C major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D major",
+   "reference": "C major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D minor",
+   "reference": "C major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "E major",
+   "reference": "C major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb major",
+   "reference": "C major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb minor",
+   "reference": "C major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F minor",
+   "reference": "C major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F# minor",
+   "reference": "C major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G major",
+   "reference": "C major",
+   "relation": "fifth",
+   "weighted_score": 0.5
+  },
+  {
+   "estimate": "G minor",
+   "reference": "C major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Gb major",
+   "reference": "C major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "A major",
+   "reference": "C# major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab major",
+   "reference": "C# major",
+   "relation": "fifth",
+   "weighted_score": 0.5
+  },
+  {
+   "estimate": "Ab minor",
+   "reference": "C# major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B major",
+   "reference": "C# major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B minor",
+   "reference": "C# major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb major",
+   "reference": "C# major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb minor",
+   "reference": "C# major",
+   "relation": "relative",
+   "weighted_score": 0.3
+  },
+  {
+   "estimate": "C major",
+   "reference": "C# major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C# major",
+   "reference": "C# major",
+   "relation": "exact",
+   "weighted_score": 1.0
+  },
+  {
+   "estimate": "D major",
+   "reference": "C# major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D minor",
+   "reference": "C# major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "E major",
+   "reference": "C# major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb major",
+   "reference": "C# major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb minor",
+   "reference": "C# major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F minor",
+   "reference": "C# major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F# minor",
+   "reference": "C# major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G major",
+   "reference": "C# major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G minor",
+   "reference": "C# major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Gb major",
+   "reference": "C# major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "A major",
+   "reference": "D major",
+   "relation": "fifth",
+   "weighted_score": 0.5
+  },
+  {
+   "estimate": "Ab major",
+   "reference": "D major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab minor",
+   "reference": "D major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B major",
+   "reference": "D major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B minor",
+   "reference": "D major",
+   "relation": "relative",
+   "weighted_score": 0.3
+  },
+  {
+   "estimate": "Bb major",
+   "reference": "D major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb minor",
+   "reference": "D major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C major",
+   "reference": "D major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C# major",
+   "reference": "D major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D major",
+   "reference": "D major",
+   "relation": "exact",
+   "weighted_score": 1.0
+  },
+  {
+   "estimate": "D minor",
+   "reference": "D major",
+   "relation": "parallel",
+   "weighted_score": 0.2
+  },
+  {
+   "estimate": "E major",
+   "reference": "D major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb major",
+   "reference": "D major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb minor",
+   "reference": "D major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F minor",
+   "reference": "D major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F# minor",
+   "reference": "D major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G major",
+   "reference": "D major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G minor",
+   "reference": "D major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Gb major",
+   "reference": "D major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "A major",
+   "reference": "D minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab major",
+   "reference": "D minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab minor",
+   "reference": "D minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B major",
+   "reference": "D minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B minor",
+   "reference": "D minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb major",
+   "reference": "D minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb minor",
+   "reference": "D minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C major",
+   "reference": "D minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C# major",
+   "reference": "D minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D major",
+   "reference": "D minor",
+   "relation": "parallel",
+   "weighted_score": 0.2
+  },
+  {
+   "estimate": "D minor",
+   "reference": "D minor",
+   "relation": "exact",
+   "weighted_score": 1.0
+  },
+  {
+   "estimate": "E major",
+   "reference": "D minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb major",
+   "reference": "D minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb minor",
+   "reference": "D minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F minor",
+   "reference": "D minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F# minor",
+   "reference": "D minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G major",
+   "reference": "D minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G minor",
+   "reference": "D minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Gb major",
+   "reference": "D minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "A major",
+   "reference": "E major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab major",
+   "reference": "E major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab minor",
+   "reference": "E major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B major",
+   "reference": "E major",
+   "relation": "fifth",
+   "weighted_score": 0.5
+  },
+  {
+   "estimate": "B minor",
+   "reference": "E major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb major",
+   "reference": "E major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb minor",
+   "reference": "E major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C major",
+   "reference": "E major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C# major",
+   "reference": "E major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D major",
+   "reference": "E major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D minor",
+   "reference": "E major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "E major",
+   "reference": "E major",
+   "relation": "exact",
+   "weighted_score": 1.0
+  },
+  {
+   "estimate": "Eb major",
+   "reference": "E major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb minor",
+   "reference": "E major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F minor",
+   "reference": "E major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F# minor",
+   "reference": "E major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G major",
+   "reference": "E major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G minor",
+   "reference": "E major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Gb major",
+   "reference": "E major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "A major",
+   "reference": "Eb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab major",
+   "reference": "Eb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab minor",
+   "reference": "Eb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B major",
+   "reference": "Eb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B minor",
+   "reference": "Eb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb major",
+   "reference": "Eb major",
+   "relation": "fifth",
+   "weighted_score": 0.5
+  },
+  {
+   "estimate": "Bb minor",
+   "reference": "Eb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C major",
+   "reference": "Eb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C# major",
+   "reference": "Eb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D major",
+   "reference": "Eb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D minor",
+   "reference": "Eb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "E major",
+   "reference": "Eb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb major",
+   "reference": "Eb major",
+   "relation": "exact",
+   "weighted_score": 1.0
+  },
+  {
+   "estimate": "Eb minor",
+   "reference": "Eb major",
+   "relation": "parallel",
+   "weighted_score": 0.2
+  },
+  {
+   "estimate": "F minor",
+   "reference": "Eb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F# minor",
+   "reference": "Eb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G major",
+   "reference": "Eb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G minor",
+   "reference": "Eb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Gb major",
+   "reference": "Eb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "A major",
+   "reference": "Eb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab major",
+   "reference": "Eb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab minor",
+   "reference": "Eb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B major",
+   "reference": "Eb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B minor",
+   "reference": "Eb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb major",
+   "reference": "Eb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb minor",
+   "reference": "Eb minor",
+   "relation": "fifth",
+   "weighted_score": 0.5
+  },
+  {
+   "estimate": "C major",
+   "reference": "Eb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C# major",
+   "reference": "Eb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D major",
+   "reference": "Eb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D minor",
+   "reference": "Eb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "E major",
+   "reference": "Eb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb major",
+   "reference": "Eb minor",
+   "relation": "parallel",
+   "weighted_score": 0.2
+  },
+  {
+   "estimate": "Eb minor",
+   "reference": "Eb minor",
+   "relation": "exact",
+   "weighted_score": 1.0
+  },
+  {
+   "estimate": "F minor",
+   "reference": "Eb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F# minor",
+   "reference": "Eb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G major",
+   "reference": "Eb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G minor",
+   "reference": "Eb minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Gb major",
+   "reference": "Eb minor",
+   "relation": "relative",
+   "weighted_score": 0.3
+  },
+  {
+   "estimate": "A major",
+   "reference": "F minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab major",
+   "reference": "F minor",
+   "relation": "relative",
+   "weighted_score": 0.3
+  },
+  {
+   "estimate": "Ab minor",
+   "reference": "F minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B major",
+   "reference": "F minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B minor",
+   "reference": "F minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb major",
+   "reference": "F minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb minor",
+   "reference": "F minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C major",
+   "reference": "F minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C# major",
+   "reference": "F minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D major",
+   "reference": "F minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D minor",
+   "reference": "F minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "E major",
+   "reference": "F minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb major",
+   "reference": "F minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb minor",
+   "reference": "F minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F minor",
+   "reference": "F minor",
+   "relation": "exact",
+   "weighted_score": 1.0
+  },
+  {
+   "estimate": "F# minor",
+   "reference": "F minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G major",
+   "reference": "F minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G minor",
+   "reference": "F minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Gb major",
+   "reference": "F minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "A major",
+   "reference": "F# minor",
+   "relation": "relative",
+   "weighted_score": 0.3
+  },
+  {
+   "estimate": "Ab major",
+   "reference": "F# minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab minor",
+   "reference": "F# minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B major",
+   "reference": "F# minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B minor",
+   "reference": "F# minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb major",
+   "reference": "F# minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb minor",
+   "reference": "F# minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C major",
+   "reference": "F# minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C# major",
+   "reference": "F# minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D major",
+   "reference": "F# minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D minor",
+   "reference": "F# minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "E major",
+   "reference": "F# minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb major",
+   "reference": "F# minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb minor",
+   "reference": "F# minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F minor",
+   "reference": "F# minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F# minor",
+   "reference": "F# minor",
+   "relation": "exact",
+   "weighted_score": 1.0
+  },
+  {
+   "estimate": "G major",
+   "reference": "F# minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G minor",
+   "reference": "F# minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Gb major",
+   "reference": "F# minor",
+   "relation": "parallel",
+   "weighted_score": 0.2
+  },
+  {
+   "estimate": "A major",
+   "reference": "G major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab major",
+   "reference": "G major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab minor",
+   "reference": "G major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B major",
+   "reference": "G major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B minor",
+   "reference": "G major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb major",
+   "reference": "G major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb minor",
+   "reference": "G major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C major",
+   "reference": "G major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C# major",
+   "reference": "G major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D major",
+   "reference": "G major",
+   "relation": "fifth",
+   "weighted_score": 0.5
+  },
+  {
+   "estimate": "D minor",
+   "reference": "G major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "E major",
+   "reference": "G major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb major",
+   "reference": "G major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb minor",
+   "reference": "G major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F minor",
+   "reference": "G major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F# minor",
+   "reference": "G major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G major",
+   "reference": "G major",
+   "relation": "exact",
+   "weighted_score": 1.0
+  },
+  {
+   "estimate": "G minor",
+   "reference": "G major",
+   "relation": "parallel",
+   "weighted_score": 0.2
+  },
+  {
+   "estimate": "Gb major",
+   "reference": "G major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "A major",
+   "reference": "G minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab major",
+   "reference": "G minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab minor",
+   "reference": "G minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B major",
+   "reference": "G minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B minor",
+   "reference": "G minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb major",
+   "reference": "G minor",
+   "relation": "relative",
+   "weighted_score": 0.3
+  },
+  {
+   "estimate": "Bb minor",
+   "reference": "G minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C major",
+   "reference": "G minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C# major",
+   "reference": "G minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D major",
+   "reference": "G minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D minor",
+   "reference": "G minor",
+   "relation": "fifth",
+   "weighted_score": 0.5
+  },
+  {
+   "estimate": "E major",
+   "reference": "G minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb major",
+   "reference": "G minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb minor",
+   "reference": "G minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F minor",
+   "reference": "G minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F# minor",
+   "reference": "G minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G major",
+   "reference": "G minor",
+   "relation": "parallel",
+   "weighted_score": 0.2
+  },
+  {
+   "estimate": "G minor",
+   "reference": "G minor",
+   "relation": "exact",
+   "weighted_score": 1.0
+  },
+  {
+   "estimate": "Gb major",
+   "reference": "G minor",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "A major",
+   "reference": "Gb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab major",
+   "reference": "Gb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Ab minor",
+   "reference": "Gb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B major",
+   "reference": "Gb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "B minor",
+   "reference": "Gb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb major",
+   "reference": "Gb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Bb minor",
+   "reference": "Gb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C major",
+   "reference": "Gb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "C# major",
+   "reference": "Gb major",
+   "relation": "fifth",
+   "weighted_score": 0.5
+  },
+  {
+   "estimate": "D major",
+   "reference": "Gb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "D minor",
+   "reference": "Gb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "E major",
+   "reference": "Gb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb major",
+   "reference": "Gb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Eb minor",
+   "reference": "Gb major",
+   "relation": "relative",
+   "weighted_score": 0.3
+  },
+  {
+   "estimate": "F minor",
+   "reference": "Gb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "F# minor",
+   "reference": "Gb major",
+   "relation": "parallel",
+   "weighted_score": 0.2
+  },
+  {
+   "estimate": "G major",
+   "reference": "Gb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "G minor",
+   "reference": "Gb major",
+   "relation": "other",
+   "weighted_score": 0.0
+  },
+  {
+   "estimate": "Gb major",
+   "reference": "Gb major",
+   "relation": "exact",
+   "weighted_score": 1.0
+  }
+ ],
+ "provenance": {
+  "dataset": "GuitarSet v1.1.0, CC BY 4.0",
+  "generated": "2026-10-03",
+  "key_reference": "mir_eval 0.8.2 (key.weighted_score)",
+  "source": "the 360 GuitarSet JAMS key_mode annotations (keys only, no audio)"
+ },
+ "tempos": [
+  {
+   "estimated_bpm": 120.0,
+   "expected": {
+    "absolute_bpm_error": 0.0,
+    "double_tempo_error": 60.0,
+    "half_tempo_error": 120.0
+   },
+   "reference_bpm": 120.0
+  },
+  {
+   "estimated_bpm": 60.0,
+   "expected": {
+    "absolute_bpm_error": 60.0,
+    "double_tempo_error": 90.0,
+    "half_tempo_error": 0.0
+   },
+   "reference_bpm": 120.0
+  },
+  {
+   "estimated_bpm": 240.0,
+   "expected": {
+    "absolute_bpm_error": 120.0,
+    "double_tempo_error": 0.0,
+    "half_tempo_error": 360.0
+   },
+   "reference_bpm": 120.0
+  },
+  {
+   "estimated_bpm": 125.0,
+   "expected": {
+    "absolute_bpm_error": 5.0,
+    "double_tempo_error": 57.5,
+    "half_tempo_error": 130.0
+   },
+   "reference_bpm": 120.0
+  },
+  {
+   "estimated_bpm": 68.0,
+   "expected": {
+    "absolute_bpm_error": 61.0,
+    "double_tempo_error": 95.0,
+    "half_tempo_error": 7.0
+   },
+   "reference_bpm": 129.0
+  },
+  {
+   "estimated_bpm": 187.0,
+   "expected": {
+    "absolute_bpm_error": 0.0,
+    "double_tempo_error": 93.5,
+    "half_tempo_error": 187.0
+   },
+   "reference_bpm": 187.0
+  }
+ ]
+}

@@ -226,7 +226,10 @@ tests:
 1. **Runtime verified on Linux only.** Windows and macOS have wheel-level
    evidence (see §10.3) but no runtime evidence. Anyone claiming cross-platform
    support for an engine must test it on that platform first.
-2. **No `songlab benchmark` metric exists yet.** A lyrics WER/CER figure does (roadmap
+2. **Benchmark coverage is still thin.** `songlab benchmark` now scores stored
+   cases and can run `chroma-baseline` to fill them (roadmap 46, 2026-10-04),
+   but every published figure below still comes from the investigation
+   harnesses: a lyrics WER/CER figure does (roadmap
    25/26) and chord figures do: five real songs × six inputs on 2026-09-26 (timing-free,
    on timestamp-free charts; revised to engine v2 on 2026-09-28), plus since 2026-09-29 a
    duration-weighted **CSR** against GuitarSet's timed annotations (all 360 excerpts;
@@ -759,3 +762,27 @@ Net effect of the adopted ideas on the same 30 condition–song rows: exact F1
 key agreement **24/30 → 27/30**. The hyper-parameters (bonus 0.05, gate rule) were
 selected on these same five songs, so the gain is in-sample until a sixth song tests it.
 
+## 14. Dataset inventory (roadmap section 42)
+
+The full 13-source guitar chord/dataset search — content, verified licence and
+verdict per source — is registered in `docs/DATASET.md` ("Guitar-dataset
+inventory", registered 2026-10-04, source list in
+`research/repositorios_datasets_acordes_guitarra.txt`). The licence outcomes
+that constrain this GPL-3.0-or-later repository:
+
+| Source | Licence (verified 2026-10-04 unless noted) | Decision |
+| --- | --- | --- |
+| GuitarSet (Zenodo 3371780) | CC BY 4.0 (MD5-verified 2026-09-29) | **adopted** for local measurement; audio stays gitignored, committed fixtures are annotation-only |
+| IDMT-SMT-Chord-Sequences (Zenodo 7544225) | CC BY 4.0 (Zenodo API) | usable licence; synthesized audio, sequence experiments only |
+| Guitar-TECHS (Zenodo 14963133) | CC BY 4.0 (project site, ICASSP paper, NLM catalogue) | candidate; not adopted |
+| isolated-guitar-chords (Hugging Face) | CC BY 4.0 (research file) | candidate; not adopted |
+| guitar-chord-mix (Hugging Face) | CC BY 4.0 / CC0 per source (dataset card) | integration resource; audit whichever component a clip came from |
+| Freesound | per item (CC0 / CC BY variants) | complementary; audit every item before use |
+| IDMT-SMT-Guitar (Zenodo 7544110) | CC BY-NC-ND 4.0 (research file) | **blocked** — non-commercial and no-derivatives: never bundled, never committed |
+| IDMT-SMT-Chords (Zenodo 7544213) | CC BY-NC-ND 4.0 (Zenodo API) | **blocked** for the same reasons |
+| frettler | AGPL-3.0 (LICENSE file) | fingering reference only; AGPL code never bundled (same pattern as §3.1) |
+| chord-collection | no licence file detected (GitHub API) | all rights reserved until clarified; do not copy content |
+
+Audio from any of these sources is never committed; derived fixtures stay
+annotation-only with their provenance recorded inside the fixture, per the
+policy in `docs/DATASET.md`.

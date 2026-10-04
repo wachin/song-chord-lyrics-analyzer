@@ -8,6 +8,17 @@ the project uses [semantic versioning](https://semver.org/).
 
 ### Research
 
+* **Guitar-dataset inventory registered (2026-10-04).** The 13-source guitar
+  chord/dataset search is documented in `docs/DATASET.md` with a licence and a
+  verdict per source, mirrored as a decision table in
+  `docs/DEPENDENCY_MATRIX.md` §14 (roadmap 42). Licences were re-verified against
+  the primary records the same day: GuitarSet (CC BY 4.0) remains the only
+  adopted source; IDMT-SMT-Guitar and IDMT-SMT-Chords are CC BY-NC-ND 4.0 and
+  therefore blocked; IDMT-SMT-Chord-Sequences is CC BY 4.0 (usable, but
+  synthesized audio); Guitar-TECHS and isolated-guitar-chords are CC BY 4.0
+  candidates; frettler is AGPL-3.0 (fingering reference only); chord-collection
+  has no detected licence (do not copy until clarified).
+
 * Completed the phase 1 dependency research for every candidate needed before the
   first analysis phases, with each fact sourced (package metadata, upstream
   `LICENSE`/`COPYING`, model card, or vendor licence page) and dated.

@@ -79,6 +79,37 @@ takes the `N`-th `chord`-namespace annotation (GuitarSet's 0 = instructed, 1 = p
 and converts Harte labels (`Bb:min`, `F#:7/5`) to the canonical form, fixture-tested
 alongside the metric itself.
 
+## Guitar-dataset inventory (registered 2026-10-04)
+
+The guitar chord/dataset search collected in
+`research/repositorios_datasets_acordes_guitarra.txt` (13 entries) is registered
+here with a licence and a verdict per source, so roadmap 42's "document every
+dataset license" has one place to look. Licences marked *verified* were checked
+against the primary record (Zenodo API, GitHub licence API, the project's own
+site) on 2026-10-04; the rest are as recorded in the research file. The same
+verdicts are mirrored as a short table in `docs/DEPENDENCY_MATRIX.md` §14.
+
+| # | Source | What it holds | Licence (verified) | Verdict |
+| --- | --- | --- | --- | --- |
+| 1 | **T-vK/chord-collection** | guitar chord shapes as JSON/JS objects: finger positions and frets | *no licence file detected* via the GitHub API (2026-10-04) | fingering-representation reference only; no audio. All rights reserved until clarified — do not copy content into this repository. |
+| 2+3 | **marl/GuitarSet** (GitHub + Zenodo 10.5281/zenodo.3371780) | 360 real acoustic-guitar excerpts with JAMS annotations: chords (instructed + performed), notes, strings, key, tempo, beats | **CC BY 4.0** (Zenodo metadata, MD5-verified 2026-09-29) | **adopted** — the only source found that combines real audio *and* timed chord boundaries under a permissive licence; used for local measurement since 2026-09-29, audio stays in the gitignored cache, annotations-only fixtures are committed. |
+| 4 | **severyn-k/isolated-guitar-chords** (Hugging Face) | isolated major/minor chord recordings with strumming patterns and fingerings | **CC BY 4.0** (as recorded in the research file) | candidate for isolated-chord evaluation; not adopted. |
+| 5+13 | **ryangowe/guitar-chord-mix** (Hugging Face) | unified WAV+JAMS clips (per-string `note_midi`) merged from GuitarSet, Guitar-TECHS, EGFxSet and Isolated Guitar Chords, plus SFZ libraries and DEMAND noise; 158 rows / 4.85 GB | per-source table on the dataset card: **CC BY 4.0** (GuitarSet, Guitar-Techs, EGFxSet, Isolated Guitar Chords, DEMAND), **CC0** (SFZ libraries) | integration resource; its licence follows its components, so audit whichever source a clip came from before reuse. Not adopted. |
+| 6 | **Madhudorai/Guitar-TECHS** (GitHub → Zenodo 14963133) | electric-guitar techniques, scales, chords and excerpts across four capture modalities, with per-string/MIDI note labels | **CC BY 4.0** (project site `guitar-techs.github.io`, the ICASSP 2025 paper and the NLM dataset catalogue, 2026-10-04) | candidate for note- and chord-level guitar research; not adopted. |
+| 7 | **philwhiles/frettler** | Java CLI + database of chord fingerings (OLGA-derived data) | **AGPL-3.0-or-later** (LICENSE file, 2026-10-04) | fingering reference only (no audio). AGPL code must never be bundled into this GPL-3.0-or-later project — same pattern as madmom/Essentia weights in `DEPENDENCY_MATRIX.md` §3.1. |
+| 8+9 | **IDMT-SMT-Guitar** (Fraunhofer site + Zenodo 10.5281/zenodo.7544110) | real guitar recordings: techniques, playing styles, and a transcription/chord-rhythm subset | **CC BY-NC-ND 4.0** (recorded in the research file) | **blocked**: non-commercial *and* no-derivatives, which bars committing it into this GPL-3 repository or producing adapted fixtures. Never bundled, never committed. |
+| 10 | **IDMT-SMT-Chords** (Zenodo 10.5281/zenodo.7544213) | 7,398 chord segments (2 s each) synthesized from MIDI; 273 guitar chord classes | **CC BY-NC-ND 4.0** (Zenodo API, 2026-10-04) | **blocked** for the same NC-ND reasons; the audio is synthesized rather than real playing anyway. |
+| 11 | **IDMT-SMT-Chord-Sequences** (Zenodo 10.5281/zenodo.7544225) | 15,000 chord progressions (4–32 s) synthesized from MIDI with 45 instruments, with tempo/meter/instrument metadata | **CC BY 4.0** (Zenodo API, 2026-10-04) | licence is usable, but the audio is synthetic; candidate for sequence-level experiments only, not for real-guitar claims. Not adopted. |
+| 12 | **Freesound** | marketplace of samples including isolated chord strums and guitar takes | **per item** (CC0 / CC BY variants; research file) | complementary source only; every item's own licence must be checked and recorded before use, and nothing is committed from it. |
+
+**What this means.** GuitarSet stays the single adopted audio source (roadmap
+43's ground truth); the IDMT-SMT-Guitar/Chords pair is hard-blocked by NC-ND;
+frettler is AGPL and chord-collection has no detected licence, so both are
+reading material for the fingering representation (roadmap 13) rather than
+sources to copy from. Nothing in this table changes the policy below: no audio
+from any of these sources is ever committed, and derived fixtures stay
+annotation-only with their provenance inside the fixture.
+
 ## Policy
 
 * No copyrighted commercial recordings are committed to this repository.

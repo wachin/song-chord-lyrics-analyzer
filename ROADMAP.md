@@ -1723,7 +1723,14 @@ This is preferable to pretending that the algorithm has absolute certainty.
 
 # [ ] 42. Dataset Strategy
 
-*Status (2026-09-23): partial — the policy is written down in `docs/DATASET.md`; no dataset exists.*
+*Status (2026-10-04): partial — the policy is written down in `docs/DATASET.md`, and
+the 13-source guitar-dataset inventory (content, licence and verdict per source, with
+the licence re-verified against the primary records where the research file did not
+quote one) is now registered there and mirrored in `docs/DEPENDENCY_MATRIX.md` §14:
+GuitarSet (CC BY 4.0) remains the only adopted source, IDMT-SMT-Guitar and
+IDMT-SMT-Chords are blocked by CC BY-NC-ND, frettler is AGPL-3.0 reference-only and
+chord-collection ships no detected licence. The internal benchmark dataset with the
+categories below does not exist yet.*
 
 Create a small internal benchmark dataset.
 

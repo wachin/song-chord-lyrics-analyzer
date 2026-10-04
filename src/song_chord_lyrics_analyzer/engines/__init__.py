@@ -19,6 +19,7 @@ from song_chord_lyrics_analyzer.engines.base import (
     StemSeparationOptions,
     TempoEngine,
 )
+from song_chord_lyrics_analyzer.engines.chroma_baseline import ChromaBaselineEngine
 from song_chord_lyrics_analyzer.engines.registry import (
     EngineRegistry,
     create_default_registry,
@@ -29,6 +30,7 @@ __all__ = [
     "BeatEngine",
     "ChordAnalysisOptions",
     "ChordEngine",
+    "ChromaBaselineEngine",
     "EngineKind",
     "EngineRegistry",
     "KeyEngine",

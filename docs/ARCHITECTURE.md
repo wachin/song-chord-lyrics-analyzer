@@ -40,9 +40,9 @@ src/song_chord_lyrics_analyzer/
 ├── __main__.py           `python -m song_chord_lyrics_analyzer`
 ├── cli/                  argument parsing and command implementations
 │   ├── main.py           parser, error translation, exit codes
-│   └── commands/         info, doctor
+│   └── commands/         info, doctor, benchmark
 ├── audio/                validation, FFmpeg discovery, metadata probing
-├── engines/              engine protocols, options, registry
+├── engines/              engine protocols, options, registry, chroma-baseline adapter
 ├── schema/               canonical JSON codec
 ├── models/               canonical typed data model (dataclasses)
 ├── normalization/        chord parsing, rendering, transposition
@@ -50,7 +50,8 @@ src/song_chord_lyrics_analyzer/
 ├── alignment/            (phase 9) shared timeline
 ├── fusion/               (phase 10) multi-engine consensus
 ├── metrics/              (phase 11) chord, key, tempo and lyrics metrics + model adapters
-├── benchmark/            (phase 11) scores stored reference/hypothesis cases into reports
+├── performance.py        (roadmap §45) run measurement: time, RAM, real-time factor
+├── benchmark/            (phase 11) runs an optional engine over cases, scores them into reports
 ├── export/               (phase 12) JSON, CSV, TXT, ChordPro, MIDI, MusicXML
 ├── i18n/                 (phase 17) Qt Linguist catalogues
 └── utils/                paths, executables, logging, errors, time
@@ -109,7 +110,7 @@ Deliberate design decisions:
   suffix preserved; transposition leaves them untouched.
 * Confidence is optional: `None` means "the engine did not say", not "zero".
 
-## 5. Engine contract (implemented, no concrete engines yet)
+## 5. Engine contract (implemented; first engine: chroma-baseline)
 
 ```python
 class ChordEngine(Protocol):
@@ -126,8 +127,14 @@ Engines are registered in `EngineRegistry` by kind and name, which is what makes
 anything about Madmom. Adding an engine requires one adapter, one configuration
 entry, tests and documentation - never a change in the CLI or the GUI.
 
-`create_default_registry()` is intentionally empty in phase 0. It is the single
-place where engines become visible to the rest of the application.
+`create_default_registry()` is the single place where engines become visible
+to the rest of the application. It registers the first concrete adapter today,
+the `chroma-baseline` chord engine (`engines/chroma_baseline.py`): an optional
+numpy/librosa front end reports its availability honestly through
+`is_available()`, while the template-matching half stays dependency-free and
+is tested without it. `songlab benchmark --engine chroma-baseline` runs it on
+every case that declares an audio file and records the measured section 45 run
+cost alongside the score.
 
 ## 6. Audio foundation (implemented)
 
@@ -176,9 +183,9 @@ Only WAV files can be inspected without FFmpeg.
 | Phase 1 dependency research | done for the pre-analysis candidates, including smoke tests of the adopted ones on Linux; heavy ML options and Windows/macOS runtime deliberately still open (see `DEPENDENCY_MATRIX.md` §10, `LICENSE_AUDIT.md`) |
 | Phase 2 audio foundation | metadata + FFmpeg discovery done; resampling/decoding pending |
 | Phase 3 lyrics laboratory | not started |
-| Phase 4 chord laboratory | chord normalization done; engines pending |
+| Phase 4 chord laboratory | chord normalization done; first engine (chroma baseline) integrated behind `songlab benchmark --engine`; advanced decoders pending |
 | Phase 5 key/tempo/beats | models done; engines pending |
-| Phases 6-14 | not started; phase 11 chord, key, tempo and lyrics metrics exist as library code in `metrics/` (roadmap §44) and `songlab benchmark` scores stored reference/hypothesis cases into reports (roadmap §46), not yet wired to engines |
+| Phases 6-14 | not started; phase 11 chord, key, tempo and lyrics metrics exist as library code in `metrics/` (roadmap §44) and `songlab benchmark` scores reference/hypothesis cases into reports (roadmap §46), filling the hypothesis from a measured engine run when a case declares audio |
 | Phase 15+ GUI | not started (by design) |
 
 `ROADMAP.md` is the authoritative progress view: every section carries a bracket

@@ -135,26 +135,36 @@ def _score_lyrics_words(
 
 
 def _score_chords(reference: dict[str, Any], hypothesis: dict[str, Any], metrics: dict) -> None:
-    ref_segments, hyp_segments = (
-        _segments(reference.get("chords")),
-        _segments(hypothesis.get("chords")),
-    )
-    if ref_segments and hyp_segments:
-        metrics["chords.segment_overlap"] = segment_overlap(ref_segments, hyp_segments)
-        detection = chord_change_detection(ref_segments, hyp_segments)
-        metrics["chords.change_detection.precision"] = detection["precision"]
-        metrics["chords.change_detection.recall"] = detection["recall"]
-        metrics["chords.change_detection.f1"] = detection["f1"]
-        timing = timing_error(ref_segments, hyp_segments)
-        if not math.isnan(timing["reference_to_hypothesis"]):
-            metrics["chords.timing_error_median_seconds"] = timing["reference_to_hypothesis"]
+    # Both sides must *declare* a chord timeline; a hypothesis that declares
+    # an empty one is a run that found nothing and scores 0.0 rather than
+    # being silently skipped.
+    if "chords" not in reference or "chords" not in hypothesis:
+        return
+    ref_segments = _segments(reference["chords"])
+    if not ref_segments:
+        return
+    hyp_segments = _segments(hypothesis["chords"])
+    metrics["chords.segment_overlap"] = segment_overlap(ref_segments, hyp_segments)
+    detection = chord_change_detection(ref_segments, hyp_segments)
+    metrics["chords.change_detection.precision"] = detection["precision"]
+    metrics["chords.change_detection.recall"] = detection["recall"]
+    metrics["chords.change_detection.f1"] = detection["f1"]
+    timing = timing_error(ref_segments, hyp_segments)
+    if not math.isnan(timing["reference_to_hypothesis"]):
+        metrics["chords.timing_error_median_seconds"] = timing["reference_to_hypothesis"]
 
 
 def _score_chord_labels(
     reference: dict[str, Any], hypothesis: dict[str, Any], metrics: dict
 ) -> None:
-    ref_labels, hyp_labels = reference.get("chord_labels"), hypothesis.get("chord_labels")
+    # Key presence, not length: a declared empty hypothesis label sequence is
+    # a measured zero (the engine found no chords), not a missing family.
+    if "chord_labels" not in reference or "chord_labels" not in hypothesis:
+        return
+    ref_labels, hyp_labels = reference["chord_labels"], hypothesis["chord_labels"]
     if not isinstance(ref_labels, list) or not isinstance(hyp_labels, list):
+        return
+    if not ref_labels:
         return
     result = evaluate(ref_labels, hyp_labels)
     for view in ("exact", "root", "quality", "mirex"):

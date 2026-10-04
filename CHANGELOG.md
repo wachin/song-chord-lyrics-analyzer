@@ -386,6 +386,31 @@ collapses are a **penalty artefact of the legacy in-place Viterbi loop, not a de
   `LyricSegment`/`LyricWord`. Tests: `tests/unit/test_lyrics_metrics.py`. Full
   suite: 962 passed, 1 skipped.
 
+### First chord engine (roadmap 59/46)
+
+* **`chroma-baseline` (2026-10-04).** The first concrete engine behind the
+  `ChordEngine` protocol: CQT chroma through an optional numpy/librosa front end
+  (honest `is_available()`; missing dependencies raise a `DependencyError` with an
+  install hint) matched per frame against the 24 phase-1 triad templates by cosine
+  similarity, majority-smoothed and collapsed into canonical `ChordEvent` segments.
+  The dependency-free decoding half is plain library code, tested without the DSP
+  stack, and `create_default_registry()` registers the engine so `songlab doctor`
+  lists it.
+* **`songlab benchmark --engine NAME` (sections 45 + 46).** A case that declares
+  an `audio` file is now run through the engine before scoring:
+  `benchmark/runner.py` fills `hypothesis.chords`/`chord_labels` and takes
+  duration, processing time and peak memory from the engine's measured section 45
+  `PerformanceReport`. The reference side and cases without `audio` are never
+  touched; stored fields the engine does not produce (e.g. lyrics) are kept; a
+  declared-empty hypothesis scores 0.0 instead of silently disappearing. Unknown
+  engines exit 2 listing the registered ones, unavailable ones exit 3 before any
+  run, and `--json` output stays pure JSON.
+* Verified end to end on one real GuitarSet excerpt (22.3 s of CC BY 4.0 audio,
+  kept in the gitignored cache): the engine ran, the run cost was measured and all
+  three reports were written. No case or number from that smoke run is committed.
+  Tests: `tests/unit/test_chroma_baseline.py`, `tests/unit/test_benchmark_runner.py`
+  and the `--engine` CLI cases in `tests/unit/test_benchmark.py`.
+
 ### Performance metrics (roadmap 45)
 
 * **Measurement harness (2026-10-04).** The new dependency-free

@@ -19,13 +19,15 @@ and key** — with confidence and provenance attached to every inference.
 * **Licence:** GPL-3.0-or-later
 * **Status:** phase 0 complete and phase 1 dependency research done — repository,
   CLI, canonical model, engine interfaces, audio metadata, tests and CI. The
-  chord metric suite already exists as dependency-free library code. **No
-  analysis engine is integrated yet:** candidates were resolved, licence-audited,
-  adopted/deferred/rejected, and the adopted ones were smoke-tested in a
-  throw-away environment on Linux (runtime verified on Linux only, no accuracy
-  claim). All measurements to date — the lyrics-ASR investigation and the chord
-  measurements — were produced by a temporary, gitignored harness, **not** by
-  `songlab benchmark`; see [`docs/ENGINE_COMPARISON.md`](docs/ENGINE_COMPARISON.md),
+  chord metric suite already exists as dependency-free library code, and the
+  **first chord engine is integrated**: `chroma-baseline` (CQT chroma matched
+  against triad templates through an optional numpy/librosa front end) runs
+  behind `songlab benchmark --engine`, which measures its own run cost.
+  Candidates were resolved, licence-audited, adopted/deferred/rejected, and the
+  adopted ones were smoke-tested in a throw-away environment on Linux (runtime
+  verified on Linux only, no accuracy claim). The earlier measurements — the
+  lyrics-ASR investigation and the chord measurements — were produced by a
+  temporary, gitignored harness; see [`docs/ENGINE_COMPARISON.md`](docs/ENGINE_COMPARISON.md),
   the [roadmap](ROADMAP.md) for the order of work, and
   [`docs/DEPENDENCY_MATRIX.md`](docs/DEPENDENCY_MATRIX.md) for the findings.
 
@@ -121,7 +123,7 @@ before the CLI is allowed to grow. Current state and direction:
 | Dependency and licence research (candidates adopted/deferred/rejected) | **done** |
 | Chord metrics — timing-free (align, exact/root/quality/MIREX views) and boundary-aware (segment overlap, change detection, timing error) | **library code, dependency-free** |
 | Lyrics / key / tempo / beat engines behind the interfaces | next |
-| `songlab benchmark` — `benchmark/{benchmark.json,csv,md}` over stored results | implemented; running an engine to fill it is next |
+| `songlab benchmark` — `benchmark/{benchmark.json,csv,md}` over stored results | implemented; `--engine` runs a registered chord engine over cases with audio |
 | Stem separation, alignment, fusion, exports | later |
 | GUI | last (phase 15) |
 
@@ -201,8 +203,8 @@ songlab export    song.mp3 --format chordpro  ChordPro, JSON, Markdown, ...
 | Chord metrics (`metrics/`) — timing-free and boundary-aware scoring views | implemented as library code |
 | Key, tempo and lyrics metrics (`metrics/`) — WER/CER, key relation, half/double BPM | implemented as library code |
 | Chord scoring semantics (`evaluation/`) — MIREX equality, duration-weighted CSR | implemented as library code |
-| `songlab benchmark` — scores stored reference/hypothesis cases into `benchmark/{json,csv,md}` | implemented (no engine runs yet) |
-| Lyrics/chords/key/tempo/beat engines, separation, alignment, fusion, exports, GUI | not started |
+| `songlab benchmark` — scores stored reference/hypothesis cases into `benchmark/{json,csv,md}` | implemented; `--engine chroma-baseline` fills cases from a real measured run |
+| Further chord decoders, lyrics/key/tempo/beat engines, separation, alignment, fusion, exports, GUI | not started |
 
 ## Development
 

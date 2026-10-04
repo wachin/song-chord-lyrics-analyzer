@@ -14,6 +14,7 @@ from __future__ import annotations
 from typing import Any
 
 from song_chord_lyrics_analyzer.engines.base import EngineKind
+from song_chord_lyrics_analyzer.engines.chroma_baseline import ChromaBaselineEngine
 from song_chord_lyrics_analyzer.models.analysis import EngineInfo
 from song_chord_lyrics_analyzer.utils.errors import DuplicateEngineError, EngineNotFoundError
 from song_chord_lyrics_analyzer.utils.logging import get_logger
@@ -160,9 +161,11 @@ def create_default_registry() -> EngineRegistry:
     """Create the registry used by the CLI.
 
     Concrete engines are registered here as their roadmap phases land: the
-    chroma baseline (phase 4), Chordino/Sonic Annotator, Madmom, PitchPerfect,
-    Faster-Whisper and Demucs. Keeping this function explicit means the CLI and
-    the future GUI see exactly one place where engines become available.
+    chroma baseline (first, roadmap section 59), then Chordino/Sonic
+    Annotator, Madmom, PitchPerfect, Faster-Whisper and Demucs. Keeping this
+    function explicit means the CLI and the future GUI see exactly one place
+    where engines become available.
     """
     registry = EngineRegistry()
+    registry.register(ChromaBaselineEngine())
     return registry

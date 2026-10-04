@@ -9,6 +9,8 @@ from pathlib import Path
 
 import pytest
 
+from fixtures.audio import write_sine_wav
+from fixtures.fake_chord_engine import FakeChordEngine
 from song_chord_lyrics_analyzer.benchmark import (
     BenchmarkCase,
     build_report,
@@ -21,6 +23,7 @@ from song_chord_lyrics_analyzer.benchmark import (
     write_reports,
 )
 from song_chord_lyrics_analyzer.cli.main import main
+from song_chord_lyrics_analyzer.engines import EngineRegistry
 from song_chord_lyrics_analyzer.utils.errors import InputError
 
 FULL_CASE = {
@@ -227,3 +230,88 @@ class TestBenchmarkCommand:
     def test_missing_directory_is_an_input_error(self, tmp_path: Path, capsys) -> None:
         assert main(["benchmark", str(tmp_path / "nope"), "--output", str(tmp_path / "out")]) == 2
         assert "not found" in capsys.readouterr().err
+
+
+class TestBenchmarkWithEngine:
+    """``--engine`` runs a chord engine over cases that declare audio."""
+
+    def _audio_case(self, tmp_path: Path) -> Path:
+        cases_dir = tmp_path / "cases"
+        cases_dir.mkdir()
+        write_sine_wav(cases_dir / "song.wav", seconds=1.0)
+        document = {
+            "song": "song_a",
+            "audio": "song.wav",
+            "reference": {
+                "chords": [{"start": 0.0, "end": 2.0, "label": "C"}],
+                "chord_labels": ["C"],
+            },
+            "hypothesis": {},
+        }
+        (cases_dir / "case_0.json").write_text(json.dumps(document), encoding="utf-8")
+        return cases_dir
+
+    def _patch_registry(self, monkeypatch, engine: FakeChordEngine) -> None:
+        registry = EngineRegistry()
+        registry.register(engine)
+        monkeypatch.setattr(
+            "song_chord_lyrics_analyzer.cli.commands.benchmark.create_default_registry",
+            lambda: registry,
+        )
+
+    def test_engine_run_fills_the_report_with_measured_cost(
+        self, tmp_path: Path, capsys, monkeypatch
+    ) -> None:
+        self._patch_registry(monkeypatch, FakeChordEngine())
+        cases = self._audio_case(tmp_path)
+        output = tmp_path / "out"
+
+        assert (
+            main(["benchmark", str(cases), "--output", str(output), "--engine", "fake-chords"]) == 0
+        )
+
+        out = capsys.readouterr().out
+        assert "Engine runs" in out
+        assert "2 chords in 2.500 s" in out
+        assert "real-time factor 1.60" in out
+        payload = json.loads((output / "benchmark.json").read_text(encoding="utf-8"))
+        row = payload["cases"][0]
+        assert row["engine"] == "fake-chords"
+        assert row["processing_time_seconds"] == 2.5
+        assert row["peak_memory_bytes"] == 4_242_424
+        assert row["metrics"]["performance.real_time_factor"] == 1.6
+        # ref ["C"] vs hyp ["C", "G"]: precision 1/2, recall 1/1 -> F1 2/3
+        assert row["metrics"]["chords.exact_f1"] == pytest.approx(2 / 3)
+
+    def test_json_output_stays_pure_json(self, tmp_path: Path, capsys, monkeypatch) -> None:
+        self._patch_registry(monkeypatch, FakeChordEngine())
+        cases = self._audio_case(tmp_path)
+
+        assert main(["benchmark", str(cases), "--json", "--engine", "fake-chords"]) == 0
+
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["cases"][0]["engine"] == "fake-chords"
+
+    def test_unknown_engine_lists_the_registered_ones(self, tmp_path: Path, capsys) -> None:
+        cases = self._audio_case(tmp_path)
+        assert main(["benchmark", str(cases), "--engine", "nope"]) == 2
+        err = capsys.readouterr().err
+        assert "Unknown" in err
+        assert "chroma-baseline" in err
+
+    def test_unavailable_engine_is_a_dependency_error(
+        self, tmp_path: Path, capsys, monkeypatch
+    ) -> None:
+        self._patch_registry(monkeypatch, FakeChordEngine(available=False))
+        cases = self._audio_case(tmp_path)
+        assert main(["benchmark", str(cases), "--engine", "fake-chords"]) == 3
+        assert "not available" in capsys.readouterr().err
+
+    def test_without_the_flag_nothing_is_run(self, tmp_path: Path, capsys) -> None:
+        cases = self._audio_case(tmp_path)
+        output = tmp_path / "out"
+        assert main(["benchmark", str(cases), "--output", str(output)]) == 0
+        assert "Engine runs" not in capsys.readouterr().out
+        payload = json.loads((output / "benchmark.json").read_text(encoding="utf-8"))
+        assert payload["cases"][0]["engine"] is None
+        assert "chords.exact_f1" not in payload["cases"][0]["metrics"]

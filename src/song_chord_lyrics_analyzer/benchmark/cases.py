@@ -18,8 +18,15 @@ key            "C major"                               -> relation, weighted sco
 tempo_bpm      120.0                                   -> absolute / half / double error
 ```
 
-Nothing is invented: a missing field is simply not scored, and no engine is run
-here — this scores results that were already produced.
+At the top level a case may declare ``"audio": "song.wav"`` (relative to the
+case file). ``songlab benchmark --engine NAME`` then runs that engine on the
+file — filling ``hypothesis.chords``/``chord_labels`` plus the measured
+processing time and peak memory — while cases without ``audio`` keep their
+stored hypothesis.
+
+Nothing is invented: a missing field is simply not scored, and without
+``--engine`` no engine runs here — this scores results that were already
+produced.
 """
 
 from __future__ import annotations
@@ -36,7 +43,14 @@ __all__ = ["BenchmarkCase", "load_case", "load_cases"]
 
 @dataclass
 class BenchmarkCase:
-    """One song's reference/hypothesis pair plus its run provenance."""
+    """One song's reference/hypothesis pair plus its run provenance.
+
+    ``audio`` optionally points at the recording the hypothesis should be
+    (re)produced from: when present, ``songlab benchmark --engine NAME`` runs
+    that engine on the file to fill the hypothesis and the measured run cost
+    instead of trusting a stored one. The path is relative to the case file
+    itself (``source``) unless absolute.
+    """
 
     song: str
     reference: dict[str, Any]
@@ -47,11 +61,26 @@ class BenchmarkCase:
     duration_seconds: float | None = None
     processing_time_seconds: float | None = None
     peak_memory_bytes: int | None = None
+    audio: str | None = None
+    source: Path | None = None
 
     @property
     def engine_label(self) -> str:
         """The engine name, or ``"unknown"`` when the case did not record one."""
         return self.engine or "unknown"
+
+    def audio_path(self) -> Path | None:
+        """Resolve the case's audio field against the case file's directory.
+
+        Relative paths are anchored where the case JSON lives, so a case
+        directory stays portable. ``None`` when the case declares no audio.
+        """
+        if self.audio is None:
+            return None
+        path = Path(self.audio)
+        if path.is_absolute() or self.source is None:
+            return path
+        return self.source.parent / path
 
 
 def _require(mapping: dict[str, Any], field: str, source: Path) -> Any:
@@ -99,6 +128,8 @@ def load_case(path: Path) -> BenchmarkCase:
         duration_seconds=document.get("duration_seconds"),
         processing_time_seconds=document.get("processing_time_seconds"),
         peak_memory_bytes=document.get("peak_memory_bytes"),
+        audio=document.get("audio"),
+        source=path,
     )
 
 

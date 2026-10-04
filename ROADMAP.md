@@ -1868,7 +1868,9 @@ still scarce (roadmap 43) for the engines still to come. Key and tempo metrics j
 library code on 2026-10-03 (`metrics/key.py`, `metrics/tempo.py`, pinned by
 `tests/fixtures/key_oracle.json` against `mir_eval` and hand cases), and lyrics WER/CER
 plus word timestamp error joined as library code the same day (`metrics/lyrics.py`, pinned
-by `tests/fixtures/lyrics_oracle.json` against `jiwer`); no metric is wired into the engines yet (the chord
+by `tests/fixtures/lyrics_oracle.json` against `jiwer`); the chord views now flow into a per-engine
+`songlab benchmark` report from a real measured engine run (`--engine`, 2026-10-04), while the
+other families are scored for cases that store them (the chord
 scoring semantics ship as library code in `src/song_chord_lyrics_analyzer/evaluation/`
 and the whole metric family lives in `src/song_chord_lyrics_analyzer/metrics/`, see above).*
 
@@ -1880,7 +1882,8 @@ MIREX-2010 F1, multiset/palette F1 and duration-weighted CSR, plus segment overl
 (MIREX MeanSeg), timing error (median change-point deviation) and chord-change detection
 (boundary hit-rate), plus the `chord_labels`/`chord_segments` adapters that feed them from
 the canonical `ChordEvent` model. They are pinned to recorded oracles (a NumPy harness and
-`mir_eval`); a `songlab benchmark` report carrying them per engine is still pending.*
+`mir_eval`), and a `songlab benchmark` report now carries them per engine (`--engine`,
+2026-10-04).*
 
 Implement:
 
@@ -1994,8 +1997,18 @@ where applicable.
 processing time, peak memory and every metric a case actually supports. No engine runs yet, so
 nothing is invented: a metric is reported only when both sides of a case provide what it
 needs. `tests/unit/test_benchmark.py` covers loading, scoring, the writers and the command.
-Running an actual engine on audio and filling `processing_time`/`memory` from the run is the
-remaining piece, to arrive with the first integrated engine.*
+Running an actual engine on audio and filling `processing_time`/`memory` from the run is
+the remaining piece, to arrive with the first integrated engine. That piece landed on
+2026-10-04: `songlab benchmark --engine NAME` runs a registered chord engine on every
+case that declares an `audio` file before scoring, fills the hypothesis through
+`benchmark/runner.py` and takes duration, processing time and peak memory from the
+engine's section 45 `PerformanceReport`, measured on the running machine; cases without
+`audio` keep their stored results and the reference side is never touched. The first
+engine behind the flag is `chroma-baseline` (`engines/chroma_baseline.py`), so the
+section 44 chord views, the section 45 real-time factor and a real engine run now meet
+in one report. A declared-empty hypothesis scores 0.0 instead of silently disappearing.
+`tests/unit/test_benchmark_runner.py` and the `--engine` cases in
+`tests/unit/test_benchmark.py` cover the runner and the command.*
 
 Implement:
 
@@ -2403,8 +2416,16 @@ without knowing implementation details.
 
 # [ ] 59. Plugin-Like Architecture
 
-*Status (2026-09-23): partial — the interface, the registry and its validation contract exist; no
-concrete engine has been written against them yet.*
+*Status (2026-10-04): the first concrete engine has been written against the
+interfaces — `engines/chroma_baseline.py` implements the `ChordEngine` protocol with
+one adapter, tests (`tests/unit/test_chroma_baseline.py`) and documentation, and is
+registered by `create_default_registry()`, which `songlab doctor` and
+`songlab benchmark --engine` both read. The optional numpy/librosa front end is
+reported honestly through `is_available()` (missing dependencies raise a
+`DependencyError` with an install hint instead of a traceback), while the
+dependency-free decoding half is tested without the DSP stack. Engine-specific
+configuration still lives in the adapter's options rather than a separate
+configuration entry.*
 
 The engine layer should make future engines easy to add.
 

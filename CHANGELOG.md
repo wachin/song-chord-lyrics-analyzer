@@ -373,6 +373,18 @@ collapses are a **penalty artefact of the legacy in-place Viterbi loop, not a de
   for the canonical `KeyEstimate`/`TempoEstimate`, so no caller re-implements the
   extraction. Tests: `tests/unit/test_key_metrics.py` and
   `tests/unit/test_tempo_metrics.py`. Full suite: 918 passed, 1 skipped.
+* **The lyrics metrics complete the family (2026-10-03).** `metrics/lyrics.py` adds
+  `word_error_rate` (WER) and `character_error_rate` (CER) over one documented
+  normalization (`normalize_text`: NFKC, lower-cased, punctuation/symbols to
+  spaces, whitespace collapsed) plus `word_timestamp_error` (median and mean
+  absolute start-time difference over the words the two sequences share, matched
+  by the same edit-distance alignment). An empty reference raises rather than
+  scoring a meaningless zero. `tests/fixtures/lyrics_oracle.json` pins WER and CER
+  for deterministic perturbations of the committed vocadito references against
+  `jiwer` 4.0.0 (identity transforms, annotation-only, CC-BY-4.0 provenance), and
+  `metrics/adapters.py` gained `lyric_text` and `timed_words` for the canonical
+  `LyricSegment`/`LyricWord`. Tests: `tests/unit/test_lyrics_metrics.py`. Full
+  suite: 962 passed, 1 skipped.
 
 ### Reference repositories
 

@@ -18,7 +18,12 @@ re-implements the extraction:
   :class:`~song_chord_lyrics_analyzer.models.music.KeyEstimate` objects;
 * :func:`tempo_bpms` - the BPM values
   :mod:`song_chord_lyrics_analyzer.metrics.tempo` scores, from
-  :class:`~song_chord_lyrics_analyzer.models.music.TempoEstimate` objects.
+  :class:`~song_chord_lyrics_analyzer.models.music.TempoEstimate` objects;
+* :func:`lyric_text` - the transcript text
+  :mod:`song_chord_lyrics_analyzer.metrics.lyrics` scores, from
+  :class:`~song_chord_lyrics_analyzer.models.lyrics.LyricSegment` objects;
+* :func:`timed_words` - the ``(text, start)`` pairs the word-timestamp metric
+  scores, dropping words whose start was never reported.
 
 Nothing is invented (roadmap section 43): a chord whose end cannot be
 determined raises :class:`ValueError` instead of guessing a boundary, and an
@@ -30,14 +35,18 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from song_chord_lyrics_analyzer.metrics.lyrics import TimedWord
 from song_chord_lyrics_analyzer.metrics.segmentation import Segment
+from song_chord_lyrics_analyzer.models.lyrics import LyricSegment, LyricWord
 from song_chord_lyrics_analyzer.models.music import ChordEvent, KeyEstimate, TempoEstimate
 
 __all__ = [
     "chord_labels",
     "chord_segments",
     "key_labels",
+    "lyric_text",
     "tempo_bpms",
+    "timed_words",
 ]
 
 
@@ -113,3 +122,23 @@ def tempo_bpms(estimates: Sequence[TempoEstimate]) -> list[float]:
     reported by :func:`song_chord_lyrics_analyzer.metrics.tempo.tempo_error`.
     """
     return [float(estimate.bpm) for estimate in estimates]
+
+
+def lyric_text(segments: Sequence[LyricSegment]) -> str:
+    """The transcript text of lyric segments, joined in order.
+
+    Segment text is concatenated with single spaces; the lyrics metric applies
+    its own normalization, so punctuation and case survive here and are only
+    folded at scoring time.
+    """
+    return " ".join(segment.text for segment in segments if segment.text)
+
+
+def timed_words(words: Sequence[LyricWord]) -> list[TimedWord]:
+    """The ``(text, start)`` pairs the word-timestamp metric scores.
+
+    A word's start time is never invented: words without one are dropped rather
+    than assigned a placeholder, so the metric only sees what the engine
+    actually reported.
+    """
+    return [(word.text, float(word.start)) for word in words if word.start is not None]

@@ -1866,8 +1866,9 @@ undetermined end, a reversed interval or overlapping events raise), pinned by
 `tests/unit/test_chord_adapters.py`. References are
 still scarce (roadmap 43) for the engines still to come. Key and tempo metrics joined as
 library code on 2026-10-03 (`metrics/key.py`, `metrics/tempo.py`, pinned by
-`tests/fixtures/key_oracle.json` against `mir_eval` and hand cases); lyrics WER/CER exist
-from the ASR passes (roadmap 25); no metric is wired into the engines yet (the chord
+`tests/fixtures/key_oracle.json` against `mir_eval` and hand cases), and lyrics WER/CER
+plus word timestamp error joined as library code the same day (`metrics/lyrics.py`, pinned
+by `tests/fixtures/lyrics_oracle.json` against `jiwer`); no metric is wired into the engines yet (the chord
 scoring semantics ship as library code in `src/song_chord_lyrics_analyzer/evaluation/`
 and the whole metric family lives in `src/song_chord_lyrics_analyzer/metrics/`, see above).*
 
@@ -1893,6 +1894,13 @@ chord-change detection accuracy
 ```
 
 ## [ ] Lyrics metrics
+
+*Status (2026-10-03): implemented as dependency-free library code in
+`src/song_chord_lyrics_analyzer/metrics/lyrics.py` — `word_error_rate` (WER),
+`character_error_rate` (CER), `word_timestamp_error` and the shared `normalize_text`.
+Pinned by `tests/fixtures/lyrics_oracle.json`, which scores deterministic perturbations
+of the committed vocadito references with `jiwer` 4.0.0, and by
+`tests/unit/test_lyrics_metrics.py`. No lyrics engine is wired in yet.*
 
 Implement:
 

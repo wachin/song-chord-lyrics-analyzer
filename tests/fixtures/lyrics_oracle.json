@@ -1,0 +1,227 @@
+{
+ "cases": [
+  {
+   "expected": {
+    "character_error_rate": 0.0,
+    "word_error_rate": 0.0
+   },
+   "hypothesis": "tong tong tong tong pakitong kitong alimango sa dagat malaki at masarap mahirap hulihin sapagkat nangangagat",
+   "id": "vocadito_16-exact",
+   "reference": "tong tong tong tong pakitong kitong alimango sa dagat malaki at masarap mahirap hulihin sapagkat nangangagat"
+  },
+  {
+   "expected": {
+    "character_error_rate": 0.046296296296296294,
+    "word_error_rate": 0.0625
+   },
+   "hypothesis": "tong tong tong pakitong kitong alimango sa dagat malaki at masarap mahirap hulihin sapagkat nangangagat",
+   "id": "vocadito_16-drop_first",
+   "reference": "tong tong tong tong pakitong kitong alimango sa dagat malaki at masarap mahirap hulihin sapagkat nangangagat"
+  },
+  {
+   "expected": {
+    "character_error_rate": 0.1111111111111111,
+    "word_error_rate": 0.0625
+   },
+   "hypothesis": "tong tong tong tong pakitong kitong alimango sa dagat malaki at masarap mahirap hulihin sapagkat",
+   "id": "vocadito_16-drop_last",
+   "reference": "tong tong tong tong pakitong kitong alimango sa dagat malaki at masarap mahirap hulihin sapagkat nangangagat"
+  },
+  {
+   "expected": {
+    "character_error_rate": 0.046296296296296294,
+    "word_error_rate": 0.0625
+   },
+   "hypothesis": "tong tong tong tong pakitong kitong alimango sa xyzzy malaki at masarap mahirap hulihin sapagkat nangangagat",
+   "id": "vocadito_16-substitute_middle",
+   "reference": "tong tong tong tong pakitong kitong alimango sa dagat malaki at masarap mahirap hulihin sapagkat nangangagat"
+  },
+  {
+   "expected": {
+    "character_error_rate": 0.0,
+    "word_error_rate": 0.0
+   },
+   "hypothesis": "tong tong tong tong pakitong kitong alimango sa dagat malaki at masarap mahirap hulihin sapagkat nangangagat",
+   "id": "vocadito_16-swap_first_two",
+   "reference": "tong tong tong tong pakitong kitong alimango sa dagat malaki at masarap mahirap hulihin sapagkat nangangagat"
+  },
+  {
+   "expected": {
+    "character_error_rate": 0.027777777777777776,
+    "word_error_rate": 0.0625
+   },
+   "hypothesis": "um tong tong tong tong pakitong kitong alimango sa dagat malaki at masarap mahirap hulihin sapagkat nangangagat",
+   "id": "vocadito_16-insert_prefix",
+   "reference": "tong tong tong tong pakitong kitong alimango sa dagat malaki at masarap mahirap hulihin sapagkat nangangagat"
+  },
+  {
+   "expected": {
+    "character_error_rate": 0.0,
+    "word_error_rate": 0.0
+   },
+   "hypothesis": "cada vez que voy a arar y estiro de los ramales me acuerdo de mi moreno que habita en los arrabales",
+   "id": "vocadito_2-exact",
+   "reference": "cada vez que voy a arar y estiro de los ramales me acuerdo de mi moreno que habita en los arrabales"
+  },
+  {
+   "expected": {
+    "character_error_rate": 0.050505050505050504,
+    "word_error_rate": 0.047619047619047616
+   },
+   "hypothesis": "vez que voy a arar y estiro de los ramales me acuerdo de mi moreno que habita en los arrabales",
+   "id": "vocadito_2-drop_first",
+   "reference": "cada vez que voy a arar y estiro de los ramales me acuerdo de mi moreno que habita en los arrabales"
+  },
+  {
+   "expected": {
+    "character_error_rate": 0.10101010101010101,
+    "word_error_rate": 0.047619047619047616
+   },
+   "hypothesis": "cada vez que voy a arar y estiro de los ramales me acuerdo de mi moreno que habita en los",
+   "id": "vocadito_2-drop_last",
+   "reference": "cada vez que voy a arar y estiro de los ramales me acuerdo de mi moreno que habita en los arrabales"
+  },
+  {
+   "expected": {
+    "character_error_rate": 0.0707070707070707,
+    "word_error_rate": 0.047619047619047616
+   },
+   "hypothesis": "cada vez que voy a arar y estiro de los xyzzy me acuerdo de mi moreno que habita en los arrabales",
+   "id": "vocadito_2-substitute_middle",
+   "reference": "cada vez que voy a arar y estiro de los ramales me acuerdo de mi moreno que habita en los arrabales"
+  },
+  {
+   "expected": {
+    "character_error_rate": 0.08080808080808081,
+    "word_error_rate": 0.09523809523809523
+   },
+   "hypothesis": "vez cada que voy a arar y estiro de los ramales me acuerdo de mi moreno que habita en los arrabales",
+   "id": "vocadito_2-swap_first_two",
+   "reference": "cada vez que voy a arar y estiro de los ramales me acuerdo de mi moreno que habita en los arrabales"
+  },
+  {
+   "expected": {
+    "character_error_rate": 0.030303030303030304,
+    "word_error_rate": 0.047619047619047616
+   },
+   "hypothesis": "um cada vez que voy a arar y estiro de los ramales me acuerdo de mi moreno que habita en los arrabales",
+   "id": "vocadito_2-insert_prefix",
+   "reference": "cada vez que voy a arar y estiro de los ramales me acuerdo de mi moreno que habita en los arrabales"
+  },
+  {
+   "expected": {
+    "character_error_rate": 0.0,
+    "word_error_rate": 0.0
+   },
+   "hypothesis": "mon pare no t\u00e9 nas mon pare no t\u00e9 nas ma mare es chata i un germanet que tinc i un germanet que tinc el nas li falta",
+   "id": "vocadito_5-exact",
+   "reference": "mon pare no t\u00e9 nas mon pare no t\u00e9 nas ma mare es chata i un germanet que tinc i un germanet que tinc el nas li falta"
+  },
+  {
+   "expected": {
+    "character_error_rate": 0.034482758620689655,
+    "word_error_rate": 0.03571428571428571
+   },
+   "hypothesis": "pare no t\u00e9 nas mon pare no t\u00e9 nas ma mare es chata i un germanet que tinc i un germanet que tinc el nas li falta",
+   "id": "vocadito_5-drop_first",
+   "reference": "mon pare no t\u00e9 nas mon pare no t\u00e9 nas ma mare es chata i un germanet que tinc i un germanet que tinc el nas li falta"
+  },
+  {
+   "expected": {
+    "character_error_rate": 0.05172413793103448,
+    "word_error_rate": 0.03571428571428571
+   },
+   "hypothesis": "mon pare no t\u00e9 nas mon pare no t\u00e9 nas ma mare es chata i un germanet que tinc i un germanet que tinc el nas li",
+   "id": "vocadito_5-drop_last",
+   "reference": "mon pare no t\u00e9 nas mon pare no t\u00e9 nas ma mare es chata i un germanet que tinc i un germanet que tinc el nas li falta"
+  },
+  {
+   "expected": {
+    "character_error_rate": 0.04310344827586207,
+    "word_error_rate": 0.03571428571428571
+   },
+   "hypothesis": "mon pare no t\u00e9 nas mon pare no t\u00e9 nas ma mare es chata xyzzy un germanet que tinc i un germanet que tinc el nas li falta",
+   "id": "vocadito_5-substitute_middle",
+   "reference": "mon pare no t\u00e9 nas mon pare no t\u00e9 nas ma mare es chata i un germanet que tinc i un germanet que tinc el nas li falta"
+  },
+  {
+   "expected": {
+    "character_error_rate": 0.06896551724137931,
+    "word_error_rate": 0.07142857142857142
+   },
+   "hypothesis": "pare mon no t\u00e9 nas mon pare no t\u00e9 nas ma mare es chata i un germanet que tinc i un germanet que tinc el nas li falta",
+   "id": "vocadito_5-swap_first_two",
+   "reference": "mon pare no t\u00e9 nas mon pare no t\u00e9 nas ma mare es chata i un germanet que tinc i un germanet que tinc el nas li falta"
+  },
+  {
+   "expected": {
+    "character_error_rate": 0.02586206896551724,
+    "word_error_rate": 0.03571428571428571
+   },
+   "hypothesis": "um mon pare no t\u00e9 nas mon pare no t\u00e9 nas ma mare es chata i un germanet que tinc i un germanet que tinc el nas li falta",
+   "id": "vocadito_5-insert_prefix",
+   "reference": "mon pare no t\u00e9 nas mon pare no t\u00e9 nas ma mare es chata i un germanet que tinc i un germanet que tinc el nas li falta"
+  },
+  {
+   "expected": {
+    "character_error_rate": 0.0,
+    "word_error_rate": 0.0
+   },
+   "hypothesis": "and if i had to write a love song it would be all about my little dog he is cute his is small but he snores loud he s the best of em all my little pal",
+   "id": "vocadito_6-exact",
+   "reference": "and if i had to write a love song it would be all about my little dog he is cute his is small but he snores loud he s the best of em all my little pal"
+  },
+  {
+   "expected": {
+    "character_error_rate": 0.02666666666666667,
+    "word_error_rate": 0.02702702702702703
+   },
+   "hypothesis": "if i had to write a love song it would be all about my little dog he is cute his is small but he snores loud he s the best of em all my little pal",
+   "id": "vocadito_6-drop_first",
+   "reference": "and if i had to write a love song it would be all about my little dog he is cute his is small but he snores loud he s the best of em all my little pal"
+  },
+  {
+   "expected": {
+    "character_error_rate": 0.02666666666666667,
+    "word_error_rate": 0.02702702702702703
+   },
+   "hypothesis": "and if i had to write a love song it would be all about my little dog he is cute his is small but he snores loud he s the best of em all my little",
+   "id": "vocadito_6-drop_last",
+   "reference": "and if i had to write a love song it would be all about my little dog he is cute his is small but he snores loud he s the best of em all my little pal"
+  },
+  {
+   "expected": {
+    "character_error_rate": 0.03333333333333333,
+    "word_error_rate": 0.02702702702702703
+   },
+   "hypothesis": "and if i had to write a love song it would be all about my little dog he xyzzy cute his is small but he snores loud he s the best of em all my little pal",
+   "id": "vocadito_6-substitute_middle",
+   "reference": "and if i had to write a love song it would be all about my little dog he is cute his is small but he snores loud he s the best of em all my little pal"
+  },
+  {
+   "expected": {
+    "character_error_rate": 0.04,
+    "word_error_rate": 0.05405405405405406
+   },
+   "hypothesis": "if and i had to write a love song it would be all about my little dog he is cute his is small but he snores loud he s the best of em all my little pal",
+   "id": "vocadito_6-swap_first_two",
+   "reference": "and if i had to write a love song it would be all about my little dog he is cute his is small but he snores loud he s the best of em all my little pal"
+  },
+  {
+   "expected": {
+    "character_error_rate": 0.02,
+    "word_error_rate": 0.02702702702702703
+   },
+   "hypothesis": "um and if i had to write a love song it would be all about my little dog he is cute his is small but he snores loud he s the best of em all my little pal",
+   "id": "vocadito_6-insert_prefix",
+   "reference": "and if i had to write a love song it would be all about my little dog he is cute his is small but he snores loud he s the best of em all my little pal"
+  }
+ ],
+ "description": "Lyrics metric oracle (roadmap section 44): WER and CER for deterministic perturbations of the committed vocadito lyric references, scored by jiwer with identity transforms.",
+ "provenance": {
+  "dataset": "vocadito (Bittner et al., 2021), CC-BY-4.0",
+  "generated": "2026-10-03",
+  "source": "samples/vocadito_{2,5,6,16}.json lyrics_normalized",
+  "wer_cer_reference": "jiwer 4.0.0 (identity transforms)"
+ }
+}

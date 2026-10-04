@@ -35,7 +35,9 @@ All six chord metrics now exist as dependency-free library code in
 `song_chord_lyrics_analyzer.metrics` (roadmap §44), pinned to recorded oracles; this
 command still has to wire them into a per-engine report.
 
-Lyric metrics: WER, CER, word timestamp error.
+Lyric metrics: WER, CER, word timestamp error. All three now exist as
+dependency-free library code (`metrics/lyrics.py`, roadmap §44), pinned to a `jiwer`
+oracle; this command still has to wire them into a report.
 
 Key metrics: exact key accuracy, relative-key error. Both now exist as
 dependency-free library code in `song_chord_lyrics_analyzer.metrics` (roadmap §44),

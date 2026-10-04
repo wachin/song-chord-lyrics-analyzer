@@ -98,11 +98,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     benchmark_parser = subparsers.add_parser(
         "benchmark",
-        help="score stored engine results against ground truth",
+        help="score benchmark cases, optionally running an engine to produce them",
         description=(
             "Score a directory of benchmark cases (a reference/hypothesis pair per "
             "song) with the section 44 metrics and write benchmark/{json,csv,md}. "
-            "No engine runs here: it reports on results that were already produced."
+            "With --engine, every case that declares an 'audio' file is first run "
+            "through that registered chord engine, and the measured run cost fills "
+            "the report; without it, stored results are scored as they are."
         ),
     )
     benchmark.add_arguments(benchmark_parser)

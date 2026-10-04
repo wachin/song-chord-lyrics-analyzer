@@ -1,10 +1,11 @@
 """Benchmark scoring and reports (roadmap section 46).
 
-Scores the stored reference/hypothesis pairs of a directory with the metric
-family from :mod:`song_chord_lyrics_analyzer.metrics` (roadmap section 44) and
-turns the result into ``benchmark.json``, ``benchmark.csv`` and
-``benchmark.md``. No engine runs here and no number is invented: a metric is
-reported only when both sides of a case actually provide what it needs.
+Scores the reference/hypothesis pairs of a directory with the metric family
+from :mod:`song_chord_lyrics_analyzer.metrics` (roadmap section 44) and turns
+the result into ``benchmark.json``, ``benchmark.csv`` and ``benchmark.md``.
+No engine runs in this module (``benchmark/runner.py`` does that on demand)
+and no number is invented: a metric is reported only when both sides of a
+case actually provide what it needs.
 """
 
 from __future__ import annotations

@@ -1846,14 +1846,26 @@ recorded mean byte-for-byte), and `tests/fixtures/csr_oracle.json` pins the orac
 itself — 22 GuitarSet comping takes × both annotations × raw/triad views, with the raw
 Harte references, the v2 hypothesis segmentation, the 88 expected duration-CSR targets
 with tolerances and the GuitarSet CC BY 4.0 provenance (annotations only, no audio) —
-re-scored by 116 tests in `tests/unit/test_csr_oracle.py`. References are
+re-scored by 116 tests in `tests/unit/test_csr_oracle.py`. The timing-free chord
+metric suite itself is now library code too (2026-10-03):
+`song_chord_lyrics_analyzer.metrics` exposes `align` (a dependency-free Python
+Needleman-Wunsch alignment) and `evaluate` (exact/root/quality/MIREX F1, multiset and
+palette F1, hypothesis chord count) on top of the `evaluation/` semantics, with
+`tests/fixtures/chord_metrics_oracle.json` pinning the pure-Python port to the original
+NumPy harness (11 alignment cases + 88 evaluations, byte-for-byte), reproduced by
+`tests/unit/test_chord_metrics.py`. References are
 still scarce (roadmap 43): segment overlap, change-detection and timing error stay
 unmeasured rather than invented. Lyrics WER/CER exist from the ASR passes (roadmap 25); key and tempo
 metrics await their engines; no metric is wired into the engines yet (the chord
-scoring semantics ship as library code in `src/song_chord_lyrics_analyzer/evaluation/`,
-see above).*
+scoring semantics ship as library code in `src/song_chord_lyrics_analyzer/evaluation/`
+and `src/song_chord_lyrics_analyzer/metrics/`, see above).*
 
 ## [ ] Chord metrics
+
+*Status (2026-10-03): the timing-free views (exact/root/quality F1, MIREX-2010 F1,
+multiset and palette F1, duration-weighted CSR) are implemented as library code in
+`src/song_chord_lyrics_analyzer/metrics/` and `evaluation/`; segment overlap, timing
+error and chord-change detection accuracy remain unmeasured.*
 
 Implement:
 

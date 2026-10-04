@@ -46,9 +46,10 @@ src/song_chord_lyrics_analyzer/
 ├── schema/               canonical JSON codec
 ├── models/               canonical typed data model (dataclasses)
 ├── normalization/        chord parsing, rendering, transposition
+├── evaluation/           chord scoring semantics (roadmap §44): MIREX equality, CSR
 ├── alignment/            (phase 9) shared timeline
 ├── fusion/               (phase 10) multi-engine consensus
-├── metrics/              (phase 11) accuracy and performance metrics
+├── metrics/              (phase 11) chord metrics live here; lyrics/key/tempo pending
 ├── export/               (phase 12) JSON, CSV, TXT, ChordPro, MIDI, MusicXML
 ├── i18n/                 (phase 17) Qt Linguist catalogues
 └── utils/                paths, executables, logging, errors, time
@@ -176,7 +177,7 @@ Only WAV files can be inspected without FFmpeg.
 | Phase 3 lyrics laboratory | not started |
 | Phase 4 chord laboratory | chord normalization done; engines pending |
 | Phase 5 key/tempo/beats | models done; engines pending |
-| Phases 6-14 | not started |
+| Phases 6-14 | not started; phase 11 chord metrics exist as library code in `metrics/` (roadmap §44), not yet wired to engines or CLI |
 | Phase 15+ GUI | not started (by design) |
 
 `ROADMAP.md` is the authoritative progress view: every section carries a bracket

@@ -1948,8 +1948,18 @@ double-tempo error
 
 # [ ] 45. Performance Metrics
 
-*Status (2026-09-23): partial — install sizes and cold/warm timings were recorded once in
-`docs/DEPENDENCY_MATRIX.md` section 11; no benchmark harness exists.*
+*Status (2026-10-04): the harness now exists as dependency-free library code —
+`song_chord_lyrics_analyzer.performance` brackets any run with a `PerformanceProbe` /
+`measure_performance` and returns a `PerformanceReport` carrying processing time, the
+real-time factor (seconds of audio per second of computation), peak RSS, optional
+`tracemalloc` Python peaks, startup time, model size, free disk and the device
+(`cpu` today), with `tests/unit/test_performance.py` pinning every figure to a real
+measurement. A number the platform cannot report stays `None` (VRAM on a CPU run, peak
+RSS on Windows) instead of being estimated. `songlab benchmark` now reports
+`performance.real_time_factor` per case and in the per-engine summary whenever a case
+recorded both duration and processing time. Still missing: a CPU-vs-GPU comparison,
+which awaits the first GPU-capable engine; install sizes and cold/warm timings remain
+recorded once in `docs/DEPENDENCY_MATRIX.md` section 11.*
 
 Record:
 

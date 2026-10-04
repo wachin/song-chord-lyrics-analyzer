@@ -386,6 +386,23 @@ collapses are a **penalty artefact of the legacy in-place Viterbi loop, not a de
   `LyricSegment`/`LyricWord`. Tests: `tests/unit/test_lyrics_metrics.py`. Full
   suite: 962 passed, 1 skipped.
 
+### Performance metrics (roadmap 45)
+
+* **Measurement harness (2026-10-04).** The new dependency-free
+  `song_chord_lyrics_analyzer.performance` module brackets any run with a
+  `PerformanceProbe` or `measure_performance(...)` and produces a
+  `PerformanceReport`: processing time, seconds of audio per second of computation
+  (the real-time factor), peak RSS, optional `tracemalloc` Python peaks, startup time,
+  model size, free disk and the device (`cpu`). Everything is measured at run time on
+  the machine doing the work; a figure the platform cannot report stays `None` — VRAM
+  on a CPU run and peak RSS on Windows are never estimated.
+* **`songlab benchmark` reports `performance.real_time_factor`.** Any case that
+  records both `duration_seconds` and `processing_time_seconds` now scores the
+  real-time factor (audio ÷ computation, above 1.0 = faster than real time), which
+  flows into the CSV, Markdown and per-engine summary like every other numeric metric.
+  Tests: `tests/unit/test_performance.py` (30 cases) plus the new scoring cases in
+  `tests/unit/test_benchmark.py`.
+
 ### Benchmark command (roadmap 44/46)
 
 * **`songlab benchmark` scores stored results (2026-10-03).** The new

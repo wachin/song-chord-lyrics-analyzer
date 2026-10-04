@@ -127,6 +127,34 @@ class TestScoreCase:
         )
         assert score_case(case)["metrics"] == {}
 
+    def test_performance_real_time_factor_is_reported_for_a_recorded_run(self) -> None:
+        case = BenchmarkCase(
+            song="song_a",
+            reference={},
+            hypothesis={},
+            duration_seconds=30.0,
+            processing_time_seconds=12.0,
+        )
+        assert score_case(case)["metrics"]["performance.real_time_factor"] == 2.5
+
+    def test_performance_is_absent_without_a_recorded_run(self) -> None:
+        case = BenchmarkCase(
+            song="song_a",
+            reference={},
+            hypothesis={},
+            duration_seconds=30.0,
+        )
+        assert "performance.real_time_factor" not in score_case(case)["metrics"]
+
+        zero_processing = BenchmarkCase(
+            song="song_b",
+            reference={},
+            hypothesis={},
+            duration_seconds=30.0,
+            processing_time_seconds=0.0,
+        )
+        assert "performance.real_time_factor" not in score_case(zero_processing)["metrics"]
+
 
 class TestBuildReport:
     def test_summary_averages_per_engine(self) -> None:

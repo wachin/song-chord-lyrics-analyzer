@@ -95,6 +95,17 @@ metrical ambiguity is reported rather than normalised away.
 Processing time, seconds of audio per second of computation, peak RAM, VRAM,
 model size, startup time, disk usage, and CPU versus GPU where applicable.
 
+A case that records both `duration_seconds` and `processing_time_seconds` is
+scored with `performance.real_time_factor` — audio seconds divided by
+processing seconds, so a value above 1.0 means the run was faster than real
+time — and the summary averages it per engine like every other numeric metric.
+The measurement behind those two fields lives in
+`song_chord_lyrics_analyzer.performance` (roadmap section 45): a
+`PerformanceProbe` brackets the run and returns a `PerformanceReport` whose
+figures are read at run time on the machine that produced them. A figure the
+platform cannot report stays `null` — VRAM on a CPU run, peak RSS on Windows —
+and is never estimated.
+
 ## Rules
 
 * Never invent results. Every number must come from a stored report.

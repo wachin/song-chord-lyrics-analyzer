@@ -33,6 +33,7 @@ from song_chord_lyrics_analyzer.metrics import (
     word_error_rate,
     word_timestamp_error,
 )
+from song_chord_lyrics_analyzer.performance import real_time_factor
 
 __all__ = [
     "CORE_COLUMNS",
@@ -81,6 +82,7 @@ NUMERIC_METRIC_KEYS = (
     "tempo.absolute_bpm_error",
     "tempo.half_tempo_error",
     "tempo.double_tempo_error",
+    "performance.real_time_factor",
 )
 
 #: Textual metrics (a label, not a number), appended after the numeric ones.
@@ -195,6 +197,18 @@ def _score_tempo(reference: dict[str, Any], hypothesis: dict[str, Any], metrics:
     metrics["tempo.interpretation"] = tempo_interpretation(reference_bpm, estimated_bpm)
 
 
+def _score_performance(case: BenchmarkCase, metrics: dict[str, Any]) -> None:
+    """Report the section 45 real-time factor when the case recorded a run.
+
+    Both numbers must be present: the audio duration and the measured
+    processing time. A case that never recorded a run contributes no
+    performance metric instead of a guessed one.
+    """
+    value = real_time_factor(case.duration_seconds, case.processing_time_seconds)
+    if value is not None:
+        metrics["performance.real_time_factor"] = value
+
+
 def score_case(case: BenchmarkCase) -> dict[str, Any]:
     """Score one case into a report row with the metrics both sides support."""
     metrics: dict[str, Any] = {}
@@ -204,6 +218,7 @@ def score_case(case: BenchmarkCase) -> dict[str, Any]:
     _score_chord_labels(case.reference, case.hypothesis, metrics)
     _score_key(case.reference, case.hypothesis, metrics)
     _score_tempo(case.reference, case.hypothesis, metrics)
+    _score_performance(case, metrics)
     return {
         "song": case.song,
         "engine": case.engine,

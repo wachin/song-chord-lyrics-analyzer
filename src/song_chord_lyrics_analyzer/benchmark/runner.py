@@ -1,11 +1,13 @@
 """Run a registered engine over benchmark cases (roadmap section 46).
 
-`songlab benchmark --engine NAME` fills a case's hypothesis by actually
-running the engine on the case's declared ``audio`` file instead of trusting a
-stored one. The run cost — processing time, peak RSS and the audio window —
-comes from the engine's section 45 performance report, measured at run time on
-this machine; the reference side is never touched (roadmap section 43), and
-cases without ``audio`` keep their stored hypothesis untouched as well.
+`songlab benchmark --engine NAME` fills a case's hypothesis by actually running
+the engine on the case's declared ``audio`` file instead of trusting a stored
+one. The runner dispatches on the engine's kind: chord, key, tempo and lyrics
+engines all produce output the section 44 metrics can score, and each fills its
+own hypothesis fields. The run cost — processing time, peak RSS and the audio
+window — comes from the engine's section 45 performance report, measured at run
+time on this machine; the reference side is never touched (roadmap section 43),
+and cases without ``audio`` keep their stored hypothesis untouched as well.
 """
 
 from __future__ import annotations
@@ -16,8 +18,17 @@ from pathlib import Path
 from typing import Any
 
 from song_chord_lyrics_analyzer.benchmark.cases import BenchmarkCase
-from song_chord_lyrics_analyzer.engines.base import ChordAnalysisOptions, ChordEngine
-from song_chord_lyrics_analyzer.metrics.adapters import chord_labels, chord_segments
+from song_chord_lyrics_analyzer.engines.base import (
+    ChordAnalysisOptions,
+    EngineKind,
+    LyricsOptions,
+)
+from song_chord_lyrics_analyzer.metrics.adapters import (
+    chord_labels,
+    chord_segments,
+    lyric_text,
+    timed_words,
+)
 from song_chord_lyrics_analyzer.models.analysis import EngineResult
 from song_chord_lyrics_analyzer.utils.errors import (
     AudioFileNotFoundError,
@@ -28,6 +39,14 @@ from song_chord_lyrics_analyzer.utils.errors import (
 
 __all__ = ["EngineRun", "run_engine_on_cases"]
 
+#: Kinds whose output a section 44 metric family can score.
+_RUNNABLE_KINDS = (
+    EngineKind.CHORDS,
+    EngineKind.KEY,
+    EngineKind.TEMPO,
+    EngineKind.LYRICS,
+)
+
 
 @dataclass(frozen=True)
 class EngineRun:
@@ -35,7 +54,8 @@ class EngineRun:
 
     song: str
     audio: Path
-    chord_count: int
+    kind: str
+    summary: str
     processing_time_seconds: float | None
     peak_memory_bytes: int | None
     duration_seconds: float | None
@@ -51,13 +71,44 @@ def _number(value: Any) -> float | None:
     return number
 
 
-def _hypothesis_from(result: EngineResult, audio_seconds: float | None) -> dict[str, Any]:
-    """The scored hypothesis fields derived from one engine result.
+def _kind(engine: Any) -> EngineKind:
+    """The engine's kind, refusing one the benchmark cannot score."""
+    try:
+        kind = EngineKind(engine.kind)
+    except ValueError as error:
+        raise InputError(
+            f"Engine {engine.name!r} reports an unknown kind {engine.kind!r}.",
+            hint="A benchmark engine must declare one of: chords, key, tempo, lyrics.",
+        ) from error
+    if kind not in _RUNNABLE_KINDS:
+        scoreable = ", ".join(runnable.value for runnable in _RUNNABLE_KINDS)
+        raise InputError(
+            f"The benchmark cannot score a {kind.value!r} engine yet.",
+            hint=f"Only these engine kinds have a metric family: {scoreable}.",
+        )
+    return kind
 
-    Timed segments go through the section 44 adapter, so a missing end is
-    completed from the next chord's start — or from the measured audio
-    duration for the last one — and an event the canonical model rejects
-    aborts the run instead of being silently mangled.
+
+def _run(engine: Any, audio_path: Path, options: Any) -> EngineResult:
+    """Call the engine method that matches its kind."""
+    kind = _kind(engine)
+    if kind is EngineKind.CHORDS:
+        chord_options = options if isinstance(options, ChordAnalysisOptions) else None
+        return engine.analyze(audio_path, chord_options or ChordAnalysisOptions())
+    if kind is EngineKind.KEY:
+        return engine.detect_key(audio_path, options if isinstance(options, dict) else {})
+    if kind is EngineKind.TEMPO:
+        return engine.detect_tempo(audio_path, options if isinstance(options, dict) else {})
+    lyrics_options = options if isinstance(options, LyricsOptions) else None
+    return engine.transcribe(audio_path, lyrics_options or LyricsOptions())
+
+
+def _chord_hypothesis(result: EngineResult, audio_seconds: float | None) -> dict[str, Any]:
+    """Chord fields, with timed segments through the section 44 adapter.
+
+    A missing end is completed from the next chord's start — or from the
+    measured audio duration for the last one — and an event the canonical model
+    rejects aborts the run instead of being silently mangled.
     """
     try:
         segments = chord_segments(result.chords, end=audio_seconds)
@@ -72,11 +123,39 @@ def _hypothesis_from(result: EngineResult, audio_seconds: float | None) -> dict[
     }
 
 
+def _hypothesis_for(
+    engine: Any, result: EngineResult, audio_seconds: float | None
+) -> tuple[dict[str, Any], str]:
+    """The hypothesis fields and a one-line summary for the run note."""
+    kind = _kind(engine)
+    if kind is EngineKind.CHORDS:
+        return _chord_hypothesis(result, audio_seconds), f"{len(result.chords)} chords"
+    if kind is EngineKind.KEY:
+        # An unresolved key survives as "unknown" so the family is scored as a
+        # measured miss instead of quietly disappearing.
+        label = result.key.label if result.key is not None else "unknown"
+        return {"key": label}, f"key {label}"
+    if kind is EngineKind.TEMPO:
+        if result.tempo is None:
+            return {}, "no tempo"
+        bpm = float(result.tempo.bpm)
+        return {"tempo_bpm": bpm}, f"{bpm:.1f} BPM"
+    # LYRICS
+    words = timed_words([word for segment in result.lyrics for word in segment.words])
+    return (
+        {
+            "lyrics_text": lyric_text(result.lyrics),
+            "lyrics_words": [{"text": text, "start": start} for text, start in words],
+        },
+        f"{len(result.lyrics)} lyric segments",
+    )
+
+
 def run_engine_on_cases(
     cases: Sequence[BenchmarkCase],
-    engine: ChordEngine,
+    engine: Any,
     *,
-    options: ChordAnalysisOptions | None = None,
+    options: Any | None = None,
 ) -> tuple[list[BenchmarkCase], list[EngineRun]]:
     """Run ``engine`` on every case that declares an ``audio`` path.
 
@@ -85,9 +164,11 @@ def run_engine_on_cases(
 
     Raises:
         DependencyError: When the engine reports itself unavailable.
-        AudioFileNotFoundError: When a declared audio file is missing.
-        InputError: When the engine fails or its output cannot be scored.
+        InputError: When the engine's kind cannot be scored, when a declared
+            audio file is missing, or when the engine fails or its output cannot
+            be scored.
     """
+    _kind(engine)  # refuse an unscoreable kind before doing any work
     if not engine.is_available():
         raise DependencyError(
             f"Engine {engine.name!r} is not available in this environment.",
@@ -96,7 +177,7 @@ def run_engine_on_cases(
                 "('songlab doctor' lists the registered ones)."
             ),
         )
-    run_options = options if options is not None else ChordAnalysisOptions()
+    kind_value = EngineKind(engine.kind).value
 
     updated: list[BenchmarkCase] = []
     runs: list[EngineRun] = []
@@ -108,7 +189,7 @@ def run_engine_on_cases(
         if not audio_path.exists():
             raise AudioFileNotFoundError(audio_path)
         try:
-            result = engine.analyze(audio_path, run_options)
+            result = _run(engine, audio_path, options)
         except SongLabError:
             raise
         except Exception as error:  # engine bugs become a user-facing error
@@ -125,8 +206,9 @@ def run_engine_on_cases(
         peak_memory_value = performance.get("peak_rss_bytes")
         peak_memory = peak_memory_value if isinstance(peak_memory_value, int) else None
 
+        fields, summary = _hypothesis_for(engine, result, audio_seconds)
         hypothesis = dict(case.hypothesis)
-        hypothesis.update(_hypothesis_from(result, audio_seconds))
+        hypothesis.update(fields)
 
         updated_case = replace(
             case,
@@ -146,7 +228,8 @@ def run_engine_on_cases(
             EngineRun(
                 song=case.song,
                 audio=audio_path,
-                chord_count=len(result.chords),
+                kind=kind_value,
+                summary=summary,
                 processing_time_seconds=updated_case.processing_time_seconds,
                 peak_memory_bytes=updated_case.peak_memory_bytes,
                 duration_seconds=updated_case.duration_seconds,

@@ -14,8 +14,11 @@ from pathlib import Path
 import pytest
 
 from fixtures.fake_chord_engine import FakeChordEngine
+from fixtures.fake_key_tempo_engines import FakeKeyEngine, FakeLyricsEngine, FakeTempoEngine
 from song_chord_lyrics_analyzer.benchmark import BenchmarkCase, build_report, run_engine_on_cases
-from song_chord_lyrics_analyzer.models.music import ChordEvent, ChordQuality
+from song_chord_lyrics_analyzer.engines.base import EngineKind
+from song_chord_lyrics_analyzer.models.analysis import EngineInfo
+from song_chord_lyrics_analyzer.models.music import ChordEvent, ChordQuality, KeyMode
 from song_chord_lyrics_analyzer.utils.errors import (
     AudioFileNotFoundError,
     DependencyError,
@@ -70,7 +73,8 @@ class TestRunEngineOnCases:
         assert result.hypothesis["lyrics_text"] == "stored"
 
         assert len(runs) == 1
-        assert runs[0].chord_count == 2
+        assert runs[0].kind == "chords"
+        assert runs[0].summary == "2 chords"
         assert runs[0].processing_time_seconds == 2.5
 
     def test_input_cases_are_never_mutated(self, tmp_path: Path) -> None:
@@ -182,3 +186,106 @@ class TestRunFeedsTheReport:
 
         assert metrics["chords.exact_f1"] == 0.0
         assert metrics["chords.segment_overlap"] == 0.0
+
+
+class _BeatStub:
+    """An engine kind the benchmark cannot score yet."""
+
+    name = "fake-beats"
+    kind = EngineKind.BEATS
+
+    def is_available(self) -> bool:
+        return True
+
+    def engine_info(self) -> EngineInfo:
+        return EngineInfo(name=self.name, kind=self.kind.value)
+
+    def detect_beats(self, audio_path: Path, options: dict) -> object:  # pragma: no cover
+        raise AssertionError("an unscoreable engine must never be run")
+
+
+def _other_case(tmp_path: Path, reference: dict) -> BenchmarkCase:
+    (tmp_path / "song.wav").write_bytes(b"RIFFfake")
+    return BenchmarkCase(
+        song="song_a",
+        reference=reference,
+        hypothesis={},
+        audio="song.wav",
+        source=tmp_path / "case.json",
+    )
+
+
+class TestRunOtherEngineKinds:
+    """The runner dispatches on the engine kind and fills that family."""
+
+    def test_key_engine_fills_and_scores_the_key_family(self, tmp_path: Path) -> None:
+        case = _other_case(tmp_path, {"key": "C major"})
+        engine = FakeKeyEngine(tonic="C", mode=KeyMode.MAJOR)
+
+        updated, runs = run_engine_on_cases([case], engine)
+
+        assert updated[0].hypothesis["key"] == "C major"
+        assert updated[0].engine == "fake-key"
+        assert runs[0].kind == "key"
+        assert runs[0].summary == "key C major"
+        assert runs[0].processing_time_seconds == 1.5
+        assert build_report(updated)["cases"][0]["metrics"]["key.exact"] == 1.0
+
+    def test_unresolved_key_is_scored_as_unknown_not_skipped(self, tmp_path: Path) -> None:
+        case = _other_case(tmp_path, {"key": "C major"})
+        engine = FakeKeyEngine(tonic=None, mode=KeyMode.UNKNOWN)
+
+        updated, runs = run_engine_on_cases([case], engine)
+
+        assert updated[0].hypothesis["key"] == "unknown"
+        assert runs[0].summary == "key unknown"
+        metrics = build_report(updated)["cases"][0]["metrics"]
+        assert metrics["key.exact"] == 0.0
+        assert metrics["key.relation"] == "unknown"
+
+    def test_tempo_engine_fills_and_scores_the_tempo_family(self, tmp_path: Path) -> None:
+        case = _other_case(tmp_path, {"tempo_bpm": 120.0})
+        engine = FakeTempoEngine(bpm=121.0)
+
+        updated, runs = run_engine_on_cases([case], engine)
+
+        assert updated[0].hypothesis["tempo_bpm"] == 121.0
+        assert runs[0].kind == "tempo"
+        assert runs[0].summary == "121.0 BPM"
+        metrics = build_report(updated)["cases"][0]["metrics"]
+        assert metrics["tempo.absolute_bpm_error"] == 1.0
+
+    def test_lyrics_engine_fills_and_scores_the_lyrics_family(self, tmp_path: Path) -> None:
+        case = _other_case(tmp_path, {"lyrics_text": "hola mundo"})
+        engine = FakeLyricsEngine()
+
+        updated, runs = run_engine_on_cases([case], engine)
+
+        assert updated[0].hypothesis["lyrics_text"] == "hola mundo"
+        assert updated[0].hypothesis["lyrics_words"] == [
+            {"text": "hola", "start": 0.5},
+            {"text": "mundo", "start": 1.5},
+        ]
+        assert runs[0].kind == "lyrics"
+        metrics = build_report(updated)["cases"][0]["metrics"]
+        assert metrics["lyrics.wer"] == 0.0
+
+    def test_unscoreable_kind_is_refused_before_any_run(self, tmp_path: Path) -> None:
+        case = _other_case(tmp_path, {"beats": []})
+        with pytest.raises(InputError, match="cannot score"):
+            run_engine_on_cases([case], _BeatStub())
+
+    def test_stored_hypothesis_fields_survive_the_key_run(self, tmp_path: Path) -> None:
+        (tmp_path / "song.wav").write_bytes(b"RIFFfake")
+        case = BenchmarkCase(
+            song="song_a",
+            reference={"key": "C major"},
+            hypothesis={"lyrics_text": "stored"},
+            audio="song.wav",
+            source=tmp_path / "case.json",
+        )
+
+        updated, _ = run_engine_on_cases([case], FakeKeyEngine())
+
+        assert updated[0].hypothesis["lyrics_text"] == "stored"
+        assert updated[0].hypothesis["key"] == "C major"

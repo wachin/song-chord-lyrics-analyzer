@@ -20,9 +20,9 @@ tempo_bpm      120.0                                   -> absolute / half / doub
 
 At the top level a case may declare ``"audio": "song.wav"`` (relative to the
 case file). ``songlab benchmark --engine NAME`` then runs that engine on the
-file — filling ``hypothesis.chords``/``chord_labels`` plus the measured
-processing time and peak memory — while cases without ``audio`` keep their
-stored hypothesis.
+file — filling the hypothesis fields of the engine's own family (chord, key,
+tempo or lyrics) plus the measured processing time and peak memory — while
+cases without ``audio`` keep their stored hypothesis.
 
 Nothing is invented: a missing field is simply not scored, and without
 ``--engine`` no engine runs here — this scores results that were already

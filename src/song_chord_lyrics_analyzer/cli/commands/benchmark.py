@@ -3,10 +3,11 @@
 Reads a directory of benchmark cases (a reference/hypothesis pair per song, see
 ``docs/BENCHMARK.md``), scores them with the roadmap section 44 metric family
 and writes ``benchmark/{benchmark.json,benchmark.csv,benchmark.md}``. Cases
-that declare an ``audio`` file can be (re)run through ``--engine NAME``: the
-engine's hypothesis and its measured section 45 run cost (processing time,
-peak memory) fill the case before scoring, so nothing in the report is ever a
-number nobody measured.
+that declare an ``audio`` file can be (re)run through ``--engine NAME`` — of any
+kind a metric family can score (chords, key, tempo, lyrics): the engine's
+hypothesis and its measured section 45 run cost (processing time, peak memory)
+fill the case before scoring, so nothing in the report is ever a number nobody
+measured.
 """
 
 from __future__ import annotations
@@ -48,8 +49,8 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
         metavar="NAME",
         default=None,
         help=(
-            "run this chord engine on every case that declares an 'audio' file "
-            "before scoring (e.g. chroma-baseline)"
+            "run this engine (chords, key, tempo or lyrics) on every case that "
+            "declares an 'audio' file before scoring (e.g. chroma-baseline)"
         ),
     )
     parser.add_argument(
@@ -94,7 +95,7 @@ def format_run_notes(engine_name: str, runs: Sequence[EngineRun]) -> list[str]:
         )
         factor = real_time_factor(run.duration_seconds, run.processing_time_seconds)
         factor_note = f" (real-time factor {factor:.2f})" if factor is not None else ""
-        lines.append(f"  {run.song}: {run.chord_count} chords in {processing}{factor_note}")
+        lines.append(f"  {run.song}: {run.summary} in {processing}{factor_note}")
     lines.append(f"  engine: {engine_name}")
     return lines
 

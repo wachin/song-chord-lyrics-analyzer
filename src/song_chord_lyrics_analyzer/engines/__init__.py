@@ -26,6 +26,7 @@ from song_chord_lyrics_analyzer.engines.registry import (
     EngineRegistry,
     create_default_registry,
 )
+from song_chord_lyrics_analyzer.engines.tempo_librosa import LibrosaTempoEngine
 
 __all__ = [
     "BaseEngine",
@@ -37,6 +38,7 @@ __all__ = [
     "EngineRegistry",
     "KeyEngine",
     "KrumhanslKeyEngine",
+    "LibrosaTempoEngine",
     "LyricsEngine",
     "LyricsOptions",
     "StemSeparationEngine",

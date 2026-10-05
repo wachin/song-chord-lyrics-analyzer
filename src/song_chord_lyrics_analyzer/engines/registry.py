@@ -16,6 +16,7 @@ from typing import Any
 from song_chord_lyrics_analyzer.engines.base import EngineKind
 from song_chord_lyrics_analyzer.engines.chroma_baseline import ChromaBaselineEngine
 from song_chord_lyrics_analyzer.engines.key_krumhansl import KrumhanslKeyEngine
+from song_chord_lyrics_analyzer.engines.tempo_librosa import LibrosaTempoEngine
 from song_chord_lyrics_analyzer.models.analysis import EngineInfo
 from song_chord_lyrics_analyzer.utils.errors import DuplicateEngineError, EngineNotFoundError
 from song_chord_lyrics_analyzer.utils.logging import get_logger
@@ -170,4 +171,5 @@ def create_default_registry() -> EngineRegistry:
     registry = EngineRegistry()
     registry.register(ChromaBaselineEngine())
     registry.register(KrumhanslKeyEngine())
+    registry.register(LibrosaTempoEngine())
     return registry

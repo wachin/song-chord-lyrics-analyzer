@@ -422,6 +422,24 @@ collapses are a **penalty artefact of the legacy in-place Viterbi loop, not a de
   Tests: `tests/unit/test_chroma_baseline.py`, `tests/unit/test_benchmark_runner.py`
   and the `--engine` CLI cases in `tests/unit/test_benchmark.py`.
 
+### Tempo engine (roadmap 33)
+
+* **`librosa-tempo` (2026-10-05).** The first tempo engine: librosa's beat
+  tracker read at 22.05 kHz, reporting BPM through the `TempoEngine` protocol
+  and **keeping the half-time and double-time readings as alternatives** instead
+  of picking one, so `songlab benchmark --engine librosa-tempo` scores absolute,
+  half-time and double-time error together. The engine deliberately reports **no
+  confidence** — librosa produces no calibrated one, and inventing it would
+  contradict the project's rule that uncertainty is never converted into a fact.
+  The metrical-alternatives helper is dependency-free; the front end is optional
+  and tested with and without numpy/librosa. Tests: `tests/unit/test_tempo_librosa.py`.
+* **Measured, not assumed.** On all 360 GuitarSet takes (CC BY 4.0, JAMS `tempo`
+  reference) the engine shows a mean absolute error of 22.63 BPM and lands within
+  1% on 23.1% of takes; 86/360 are octave-off (53 read double, 33 half), and
+  admitting the best of the three readings only lifts that to 27.2%. That is a
+  deliberately weak baseline on free guitar performance and is recorded as such
+  (`docs/ENGINE_COMPARISON.md`), with beat positions (roadmap 34) still open.
+
 ### Key engine (roadmap 31/32)
 
 * **`krumhansl` (2026-10-05).** The first key engine (roadmap 32): a per-frame CQT

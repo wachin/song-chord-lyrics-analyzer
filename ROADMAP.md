@@ -1479,10 +1479,18 @@ Do not silently choose one without documenting the decision.
 
 ---
 
-# [ ] 33. Tempo Detection
+# [*] (2026-10-05) 33. Tempo Detection
 
-*Status (2026-09-23): partial — one measurement only, on a synthetic click track (beat_this 120.00 BPM,
-librosa 117.45 BPM); no real music evaluated and no engine adapter written.*
+*Status (2026-10-05): first engine done — `librosa-tempo`
+(`engines/tempo_librosa.py`) reports BPM through the `TempoEngine` protocol and
+keeps the half-time and double-time readings as reported alternatives instead of
+resolving them, so `songlab benchmark --engine librosa-tempo` scores absolute,
+half-time and double-time error side by side. It reports **no confidence**,
+because librosa produces none. Measured, not assumed, on all 360 GuitarSet
+takes: mean absolute error 22.63 BPM, 23.1% within 1% of the reference, and
+86/360 takes octave-off (`docs/ENGINE_COMPARISON.md`). This is a weak baseline on
+free guitar performance, not a claim about tempo estimation in general;
+beat *positions* (§34) and stronger tempo models are still open.*
 
 Implement:
 

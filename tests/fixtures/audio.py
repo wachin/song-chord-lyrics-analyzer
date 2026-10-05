@@ -12,7 +12,7 @@ import struct
 import wave
 from pathlib import Path
 
-__all__ = ["write_chord_wav", "write_sine_wav", "write_wav_bytes"]
+__all__ = ["write_chord_wav", "write_click_wav", "write_sine_wav", "write_wav_bytes"]
 
 
 def write_sine_wav(
@@ -108,6 +108,65 @@ def write_chord_wav(
             )
             sample = max(-32768, min(32767, int(sample)))
             frames.extend(struct.pack("<h", sample))
+
+    with wave.open(str(path), "wb") as writer:
+        writer.setnchannels(1)
+        writer.setsampwidth(sample_width)
+        writer.setframerate(sample_rate)
+        writer.writeframes(bytes(frames))
+    return path
+
+
+def write_click_wav(
+    path: Path,
+    *,
+    bpm: float = 120.0,
+    beats: int = 24,
+    sample_rate: int = 22050,
+    click_hertz: float = 2000.0,
+    click_seconds: float = 0.03,
+    amplitude: float = 0.5,
+    sample_width: int = 2,
+) -> Path:
+    """Write a metronome click track to ``path`` as an uncompressed WAV file.
+
+    A short decaying burst every ``60 / bpm`` seconds: a ground-truth tempo with
+    no pitch content, so the tempo engine is tested on rhythm rather than on
+    chroma.
+
+    Args:
+        path: Destination path.
+        bpm: Beats per minute of the track.
+        beats: Number of clicks to write.
+        sample_rate: Sample rate in Hz.
+        click_hertz: Centre frequency of each click.
+        click_seconds: Duration of each click.
+        amplitude: Peak amplitude in ``[0.0, 1.0]``.
+        sample_width: Bytes per sample (2 = 16 bit PCM).
+
+    Returns:
+        The written path.
+    """
+    if sample_width != 2:
+        raise ValueError("only 16-bit PCM fixtures are supported")
+    if bpm <= 0:
+        raise ValueError(f"bpm must be positive, got {bpm!r}")
+    if beats <= 0:
+        raise ValueError(f"beats must be positive, got {beats!r}")
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    period = 60.0 / bpm * sample_rate
+    click_samples = max(1, round(click_seconds * sample_rate))
+    peak = max(-32768, min(32767, int(amplitude * 32767)))
+
+    frames = bytearray()
+    for _beat in range(beats):
+        for index in range(click_samples):
+            decay = 1.0 - index / click_samples
+            value = int(peak * decay * math.sin(2.0 * math.pi * click_hertz * index / sample_rate))
+            frames.extend(struct.pack("<h", max(-32768, min(32767, value))))
+        frames.extend(b"\x00\x00" * max(0, round(period) - click_samples))
 
     with wave.open(str(path), "wb") as writer:
         writer.setnchannels(1)

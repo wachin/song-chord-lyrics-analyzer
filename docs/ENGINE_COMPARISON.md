@@ -763,6 +763,39 @@ playing, so its chroma is sparse: this is a deliberately simple baseline, not a
 claim about key detection in general. Numbers come from the gitignored measurement
 script; no audio is committed.
 
+## Tempo engine — librosa beat tracking on GuitarSet (roadmap 33)
+
+**Why.** Roadmap 33 asks for tempo detection with half-time and double-time
+handled, and the section 44 tempo metrics already existed with nothing to score.
+
+**Method.** All 360 GuitarSet takes (CC BY 4.0, audio in the gitignored cache) are
+run through the shipped `librosa-tempo` engine and scored against the JAMS `tempo`
+annotation with `tempo_error` and `tempo_interpretation`, which report the
+absolute, half-time and double-time deviations together instead of choosing a
+reading.
+
+| Metric | Value |
+| --- | ---: |
+| Mean absolute BPM error | 22.63 |
+| Mean half-time error | 126.53 |
+| Mean double-time error | 60.13 |
+| Within 1% of the reference | 0.2306 (83/360) |
+| Within 1% on some reading | 0.2722 (98/360) |
+| Interpretations | same 274, double 53, half 33 |
+| CPU per take | ~0.13 s |
+
+This is a weak baseline and is recorded as one. 86 takes (24%) are octave-off,
+which is exactly the ambiguity roadmap 33 asks to handle — and it is handled by
+*reporting* it rather than by guessing: admitting the best of the three readings
+only lifts the 1% figure from 0.2306 to 0.2722, so most of the error is not
+metrical at all. GuitarSet is free guitar playing rather than a metronomic
+performance, and librosa's beat tracker is tuned for pop/rock mixes; even the
+isolated case is biased low, since a 120 BPM synthetic click track is read as
+117.45 BPM here (the same figure the original smoke test recorded). Beat positions
+(roadmap 34) and stronger tempo models (beat_this, already smoke-tested at
+120.00 BPM on a click track) remain open. Numbers come from the gitignored
+measurement script; no audio is committed.
+
 ## Observations
 
 * **Speed.** On this CPU Parakeet's ONNX int8 path is ~4–5× faster than faster-whisper

@@ -96,10 +96,12 @@ scoring. The run goes through `benchmark/runner.py`, which:
 * reports one run line per case (chords, seconds, real-time factor) before the
   summary.
 
-Example run: `chroma-baseline` on one 22.3 s GuitarSet comping excerpt reported 55
-chords in 3.944 s (real-time factor 5.66) on this Linux x86_64 CPU — one smoke run of
-a deliberately simple baseline, not an accuracy claim. No case or number from it is
-committed; reproduce it by pointing `--engine` at a case directory with audio.
+Example run: `chroma-baseline` on one 22.3 s GuitarSet comping excerpt reported 8
+chords in 2.261 s (real-time factor 9.87) on this Linux x86_64 CPU — one smoke run of
+a deliberately simple baseline, not an accuracy claim. (The engine's default Viterbi
+decoder replaced the earlier majority smoother, which reported 55 chords on the same
+excerpt; see `docs/ENGINE_COMPARISON.md`.) No case or number from it is committed;
+reproduce it by pointing `--engine` at a case directory with audio.
 
 ## Metrics (roadmap section 44)
 

@@ -821,7 +821,11 @@ The goal is to understand and benchmark their outputs.
 
 ---
 
-# [ ] 19. Chroma Laboratory
+# [x] 19. Chroma Laboratory
+
+*Status (2026-10-05): done — the `chroma-baseline` engine implements this
+exactly (CQT chromagram, 24 triad templates, cosine similarity, temporal
+decoding, timed chord events), tested with and without the optional DSP stack.*
 
 Implement a baseline chord recognizer.
 
@@ -868,7 +872,16 @@ It provides:
 
 ---
 
-# [ ] 20. HMM / Viterbi Experiment
+# [*] (2026-10-05) 20. HMM / Viterbi Experiment
+
+*Status (2026-10-05): done — the Viterbi decoder is dependency-free library code
+(`engines/decoding.py`) wired into the `chroma-baseline` engine as the default
+decoder, and it was measured, not assumed: on 180 real GuitarSet takes it
+dominates the majority smoother on CSR, segment overlap and change-detection F1
+at a flat change penalty of 0.80 (`docs/ENGINE_COMPARISON.md`). The
+self-transition probability, change penalty and no-chord emission were all
+swept; improbable-transition and distance-decaying models were already measured
+and rejected in the same document.*
 
 Investigate chord recognition using:
 

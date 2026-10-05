@@ -109,6 +109,56 @@ class TestSmoothLabels:
         assert baseline.smooth_labels([], width=5) == []
 
 
+class TestFrameScores:
+    def test_one_score_per_triad_plus_a_no_chord_state(self) -> None:
+        scores = baseline.frame_scores([_frame((0, 4, 7))])
+        assert len(scores) == 1
+        assert len(scores[0]) == 25
+        assert scores[0][-1] == baseline.DEFAULT_NO_CHORD_SCORE
+
+    def test_a_pure_triad_scores_one_on_its_template(self) -> None:
+        scores = baseline.frame_scores([_frame((0, 4, 7))])[0]
+        assert scores[baseline.TEMPLATE_LABELS.index("C")] == pytest.approx(1.0)
+
+    def test_a_silent_frame_scores_zero_on_every_triad(self) -> None:
+        scores = baseline.frame_scores([[0.0] * 12])[0]
+        assert scores[:24] == [0.0] * 24
+
+    def test_no_chord_score_is_configurable(self) -> None:
+        scores = baseline.frame_scores([[0.0] * 12], no_chord_score=0.25)
+        assert scores[0][-1] == 0.25
+
+
+class TestDecodeLabels:
+    def test_majority_matches_the_per_frame_baseline(self) -> None:
+        frames = [_frame((0, 4, 7)), [0.0] * 12, _frame((9, 0, 4))]
+        expected = baseline.smooth_labels(baseline.match_frames(frames))
+        assert baseline.decode_labels(frames, decoder="majority") == expected
+
+    def test_viterbi_returns_one_known_label_per_frame(self) -> None:
+        frames = [_frame((0, 4, 7)), [0.0] * 12, _frame((9, 0, 4))]
+        labels = baseline.decode_labels(frames, decoder="viterbi")
+        assert len(labels) == len(frames)
+        assert all(label in baseline.TEMPLATE_LABELS or label == "N" for label in labels)
+
+    def test_zero_penalty_viterbi_is_the_argmax_over_all_states(self) -> None:
+        frames = [_frame((0, 4, 7)), [0.0] * 12, _frame((9, 0, 4))]
+        scores = baseline.frame_scores(frames)
+        expected = []
+        for row in scores:
+            best = row.index(max(row))
+            expected.append(baseline.TEMPLATE_LABELS[best] if best < 24 else "N")
+        assert baseline.decode_labels(frames, decoder="viterbi", change_penalty=0.0) == expected
+
+    def test_unknown_decoder_is_rejected(self) -> None:
+        with pytest.raises(ValueError, match="unknown decoder"):
+            baseline.decode_labels([_frame((0, 4, 7))], decoder="magic")
+
+    def test_negative_change_penalty_is_rejected(self) -> None:
+        with pytest.raises(ValueError, match="change_penalty"):
+            baseline.decode_labels([_frame((0, 4, 7))], decoder="viterbi", change_penalty=-1.0)
+
+
 class TestSegmentsFromLabels:
     def test_runs_collapse_into_timed_segments(self) -> None:
         segments = baseline.segments_from_labels(["C", "C", "G"], frame_period=0.5)
@@ -257,6 +307,8 @@ class TestFullAnalysis:
         assert performance["startup_time_seconds"] >= 0.0
         # the untouched frame payload travels as raw output
         assert result.raw["frame_labels"]
+        assert result.metadata["decoder"] == baseline.DEFAULT_DECODER
+        assert result.metadata["change_penalty"] == baseline.DEFAULT_CHANGE_PENALTY
 
     def test_time_range_restriction_shifts_the_timeline(self, tmp_path) -> None:
         wav = write_sine_wav(tmp_path / "tone.wav", seconds=4.0, channels=1)

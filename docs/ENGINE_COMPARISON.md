@@ -691,6 +691,50 @@ makes its reference key soft, and the reference
 chords are the user's editorial choices for their own arrangements, not definitive
 transcriptions.
 
+## Chroma-baseline decoder — majority smoothing vs Viterbi (roadmap 19/20)
+
+**Why.** The shipped `chroma-baseline` engine (roadmap 59) is the laboratory's
+first recognizer: per-frame CQT chroma matched against 24 triad templates. Its
+first decoder was the roadmap 19 baseline — a per-frame argmax followed by a
+majority smoother. Roadmap 20 asks whether an explicit transition model does
+better, and at what chord-change penalty. Both decoders are now dependency-free
+library code (`engines/chroma_baseline.py` and `engines/decoding.py`), so this
+comparison runs the *shipped* engine through the repository's own metrics.
+
+**Method.** 180 of the 360 GuitarSet takes (the first 90 `_comp` and the first 90
+`solo` in filename order; CC BY 4.0 audio in the gitignored cache) are each
+decoded twice from the same cached chroma: once with the majority smoother and
+once with a flat-penalty Viterbi over 25 states (24 triads plus a constant
+no-chord state). Hypotheses are scored against the JAMS *instructed* chord
+reference, mapped through `evaluation.harte_to_label`, with `duration_csr`
+(duration-weighted recall), `segment_overlap`, `chord_change_detection` (F1,
+trimmed) and `timing_error`. Only the decoder changes between rows.
+
+| Decoder | CSR | segment overlap | change F1 | timing err (s) | mean chords |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| majority smoother (roadmap 19 baseline) | 0.3676 | 0.4586 | 0.3144 | 0.574 | 67.65 |
+| Viterbi, flat penalty 0.60 | 0.4176 | 0.7147 | 0.6136 | 0.399 | 20.99 |
+| **Viterbi, flat penalty 0.80 (shipped default)** | **0.4260** | **0.7314** | **0.6202** | 0.381 | 17.06 |
+| Viterbi, flat penalty 1.00 | 0.4279 | 0.7363 | 0.6125 | **0.370** | 14.63 |
+
+The reference averages 12.00 chords per take. A wider sweep (penalties
+0.10-1.20 on a 48-take subset) is monotone in CSR and timing error while segment
+overlap and change-detection F1 peak around 0.80-1.00. Penalty 1.00 is within
+0.008 of 0.80 on every column and better on three of them, so the choice is not
+sharp; **0.80** is shipped because it has the best change-detection F1 and
+collapses fewer distinct chords. The no-chord state uses a constant emission of
+0.06, so silence is chosen only when no triad outscores it *and* staying there
+beats paying the change penalty.
+
+**Effect.** The Viterbi decoder dominates the majority smoother on every metric:
++0.058 CSR, +0.273 segment overlap, +0.306 change F1, and it roughly quarters the
+spurious chord count (67.65 to 17.06, against a 12.00 reference) while halving
+the median boundary error. On the single 22.3 s GuitarSet excerpt used for the
+end-to-end smoke run the same change is visible directly: the majority decoder
+emitted 55 chords (first chord `D#` lasting 0.28 s), the Viterbi decoder emits 8
+(first chord `D#` lasting 7.15 s, against a reference `D#` of 7.44 s). Numbers
+come from the gitignored measurement script; no audio or chart is committed.
+
 ## Observations
 
 * **Speed.** On this CPU Parakeet's ONNX int8 path is ~4–5× faster than faster-whisper

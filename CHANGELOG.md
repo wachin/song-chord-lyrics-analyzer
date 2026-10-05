@@ -422,6 +422,26 @@ collapses are a **penalty artefact of the legacy in-place Viterbi loop, not a de
   Tests: `tests/unit/test_chroma_baseline.py`, `tests/unit/test_benchmark_runner.py`
   and the `--engine` CLI cases in `tests/unit/test_benchmark.py`.
 
+### Viterbi decoder (roadmap 19/20)
+
+* **Dependency-free sequence decoder (2026-10-05).** New
+  `engines/decoding.py` implements max-sum Viterbi over an explicit transition
+  model (`viterbi_decode`), pinned against exhaustive search on random inputs.
+  The `chroma-baseline` engine gains `frame_scores` (24 triad states plus a
+  constant no-chord state) and `decode_labels`, which selects the roadmap 19
+  majority smoother or the roadmap 20 Viterbi decoder; the decoder,
+  change penalty and no-chord emission are settable per run through
+  `ChordAnalysisOptions.extra`.
+* **Viterbi is the measured default.** On 180 real GuitarSet takes (CC BY 4.0,
+  JAMS instructed reference) the Viterbi decoder at a flat change penalty of
+  0.80 beats the majority smoother on every metric: CSR 0.3676 -> 0.4260,
+  segment overlap 0.4586 -> 0.7314, change-detection F1 0.3144 -> 0.6202, median
+  timing error 0.574 -> 0.381 s, and mean chord count 67.65 -> 17.06 against a
+  12.00 reference. The penalty sweep, the no-chord emission and the choice of
+  0.80 are recorded in `docs/ENGINE_COMPARISON.md`. Tests:
+  `tests/unit/test_decoding.py` plus the new decoder cases in
+  `tests/unit/test_chroma_baseline.py`. Full suite: 1114 passed, 5 skipped.
+
 ### Chords CLI command (roadmap 47)
 
 * **`songlab chords AUDIO [--engine NAME]` (2026-10-05).** The first analysis

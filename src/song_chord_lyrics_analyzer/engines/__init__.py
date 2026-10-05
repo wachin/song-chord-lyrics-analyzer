@@ -20,6 +20,7 @@ from song_chord_lyrics_analyzer.engines.base import (
     TempoEngine,
 )
 from song_chord_lyrics_analyzer.engines.chroma_baseline import ChromaBaselineEngine
+from song_chord_lyrics_analyzer.engines.decoding import viterbi_decode
 from song_chord_lyrics_analyzer.engines.registry import (
     EngineRegistry,
     create_default_registry,
@@ -40,4 +41,5 @@ __all__ = [
     "StemSeparationOptions",
     "TempoEngine",
     "create_default_registry",
+    "viterbi_decode",
 ]

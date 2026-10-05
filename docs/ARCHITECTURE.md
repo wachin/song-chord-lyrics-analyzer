@@ -42,7 +42,7 @@ src/song_chord_lyrics_analyzer/
 │   ├── main.py           parser, error translation, exit codes
 │   └── commands/         info, doctor, chords, benchmark
 ├── audio/                validation, FFmpeg discovery, metadata probing
-├── engines/              engine protocols, options, registry, chroma-baseline adapter
+├── engines/              engine protocols, options, registry, chroma-baseline adapter, decoding
 ├── schema/               canonical JSON codec
 ├── models/               canonical typed data model (dataclasses)
 ├── normalization/        chord parsing, rendering, transposition
@@ -144,6 +144,16 @@ is tested without it. `songlab benchmark --engine chroma-baseline` runs it on
 every case that declares an audio file and records the measured section 45 run
 cost alongside the score.
 
+Turning per-frame chord scores into a sequence is a separate concern, kept in
+the dependency-free `engines/decoding.py` (`viterbi_decode`). The engine
+exposes `frame_scores` (24 triad states plus a constant no-chord state) and
+`decode_labels`, which selects either the roadmap 19 majority smoother or the
+roadmap 20 max-sum Viterbi over a flat change penalty; the Viterbi decoder is
+the default because it was measured to beat the smoother on real ground truth
+(`docs/ENGINE_COMPARISON.md`). The decoder is selectable per run through
+`ChordAnalysisOptions.extra` (`decoder`, `change_penalty`, `no_chord_score`),
+so the experiment stays reproducible without a second engine.
+
 ## 6. Audio foundation (implemented)
 
 * `audio/validation.py` validates untrusted input paths (existence, directory,
@@ -191,7 +201,7 @@ Only WAV files can be inspected without FFmpeg.
 | Phase 1 dependency research | done for the pre-analysis candidates, including smoke tests of the adopted ones on Linux; heavy ML options and Windows/macOS runtime deliberately still open (see `DEPENDENCY_MATRIX.md` §10, `LICENSE_AUDIT.md`) |
 | Phase 2 audio foundation | metadata + FFmpeg discovery done; resampling/decoding pending |
 | Phase 3 lyrics laboratory | not started |
-| Phase 4 chord laboratory | chord normalization done; first engine (chroma baseline) integrated behind `songlab benchmark --engine`; advanced decoders pending |
+| Phase 4 chord laboratory | chord normalization done; `chroma-baseline` engine reaching the user through `songlab chords` and `songlab benchmark --engine`, with a measured Viterbi decoder (roadmap 19/20); richer engines pending |
 | Phase 5 key/tempo/beats | models done; engines pending |
 | Phases 6-14 | not started; phase 11 chord, key, tempo and lyrics metrics exist as library code in `metrics/` (roadmap §44) and `songlab benchmark` scores reference/hypothesis cases into reports (roadmap §46), filling the hypothesis from a measured engine run when a case declares audio |
 | Phase 15+ GUI | not started (by design) |

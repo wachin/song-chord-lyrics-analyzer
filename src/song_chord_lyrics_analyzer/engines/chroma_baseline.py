@@ -8,7 +8,9 @@ deliberately simple and fully inspectable:
 2. compute per-frame CQT chroma;
 3. match every frame against the 24 phase-1 triad templates (12 major, 12
    minor) by cosine similarity, reporting ``N`` when no template fits;
-4. smooth isolated frame flips with a majority filter;
+4. decode the frame scores into a label sequence — either a majority filter
+   (roadmap section 19) or a max-sum Viterbi over a flat change penalty
+   (roadmap section 20; the default, selectable through ``options.extra``);
 5. collapse runs of equal labels into timed :class:`ChordEvent` segments.
 
 The DSP front end (numpy + librosa) is **optional**: :meth:`ChromaBaselineEngine.is_available`
@@ -33,6 +35,7 @@ from pathlib import Path
 from typing import Any
 
 from song_chord_lyrics_analyzer.engines.base import ChordAnalysisOptions, EngineKind
+from song_chord_lyrics_analyzer.engines.decoding import viterbi_decode
 from song_chord_lyrics_analyzer.models.analysis import EngineInfo, EngineResult
 from song_chord_lyrics_analyzer.models.music import PITCH_CLASS_NAMES, ChordEvent, ChordQuality
 from song_chord_lyrics_analyzer.performance import PerformanceProbe
@@ -43,7 +46,10 @@ from song_chord_lyrics_analyzer.utils.errors import (
 )
 
 __all__ = [
+    "DEFAULT_CHANGE_PENALTY",
+    "DEFAULT_DECODER",
     "DEFAULT_MATCH_THRESHOLD",
+    "DEFAULT_NO_CHORD_SCORE",
     "DEFAULT_SMOOTHING_WINDOW",
     "ENGINE_NAME",
     "ENGINE_VERSION",
@@ -51,7 +57,9 @@ __all__ = [
     "SAMPLE_RATE",
     "TEMPLATE_LABELS",
     "ChromaBaselineEngine",
+    "decode_labels",
     "events_from_segments",
+    "frame_scores",
     "match_frames",
     "merge_short_segments",
     "segments_from_labels",
@@ -73,6 +81,21 @@ HOP_LENGTH = 2_048
 DEFAULT_MATCH_THRESHOLD = 0.5
 #: Majority-filter window (in frames) that removes isolated label flips.
 DEFAULT_SMOOTHING_WINDOW = 5
+
+#: Temporal decoder: ``"majority"`` (per-frame argmax + majority smoother,
+#: roadmap section 19) or ``"viterbi"`` (max-sum sequence decoding, roadmap
+#: section 20).
+DEFAULT_DECODER = "viterbi"
+#: Flat transition cost per chord change for the Viterbi decoder. ``0.0``
+#: decodes every frame independently. ``0.80`` is the measured optimum on 180
+#: real GuitarSet takes (CSR, segment overlap and change-detection F1); CSR
+#: alone would push it higher at the cost of change-detection F1. The measured
+#: comparison lives in ``docs/ENGINE_COMPARISON.md``.
+DEFAULT_CHANGE_PENALTY = 0.80
+#: Emission score of the Viterbi no-chord state. It is a constant, so a frame
+#: is decoded as ``N`` only when no triad outscores it by enough *and* the
+#: change costs the transition penalty.
+DEFAULT_NO_CHORD_SCORE = 0.06
 
 #: The 24 phase-1 labels: 12 major roots first, then the 12 minor ones.
 TEMPLATE_LABELS: tuple[str, ...] = tuple(PITCH_CLASS_NAMES) + tuple(
@@ -102,6 +125,35 @@ TEMPLATES: tuple[tuple[float, ...], ...] = tuple(
 _TEMPLATE_NORM = math.sqrt(3.0)
 
 
+def _chord_scores(frame: Sequence[float]) -> list[float]:
+    """Cosine similarity of one chroma frame to each of the 24 triad templates."""
+    norm = math.sqrt(sum(float(value) * float(value) for value in frame))
+    if norm <= 0.0:
+        return [0.0] * len(TEMPLATE_LABELS)
+    scores: list[float] = []
+    for template in TEMPLATES:
+        dot = sum(
+            float(value) * weight for value, weight in zip(frame, template, strict=True) if weight
+        )
+        scores.append(dot / (norm * _TEMPLATE_NORM))
+    return scores
+
+
+def frame_scores(
+    frames: Sequence[Sequence[float]],
+    *,
+    no_chord_score: float = DEFAULT_NO_CHORD_SCORE,
+) -> list[list[float]]:
+    """Per-frame scores over the 24 triad states plus a no-chord state.
+
+    The last column is the constant ``no_chord_score``, so the sequence decoder
+    treats *no chord* as one more state with a fixed, modest affinity rather
+    than a post-hoc threshold: ``N`` is only chosen when no triad clearly wins
+    and paying the change penalty to enter it is still worth it.
+    """
+    return [[*_chord_scores(frame), no_chord_score] for frame in frames]
+
+
 def match_frames(
     frames: Sequence[Sequence[float]],
     *,
@@ -123,22 +175,42 @@ def match_frames(
     """
     labels: list[str] = []
     for frame in frames:
-        norm = math.sqrt(sum(float(value) * float(value) for value in frame))
-        best_label = "N"
-        best_score = -1.0
-        if norm > 0.0:
-            for label, template in zip(TEMPLATE_LABELS, TEMPLATES, strict=True):
-                dot = sum(
-                    float(value) * weight
-                    for value, weight in zip(frame, template, strict=True)
-                    if weight
-                )
-                score = dot / (norm * _TEMPLATE_NORM)
-                if score > best_score:
-                    best_score = score
-                    best_label = label
-        labels.append(best_label if best_score >= threshold else "N")
+        scores = _chord_scores(frame)
+        best_index = max(range(len(scores)), key=scores.__getitem__)
+        labels.append(TEMPLATE_LABELS[best_index] if scores[best_index] >= threshold else "N")
     return labels
+
+
+def decode_labels(
+    frames: Sequence[Sequence[float]],
+    *,
+    decoder: str = DEFAULT_DECODER,
+    threshold: float = DEFAULT_MATCH_THRESHOLD,
+    smoothing_window: int = DEFAULT_SMOOTHING_WINDOW,
+    change_penalty: float = DEFAULT_CHANGE_PENALTY,
+    no_chord_score: float = DEFAULT_NO_CHORD_SCORE,
+) -> list[str]:
+    """Decode one label per frame with the selected temporal model.
+
+    ``"majority"`` is the section-19 baseline (per-frame argmax against the
+    templates, then a majority filter). ``"viterbi"`` (section 20) runs a
+    max-sum Viterbi over the 25 states (24 triads plus no-chord) with a flat
+    change penalty, so isolated flips are suppressed by the model itself
+    instead of by a fixed-width window.
+
+    Raises:
+        ValueError: When ``decoder`` is unknown or the decoder parameters are
+            invalid (a negative ``change_penalty``).
+    """
+    if decoder == "majority":
+        return smooth_labels(match_frames(frames, threshold=threshold), width=smoothing_window)
+    if decoder == "viterbi":
+        path = viterbi_decode(
+            frame_scores(frames, no_chord_score=no_chord_score),
+            change_penalty=change_penalty,
+        )
+        return [TEMPLATE_LABELS[index] if index < len(TEMPLATE_LABELS) else "N" for index in path]
+    raise ValueError(f"unknown decoder: {decoder!r} (expected 'majority' or 'viterbi')")
 
 
 def smooth_labels(
@@ -374,8 +446,22 @@ class ChromaBaselineEngine:
             frames = chroma.T.tolist()
             frame_period = HOP_LENGTH / float(sample_rate)
 
+            decoder = str(options.extra.get("decoder", DEFAULT_DECODER))
+            change_penalty = float(options.extra.get("change_penalty", DEFAULT_CHANGE_PENALTY))
+            no_chord_score = float(options.extra.get("no_chord_score", DEFAULT_NO_CHORD_SCORE))
             raw_labels = match_frames(frames)
-            labels = smooth_labels(raw_labels, width=DEFAULT_SMOOTHING_WINDOW)
+            try:
+                labels = decode_labels(
+                    frames,
+                    decoder=decoder,
+                    change_penalty=change_penalty,
+                    no_chord_score=no_chord_score,
+                )
+            except ValueError as error:
+                raise InputError(
+                    str(error),
+                    hint="Supported decoders: 'majority', 'viterbi'.",
+                ) from error
             segments = segments_from_labels(
                 labels,
                 frame_period=frame_period,
@@ -402,6 +488,9 @@ class ChromaBaselineEngine:
                 "sample_rate": SAMPLE_RATE,
                 "hop_length": HOP_LENGTH,
                 "match_threshold": DEFAULT_MATCH_THRESHOLD,
+                "decoder": decoder,
+                "change_penalty": change_penalty,
+                "no_chord_score": no_chord_score,
                 "smoothing_window": DEFAULT_SMOOTHING_WINDOW,
             },
         )

@@ -42,6 +42,7 @@ class FakeChordEngine:
         self.failure = failure
         self.version = version
         self.calls: list[Path] = []
+        self.options_seen: list[ChordAnalysisOptions] = []
         if chords is None:
             chords = [
                 ChordEvent(
@@ -69,6 +70,7 @@ class FakeChordEngine:
 
     def analyze(self, audio_path: Path, options: ChordAnalysisOptions) -> EngineResult:
         self.calls.append(Path(audio_path))
+        self.options_seen.append(options)
         if self.failure is not None:
             raise self.failure
         return EngineResult(

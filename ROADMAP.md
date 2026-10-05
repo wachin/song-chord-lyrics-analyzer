@@ -2048,8 +2048,10 @@ metrics
 
 # [ ] 47. CLI Design
 
-*Status (2026-09-23): partial — `songlab info` and `songlab doctor` are implemented, tested and
-verified end to end; every analysis command is still missing.*
+*Status (2026-10-05): partial — `songlab info`, `songlab doctor` and the first analysis command,
+`songlab chords` (with `--engine NAME`, `--start`/`--end`/`--min-duration` and `--json`), are
+implemented, tested and verified end to end. `songlab lyrics`, `analyze`, `compare`, `separate`,
+`fuse`, `export` and the `models` namespace are still missing.*
 
 The CLI should eventually support:
 

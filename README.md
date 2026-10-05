@@ -124,6 +124,7 @@ before the CLI is allowed to grow. Current state and direction:
 | Chord metrics — timing-free (align, exact/root/quality/MIREX views) and boundary-aware (segment overlap, change detection, timing error) | **library code, dependency-free** |
 | Lyrics / key / tempo / beat engines behind the interfaces | next |
 | `songlab benchmark` — `benchmark/{benchmark.json,csv,md}` over stored results | implemented; `--engine` runs a registered chord engine over cases with audio |
+| `songlab chords` — first analysis command, on a selectable registered engine | implemented |
 | Stem separation, alignment, fusion, exports | later |
 | GUI | last (phase 15) |
 
@@ -160,6 +161,8 @@ songlab doctor                 # environment, FFmpeg status, caches, engines
 songlab info song.mp3          # technical metadata
 songlab info song.mp3 --json   # machine-readable
 songlab info song.mp3 --hash   # add the SHA-256 used for caching/provenance
+songlab chords song.wav        # chord detection with the first available engine
+songlab chords song.wav --engine chroma-baseline --json   # select an engine, emit JSON
 ```
 
 Example:
@@ -182,7 +185,6 @@ Planned commands, added phase by phase:
 
 ```text
 songlab lyrics    song.mp3                    word-level lyric timestamps
-songlab chords    song.mp3 --engine madmom    chord detection, selectable engine
 songlab analyze   song.mp3 [--full]           the whole pipeline
 songlab compare   song.mp3                    several engines side by side
 songlab separate  song.mp3                    stem separation
@@ -200,6 +202,7 @@ songlab export    song.mp3 --format chordpro  ChordPro, JSON, Markdown, ...
 | Engine protocols + registry (`is_available`, `engine_info`) | implemented |
 | Audio validation, FFmpeg discovery, metadata probing (WAV without FFmpeg) | implemented |
 | `songlab info`, `songlab doctor`, error handling and exit codes | implemented |
+| `songlab chords` — chord detection on a registry-selected engine (`--engine`, `--json`, time range) | implemented |
 | Chord metrics (`metrics/`) — timing-free and boundary-aware scoring views | implemented as library code |
 | Key, tempo and lyrics metrics (`metrics/`) — WER/CER, key relation, half/double BPM | implemented as library code |
 | Chord scoring semantics (`evaluation/`) — MIREX equality, duration-weighted CSR | implemented as library code |
@@ -209,7 +212,7 @@ songlab export    song.mp3 --format chordpro  ChordPro, JSON, Markdown, ...
 ## Development
 
 ```bash
-pytest                # 505 tests + 1 environment-dependent skip, no network, no models
+pytest                # 1075 tests + 5 environment-dependent skips, no network, no models
 ruff check . && ruff format --check .
 python -m mypy
 ```

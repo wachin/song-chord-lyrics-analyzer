@@ -422,6 +422,20 @@ collapses are a **penalty artefact of the legacy in-place Viterbi loop, not a de
   Tests: `tests/unit/test_chroma_baseline.py`, `tests/unit/test_benchmark_runner.py`
   and the `--engine` CLI cases in `tests/unit/test_benchmark.py`.
 
+### Chords CLI command (roadmap 47)
+
+* **`songlab chords AUDIO [--engine NAME]` (2026-10-05).** The first analysis
+  command. Engine selection goes through the registry: `--engine NAME` picks a
+  registered `chords` engine and, when unknown, exits 2 listing the registered
+  names; without it the first *available* chord engine is used, so a missing DSP
+  stack surfaces as a dependency error (exit 3) instead of a silent default.
+  `--start`/`--end`/`--min-duration` map to `ChordAnalysisOptions` (validated
+  before any engine runs); the human report lists every timed chord label next to
+  the measured section 45 run cost (processing time, real-time factor, peak RSS),
+  and `--json` prints the canonical `EngineResult`. The command holds no analysis
+  logic. Tests: `tests/unit/test_chords_command.py`. Full suite: 1075 passed,
+  5 skipped.
+
 ### Performance metrics (roadmap 45)
 
 * **Measurement harness (2026-10-04).** The new dependency-free

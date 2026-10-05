@@ -14,7 +14,7 @@ import traceback
 from collections.abc import Sequence
 
 from song_chord_lyrics_analyzer import CLI_NAME, PROJECT_NAME, __version__
-from song_chord_lyrics_analyzer.cli.commands import benchmark, doctor, info
+from song_chord_lyrics_analyzer.cli.commands import benchmark, chords, doctor, info
 from song_chord_lyrics_analyzer.utils.errors import SongLabError
 from song_chord_lyrics_analyzer.utils.logging import configure_logging, get_logger
 
@@ -23,9 +23,14 @@ __all__ = ["build_parser", "main"]
 _logger = get_logger("cli")
 
 EPILOG = """\
+Commands:
+  info       inspect an audio file and report its metadata
+  doctor     report environment, dependency and engine status
+  chords     detect chords with a selectable engine
+  benchmark  score benchmark cases, optionally running an engine
+
 Planned commands (added phase by phase, see ROADMAP.md):
   lyrics    transcribe lyrics with word-level timestamps
-  chords    detect chords with a selectable engine
   analyze   run the full pipeline (lyrics, chords, key, tempo, beats)
   compare   compare several engines on the same song
   separate  separate the mix into stems
@@ -95,6 +100,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     doctor.add_arguments(doctor_parser)
     doctor_parser.set_defaults(handler=doctor.run)
+
+    chords_parser = subparsers.add_parser(
+        "chords",
+        help="detect chords in an audio file with a selectable engine",
+        description=(
+            "Estimate chords for an audio file with a registered chord engine "
+            "(default: the first available one). Use --engine NAME to select a "
+            "specific engine, e.g. chroma-baseline. The run cost comes from the "
+            "section 45 performance harness."
+        ),
+    )
+    chords.add_arguments(chords_parser)
+    chords_parser.set_defaults(handler=chords.run)
 
     benchmark_parser = subparsers.add_parser(
         "benchmark",

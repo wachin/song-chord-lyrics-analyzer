@@ -40,7 +40,7 @@ src/song_chord_lyrics_analyzer/
 ├── __main__.py           `python -m song_chord_lyrics_analyzer`
 ├── cli/                  argument parsing and command implementations
 │   ├── main.py           parser, error translation, exit codes
-│   └── commands/         info, doctor, benchmark
+│   └── commands/         info, doctor, chords, benchmark
 ├── audio/                validation, FFmpeg discovery, metadata probing
 ├── engines/              engine protocols, options, registry, chroma-baseline adapter
 ├── schema/               canonical JSON codec
@@ -126,6 +126,14 @@ Engines are registered in `EngineRegistry` by kind and name, which is what makes
 `songlab chords song.mp3 --engine madmom` possible without the CLI knowing
 anything about Madmom. Adding an engine requires one adapter, one configuration
 entry, tests and documentation - never a change in the CLI or the GUI.
+
+`songlab chords` (roadmap section 47) is the first command to use that registry:
+`--engine NAME` selects a registered `chords` engine, and without it the first
+*available* engine is chosen, so a missing optional dependency becomes a
+`DependencyError` rather than a silent default. The command validates the
+`--start`/`--end`/`--min-duration` flags, maps them to `ChordAnalysisOptions`
+and formats the resulting `EngineResult`; the estimation stays entirely behind
+the protocol.
 
 `create_default_registry()` is the single place where engines become visible
 to the rest of the application. It registers the first concrete adapter today,

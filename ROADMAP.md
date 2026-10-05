@@ -1432,7 +1432,17 @@ The music-theory layer must remain separate from raw audio inference.
 
 ---
 
-# [ ] 32. Key Detection
+# [*] (2026-10-05) 32. Key Detection
+
+*Status (2026-10-05): first candidate done — `krumhansl` (`engines/key_krumhansl.py`)
+averages a CQT chroma profile and correlates it against the 24 rotated
+Krumhansl-Kessler key profiles, returning key, mode, confidence and source through
+the `KeyEngine` protocol with an optional numpy/librosa front end. `songlab
+benchmark --engine krumhansl` now runs it and scores it with the section 44 key
+metrics. Measured, not assumed: on all 360 GuitarSet takes it reaches 0.4278 exact
+accuracy (154/360) with 0.1333 relative-key error and 0.5461 mean weighted score
+(`docs/ENGINE_COMPARISON.md`). More candidates (librosa, chord-sequence inference,
+neural) are still open, and disagreements are preserved rather than averaged.*
 
 Implement multiple candidates.
 
@@ -2028,7 +2038,11 @@ engine behind the flag is `chroma-baseline` (`engines/chroma_baseline.py`), so t
 section 44 chord views, the section 45 real-time factor and a real engine run now meet
 in one report. A declared-empty hypothesis scores 0.0 instead of silently disappearing.
 `tests/unit/test_benchmark_runner.py` and the `--engine` cases in
-`tests/unit/test_benchmark.py` cover the runner and the command.*
+`tests/unit/test_benchmark.py` cover the runner and the command. Since 2026-10-05 the
+runner is kind-agnostic: `--engine NAME` accepts any engine whose output a section 44
+metric family can score (chords, key, tempo, lyrics), dispatches on the engine's kind
+and fills that family's hypothesis; a kind with no metric family is refused up front.
+The second engine behind the flag is the `krumhansl` key engine (section 32).*
 
 Implement:
 

@@ -86,10 +86,14 @@ scores 0.0.
 ## Running an engine (sections 45 + 46)
 
 With `--engine NAME`, the command runs the engine on each case's `audio` file before
-scoring. The run goes through `benchmark/runner.py`, which:
+scoring. The runner dispatches on the engine's kind and fills that family's hypothesis:
+chords (`hypothesis.chords` / `chord_labels`), key (`key`, or `"unknown"` so a miss is
+still scored), tempo (`tempo_bpm`) and lyrics (text plus timed words). An engine kind no
+section 44 metric family can score (beats, stems, notes) is refused before any run. It
+goes through `benchmark/runner.py`, which:
 
-* fills `hypothesis.chords` and `hypothesis.chord_labels` from the engine result
-  (stored fields the engine knows nothing about, such as lyrics, are kept);
+* fills the engine's own family fields, keeping stored fields the engine knows
+  nothing about (such as lyrics when a chord engine runs);
 * fills `duration_seconds`, `processing_time_seconds` and `peak_memory_bytes` from
   the engine's section 45 `PerformanceReport`, measured on this machine at run time;
 * leaves the reference side and cases without `audio` untouched;

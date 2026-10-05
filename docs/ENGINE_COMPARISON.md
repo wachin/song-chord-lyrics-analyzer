@@ -735,6 +735,34 @@ emitted 55 chords (first chord `D#` lasting 0.28 s), the Viterbi decoder emits 8
 (first chord `D#` lasting 7.15 s, against a reference `D#` of 7.44 s). Numbers
 come from the gitignored measurement script; no audio or chart is committed.
 
+## Key engine — Krumhansl-Schmuckler on GuitarSet (roadmap 31/32)
+
+**Why.** Roadmap 32 asks for key detection, and the section 44 key metrics already
+existed without an engine to score. This measures the first candidate, the shipped
+`krumhansl` engine (`engines/key_krumhansl.py`).
+
+**Method.** All 360 GuitarSet takes (CC BY 4.0, audio in the gitignored cache) are
+decoded by the engine — an averaged CQT chroma profile correlated against the 24
+rotated Krumhansl-Kessler major/minor profiles — and scored against the JAMS
+`key_mode` annotation with `exact_key_accuracy`, `relative_key_error` and the
+MIREX-style `weighted_key_score`.
+
+| Metric | Value |
+| --- | ---: |
+| Exact key accuracy | 0.4278 (154/360) |
+| Relative-key error | 0.1333 (48/360) |
+| Mean weighted key score | 0.5461 |
+| Mean reported confidence | 0.5843 |
+| Relation counts | exact 154, fifth 50, relative 48, parallel 16, other 92 |
+| CPU per take | ~0.30 s |
+
+The relative-key confusion (48 takes called by their relative major or minor) is the
+project's documented recurring failure mode and is reported on its own, and 50 more
+takes sit a perfect fifth away. GuitarSet is solo guitar comping and single-line
+playing, so its chroma is sparse: this is a deliberately simple baseline, not a
+claim about key detection in general. Numbers come from the gitignored measurement
+script; no audio is committed.
+
 ## Observations
 
 * **Speed.** On this CPU Parakeet's ONNX int8 path is ~4–5× faster than faster-whisper

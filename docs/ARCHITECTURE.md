@@ -42,7 +42,7 @@ src/song_chord_lyrics_analyzer/
 │   ├── main.py           parser, error translation, exit codes
 │   └── commands/         info, doctor, chords, benchmark
 ├── audio/                validation, FFmpeg discovery, metadata probing
-├── engines/              engine protocols, options, registry, chroma-baseline adapter, decoding
+├── engines/              engine protocols, options, registry, chroma-baseline + krumhansl engines, decoding
 ├── schema/               canonical JSON codec
 ├── models/               canonical typed data model (dataclasses)
 ├── normalization/        chord parsing, rendering, transposition
@@ -144,6 +144,14 @@ is tested without it. `songlab benchmark --engine chroma-baseline` runs it on
 every case that declares an audio file and records the measured section 45 run
 cost alongside the score.
 
+The second concrete adapter is the `krumhansl` key engine
+(`engines/key_krumhansl.py`, roadmap 31/32): it reports key, mode, confidence and
+source through the `KeyEngine` protocol, and its dependency-free correlation half
+is similarly tested without the DSP stack. `songlab benchmark --engine NAME` is
+kind-agnostic — it dispatches on the engine's kind and fills that family's
+hypothesis (chords, key, tempo, lyrics) — so a new engine whose output a section
+44 metric family can score plugs into the benchmark without changing the runner.
+
 Turning per-frame chord scores into a sequence is a separate concern, kept in
 the dependency-free `engines/decoding.py` (`viterbi_decode`). The engine
 exposes `frame_scores` (24 triad states plus a constant no-chord state) and
@@ -202,7 +210,7 @@ Only WAV files can be inspected without FFmpeg.
 | Phase 2 audio foundation | metadata + FFmpeg discovery done; resampling/decoding pending |
 | Phase 3 lyrics laboratory | not started |
 | Phase 4 chord laboratory | chord normalization done; `chroma-baseline` engine reaching the user through `songlab chords` and `songlab benchmark --engine`, with a measured Viterbi decoder (roadmap 19/20); richer engines pending |
-| Phase 5 key/tempo/beats | models done; engines pending |
+| Phase 5 key/tempo/beats | key done: the `krumhansl` engine (roadmap 32) is registered and scored by `songlab benchmark --engine`; tempo and beat engines pending |
 | Phases 6-14 | not started; phase 11 chord, key, tempo and lyrics metrics exist as library code in `metrics/` (roadmap §44) and `songlab benchmark` scores reference/hypothesis cases into reports (roadmap §46), filling the hypothesis from a measured engine run when a case declares audio |
 | Phase 15+ GUI | not started (by design) |
 

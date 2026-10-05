@@ -158,14 +158,20 @@ class TestProvenance:
 
 
 class TestDefaultRegistry:
-    def test_default_registry_ships_the_first_concrete_engine(self) -> None:
+    def test_default_registry_ships_the_first_concrete_engines(self) -> None:
         registry = create_default_registry()
         assert isinstance(registry, EngineRegistry)
-        assert registry.all_names() == ["chroma-baseline"]
+        assert registry.all_names() == ["chroma-baseline", "krumhansl"]
         assert registry.kinds() == list(EngineKind)
 
     def test_the_chroma_baseline_is_registered_as_a_chord_engine(self) -> None:
         registry = create_default_registry()
         engine = registry.get(EngineKind.CHORDS, "chroma-baseline")
         assert engine.kind is EngineKind.CHORDS
+        assert engine.engine_info().version is not None
+
+    def test_krumhansl_is_registered_as_a_key_engine(self) -> None:
+        registry = create_default_registry()
+        engine = registry.get(EngineKind.KEY, "krumhansl")
+        assert engine.kind is EngineKind.KEY
         assert engine.engine_info().version is not None

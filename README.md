@@ -126,6 +126,7 @@ before the CLI is allowed to grow. Current state and direction:
 | `songlab benchmark` — `benchmark/{benchmark.json,csv,md}` over stored results | implemented; `--engine` runs a registered chord engine over cases with audio |
 | `songlab chords` — first analysis command, on a selectable registered engine | implemented |
 | `chroma-baseline` engine — template matching with a Viterbi decoder (roadmap 19/20) | implemented |
+| `krumhansl` key engine — chroma profile vs the Krumhansl-Kessler profiles (roadmap 31/32) | implemented |
 | Stem separation, alignment, fusion, exports | later |
 | GUI | last (phase 15) |
 
@@ -205,6 +206,7 @@ songlab export    song.mp3 --format chordpro  ChordPro, JSON, Markdown, ...
 | `songlab info`, `songlab doctor`, error handling and exit codes | implemented |
 | `songlab chords` — chord detection on a registry-selected engine (`--engine`, `--json`, time range) | implemented |
 | Chord decoder — bulk majority smoothing or max-sum Viterbi with a measured change penalty and no-chord state | implemented |
+| `krumhansl` key engine — key, mode and correlation confidence, scored by `songlab benchmark --engine` | implemented |
 | Chord metrics (`metrics/`) — timing-free and boundary-aware scoring views | implemented as library code |
 | Key, tempo and lyrics metrics (`metrics/`) — WER/CER, key relation, half/double BPM | implemented as library code |
 | Chord scoring semantics (`evaluation/`) — MIREX equality, duration-weighted CSR | implemented as library code |
@@ -214,7 +216,7 @@ songlab export    song.mp3 --format chordpro  ChordPro, JSON, Markdown, ...
 ## Development
 
 ```bash
-pytest                # 1114 tests + 5 environment-dependent skips, no network, no models
+pytest                # 1137 tests + 6 environment-dependent skips, no network, no models
 ruff check . && ruff format --check .
 python -m mypy
 ```

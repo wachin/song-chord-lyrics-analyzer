@@ -422,6 +422,35 @@ collapses are a **penalty artefact of the legacy in-place Viterbi loop, not a de
   Tests: `tests/unit/test_chroma_baseline.py`, `tests/unit/test_benchmark_runner.py`
   and the `--engine` CLI cases in `tests/unit/test_benchmark.py`.
 
+### Key engine (roadmap 31/32)
+
+* **`krumhansl` (2026-10-05).** The first key engine (roadmap 32): a per-frame CQT
+  chromagram averaged into one pitch-class profile, correlated against the 24
+  rotated Krumhansl-Kessler major/minor profiles, returning key, mode, confidence
+  and source through the `KeyEngine` protocol. The correlation half is
+  dependency-free library code (`estimate_key`, `pearson_correlation`), tested
+  without numpy or librosa; the optional DSP front end reports availability
+  honestly and a silent profile yields an explicitly unknown key rather than an
+  invented one.
+* **Measured, not assumed.** On all 360 GuitarSet takes (CC BY 4.0, JAMS
+  `key_mode` reference) the engine reaches **0.4278 exact accuracy** (154/360)
+  with **0.1333 relative-key error** and a 0.5461 mean weighted score, at ~0.30 s
+  of CPU per take (`docs/ENGINE_COMPARISON.md`). `songlab benchmark --engine
+  krumhansl` runs and scores it end to end. Tests: `tests/unit/test_key_krumhansl.py`.
+
+### Multi-kind benchmark runner (roadmap 46)
+
+* **`songlab benchmark --engine NAME` runs any scoreable engine kind (2026-10-05).**
+  `benchmark/runner.py` no longer assumes a chord engine: it dispatches on the
+  engine's kind and fills that family's hypothesis — chords, key (`"C major"`,
+  or `"unknown"` so a miss is still scored), tempo (`tempo_bpm`) and lyrics
+  (text plus timed words) — from the same canonical `EngineResult`. An engine kind
+  no section 44 metric family can score (beats, stems, notes) is refused before
+  any run. `EngineRun` now carries the kind and a per-kind summary line instead of
+  a chord count. Tests: the new `TestRunOtherEngineKinds` cases plus fake key,
+  tempo and lyrics engines in `tests/fixtures/`. Full suite: 1137 passed, 6 skipped
+  (1142 passed, 1 skipped with the optional DSP stack).
+
 ### Viterbi decoder (roadmap 19/20)
 
 * **Dependency-free sequence decoder (2026-10-05).** New

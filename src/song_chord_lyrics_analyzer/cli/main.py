@@ -14,7 +14,7 @@ import traceback
 from collections.abc import Sequence
 
 from song_chord_lyrics_analyzer import CLI_NAME, PROJECT_NAME, __version__
-from song_chord_lyrics_analyzer.cli.commands import benchmark, chords, doctor, info
+from song_chord_lyrics_analyzer.cli.commands import analyze, benchmark, chords, doctor, info
 from song_chord_lyrics_analyzer.utils.errors import SongLabError
 from song_chord_lyrics_analyzer.utils.logging import configure_logging, get_logger
 
@@ -27,11 +27,11 @@ Commands:
   info       inspect an audio file and report its metadata
   doctor     report environment, dependency and engine status
   chords     detect chords with a selectable engine
+  analyze    run the full pipeline and assemble the canonical document
   benchmark  score benchmark cases, optionally running an engine
 
 Planned commands (added phase by phase, see ROADMAP.md):
   lyrics    transcribe lyrics with word-level timestamps
-  analyze   run the full pipeline (lyrics, chords, key, tempo, beats)
   compare   compare several engines on the same song
   separate  separate the mix into stems
   fuse      combine engine results into one consensus analysis
@@ -113,6 +113,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     chords.add_arguments(chords_parser)
     chords_parser.set_defaults(handler=chords.run)
+
+    analyze_parser = subparsers.add_parser(
+        "analyze",
+        help="run chords, key and tempo engines and assemble the canonical document",
+        description=(
+            "Analyse one audio file with the registered chord, key and tempo "
+            "engines and assemble the canonical document with its provenance. "
+            "A layer whose engine is unavailable is reported as skipped and the "
+            "rest of the analysis is kept. Lyrics are not analysed yet: no "
+            "lyrics engine is registered."
+        ),
+    )
+    analyze.add_arguments(analyze_parser)
+    analyze_parser.set_defaults(handler=analyze.run)
 
     benchmark_parser = subparsers.add_parser(
         "benchmark",

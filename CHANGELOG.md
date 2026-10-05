@@ -422,6 +422,30 @@ collapses are a **penalty artefact of the legacy in-place Viterbi loop, not a de
   Tests: `tests/unit/test_chroma_baseline.py`, `tests/unit/test_benchmark_runner.py`
   and the `--engine` CLI cases in `tests/unit/test_benchmark.py`.
 
+### Analysis pipeline and `songlab analyze` (roadmap 8/9/47/61/62)
+
+* **The pipeline that finally assembles the canonical document (2026-10-05).** New
+  `song_chord_lyrics_analyzer.analysis` runs the registered chord, key and tempo
+  engines on one file and builds the `AnalysisResult` that the model defined and
+  nothing used: `Provenance` (application version, input SHA-256, Python and
+  platform, the engines that produced each layer and their configuration) and
+  `AnalysisRun` (status, per-step trace, warnings and errors). Raw engine payloads
+  are preserved under the document's `raw`, and per-engine run times are summed
+  from each engine's own section 45 measurement rather than re-measured.
+* **Three rules the pipeline keeps.** A failing engine never destroys a document
+  — the other layers survive and the run becomes `partial`; an unavailable engine
+  is never called, it is reported as a skipped step; and nothing is invented, so a
+  layer that produced nothing contributes no field and lyrics stay empty because
+  no lyrics engine exists. When *no* engine can run, the command fails with the
+  usual dependency hint instead of returning an empty document.
+* **`songlab analyze SONG [--engine KIND=NAME] [--json] [--no-hash]` (roadmap 47).**
+  The command presents the outcome and holds no analysis logic: per-step lines,
+  the chord/key/tempo results, the measured total with its real-time factor,
+  provenance and any warnings. Verified end to end on a 22.3 s GuitarSet excerpt
+  (8 chords, key `D# major`, 129.2 BPM, full provenance). Tests:
+  `tests/unit/test_analysis.py`. Full suite: 1165 passed, 9 skipped (1173 passed,
+  1 skipped with the optional DSP stack).
+
 ### Tempo engine (roadmap 33)
 
 * **`librosa-tempo` (2026-10-05).** The first tempo engine: librosa's beat

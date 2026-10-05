@@ -125,6 +125,7 @@ before the CLI is allowed to grow. Current state and direction:
 | Lyrics / key / tempo / beat engines behind the interfaces | next |
 | `songlab benchmark` — `benchmark/{benchmark.json,csv,md}` over stored results | implemented; `--engine` runs a registered chord engine over cases with audio |
 | `songlab chords` — first analysis command, on a selectable registered engine | implemented |
+| `songlab analyze` — chord + key + tempo engines assembled into the canonical document with provenance | implemented |
 | `chroma-baseline` engine — template matching with a Viterbi decoder (roadmap 19/20) | implemented |
 | `krumhansl` key engine — chroma profile vs the Krumhansl-Kessler profiles (roadmap 31/32) | implemented |
 | `librosa-tempo` tempo engine — BPM with half/double readings kept (roadmap 33) | implemented |
@@ -166,6 +167,7 @@ songlab info song.mp3 --json   # machine-readable
 songlab info song.mp3 --hash   # add the SHA-256 used for caching/provenance
 songlab chords song.wav        # chord detection with the first available engine
 songlab chords song.wav --engine chroma-baseline --json   # select an engine, emit JSON
+songlab analyze song.wav       # chords + key + tempo, assembled with provenance
 ```
 
 Example:
@@ -209,6 +211,7 @@ songlab export    song.mp3 --format chordpro  ChordPro, JSON, Markdown, ...
 | Chord decoder — bulk majority smoothing or max-sum Viterbi with a measured change penalty and no-chord state | implemented |
 | `krumhansl` key engine — key, mode and correlation confidence, scored by `songlab benchmark --engine` | implemented |
 | `librosa-tempo` tempo engine — BPM scored as absolute, half-time and double-time error by `songlab benchmark --engine` | implemented |
+| `songlab analyze` — the canonical document (`AnalysisResult` + `Provenance` + `AnalysisRun`) from the registered engines | implemented |
 | Chord metrics (`metrics/`) — timing-free and boundary-aware scoring views | implemented as library code |
 | Key, tempo and lyrics metrics (`metrics/`) — WER/CER, key relation, half/double BPM | implemented as library code |
 | Chord scoring semantics (`evaluation/`) — MIREX equality, duration-weighted CSR | implemented as library code |
@@ -218,7 +221,7 @@ songlab export    song.mp3 --format chordpro  ChordPro, JSON, Markdown, ...
 ## Development
 
 ```bash
-pytest                # 1146 tests + 9 environment-dependent skips, no network, no models
+pytest                # 1165 tests + 9 environment-dependent skips, no network, no models
 ruff check . && ruff format --check .
 python -m mypy
 ```

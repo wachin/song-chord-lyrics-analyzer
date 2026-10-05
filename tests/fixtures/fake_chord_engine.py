@@ -10,6 +10,7 @@ file is never touched.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from song_chord_lyrics_analyzer.engines.base import ChordAnalysisOptions, EngineKind
 from song_chord_lyrics_analyzer.models.analysis import EngineInfo, EngineResult
@@ -34,6 +35,7 @@ class FakeChordEngine:
         peak_rss_bytes: int | None = 4_242_424,
         failure: Exception | None = None,
         version: str = "9.9.0",
+        raw: Any | None = None,
     ) -> None:
         self.available = available
         self.processing_time_seconds = processing_time_seconds
@@ -41,6 +43,7 @@ class FakeChordEngine:
         self.peak_rss_bytes = peak_rss_bytes
         self.failure = failure
         self.version = version
+        self.raw = raw
         self.calls: list[Path] = []
         self.options_seen: list[ChordAnalysisOptions] = []
         if chords is None:
@@ -80,6 +83,7 @@ class FakeChordEngine:
             audio_path=Path(audio_path),
             chords=list(self.chords),
             processing_time_seconds=self.processing_time_seconds,
+            raw=self.raw,
             metadata={
                 "performance": {
                     "processing_time_seconds": self.processing_time_seconds,

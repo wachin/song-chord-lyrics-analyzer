@@ -40,11 +40,12 @@ src/song_chord_lyrics_analyzer/
 ├── __main__.py           `python -m song_chord_lyrics_analyzer`
 ├── cli/                  argument parsing and command implementations
 │   ├── main.py           parser, error translation, exit codes
-│   └── commands/         info, doctor, chords, benchmark
+│   └── commands/         info, doctor, chords, analyze, benchmark
 ├── audio/                validation, FFmpeg discovery, metadata probing
 ├── engines/              engine protocols, options, registry, chord + key + tempo engines, decoding
 ├── schema/               canonical JSON codec
 ├── models/               canonical typed data model (dataclasses)
+├── analysis/             runs the engines and assembles one AnalysisResult + Provenance
 ├── normalization/        chord parsing, rendering, transposition
 ├── evaluation/           chord scoring semantics (roadmap §44): MIREX equality, CSR
 ├── alignment/            (phase 9) shared timeline
@@ -57,7 +58,7 @@ src/song_chord_lyrics_analyzer/
 └── utils/                paths, executables, logging, errors, time
 ```
 
-## 3. Data flow of one analysis (target)
+## 3. Data flow of one analysis (first stages implemented)
 
 ```text
 audio file
@@ -80,6 +81,12 @@ metrics / confidence (phase 11)
    ▼
 export (phase 12)                JSON, ChordPro, Markdown, MIDI, MusicXML
 ```
+
+What exists today: `analysis/service.py` runs the chord, key and tempo engines and
+assembles the `AnalysisResult` with `Provenance` and `AnalysisRun` (`songlab
+analyze`, `--json` prints the document through the section 48 codec). Everything
+below the "normalization" line — alignment, fusion, confidence aggregation and the
+ChordPro/Markdown/MIDI/MusicXML exporters — is still an empty package.
 
 ## 4. Canonical model (implemented)
 

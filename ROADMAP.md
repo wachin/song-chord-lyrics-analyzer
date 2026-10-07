@@ -315,7 +315,8 @@ REAL AUDIO → chord analysis → timestamped chord events → usable JSON/domai
 representation → playback timeline → synchronized chord display
 ```
 
-**Current status:** `[ ]`
+**Current status:** `[~]` — the headless half works (links 5–6); a display that
+shows the chord changing is still missing (link 7).
 
 This is the **first product milestone**. It is deliberately small: the first
 version does not need perfect chord recognition — it needs to be real,
@@ -324,11 +325,18 @@ by better engines later. Accuracy work happens in Phase I, **after** this works.
 
 ### Tasks
 
-- [ ] A single application session/service: open file → decode → analyze →
-  player → `chord_at(position_seconds)` lookup (binary search over events)
-- [ ] Playback timeline model: song duration, playhead position, current event
-- [ ] Deterministic test of the synchronization logic (fake clock: at t=0..n the
-  right chord is returned; boundary and `N`/`?` handling defined)
+- [x] A single application session/service: open file → decode → analyze →
+  player → `chord_at(position_seconds)` lookup (binary search over events).
+  `app/session.py`: `SongSession` owns the player, keeps the chord events and
+  answers `chord_at`/`current_chord`; no Qt, no ML imports
+- [x] Playback timeline model: song duration, playhead position, current event
+  — `SessionSnapshot` (frozen dataclass returned by `session.snapshot()`)
+- [x] Deterministic test of the synchronization logic (fake clock: at t=0..n the
+  right chord is returned; boundary and `N`/`?` handling defined). Half-open
+  intervals `start <= t < end`; before the first event, inside a gap and at/past
+  the last end return `None`; `N` is returned as a claim of silence, not skipped.
+  `tests/unit/test_session.py` drives a fake clock; `tests/integration/test_session_integration.py`
+  runs the real pipeline (and real playback where a device exists)
 - [ ] Minimal display surface showing the current chord, updating with
   playback (this may be the first slice of the Phase D window — either way,
   the milestone is not declared until a user can *see* it change)

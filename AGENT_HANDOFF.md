@@ -66,17 +66,32 @@ Audit executed **2026-10-06** by running the code (not by reading docs).
   logging.
 - Metrics/evaluation as library code (`metrics/`, `evaluation/`), pinned
   GuitarSet annotation oracles in `tests/fixtures/`.
-- Tests: **1165 passed / 9 skipped** (core `.venv`), **1173 passed / 1
-  skipped** (DSP `.venv-chords`); `ruff check`, `ruff format --check` (84
-  files), `mypy` (57 files) all green.
+- **Headless Phase A/B/C work (same day, after the audit):**
+  - `audio/decode.py` — one shared decode service (`decode_audio()`): a
+    librosa/soundfile backend plus a dependency-free stdlib WAV backend,
+    returning interleaved mono/stereo floats in `[-1, 1]` and the sample rate.
+  - `audio/playback.py` — `Player` protocol (no Qt), pure `PlaybackTimeline`
+    (injectable clock) and a `sounddevice` backend (optional `playback` extra,
+    MIT, `docs/DEPENDENCY_MATRIX.md` §2.1). **Verified on a real device.**
+  - `app/session.py` — `SongSession`: open → decode → analyze → player →
+    `chord_at(seconds)` (binary search) and `SessionSnapshot`. No Qt, no ML.
+  - New committed tests: real-file E2E (`tests/integration/test_analysis_e2e.py`),
+    decode unit + integration tests, playback unit (fake PortAudio) + real-device
+    tests, session unit (fake clock) + integration tests. A new CI job installs
+    the `dsp` extra so the real engines run somewhere in CI.
+- Tests: **1231 passed / 49 skipped** (core `.venv`), **1279 passed / 1
+  skipped** (DSP `.venv-chords`); `ruff check`, `ruff format --check` (98
+  files), `mypy` (61 files) all green.
 
 ### Partially implemented
 
-- **Real-file E2E**: verified manually during the audit, but **no committed
-  automated test** runs a real song end to end (tests use synthetic WAV +
-  fake engines).
-- **Decoding**: each DSP engine calls `librosa.load` itself; there is **no
-  shared application-level decode service** usable by analysis *and* playback.
+- **Decoding**: the shared service exists, but the DSP engines still call
+  `librosa.load` themselves and are not yet switched over to it (roadmap
+  Phase A).
+- **Waveform peak data** for the timeline: not implemented.
+- **Synchronized display**: `SongSession` answers the right chord for any
+  instant, but nothing renders it — links 5 and 6 of the milestone exist,
+  link 7 (a user *seeing* it change) does not.
 - **Chord confidence**: field exists, baseline engine reports `unknown`.
 - **Transpose**: `transpose_chord_label()` / `transpose_note_name()` exist as
   library functions only — no user-facing workflow.
@@ -97,10 +112,10 @@ Audit executed **2026-10-06** by running the code (not by reading docs).
 
 ### Planned / not started (product path)
 
-- **Audio playback** — zero playback code in `src/` (only inside `external/`).
-- **Current playback timestamp** — follows from playback.
 - **Any GUI / display** — zero Qt code in `src/`; `docs/GUI_REQUIREMENTS.md`
-  is a plan only.
+  is a plan only. Nothing yet renders the chord that `SongSession` reports.
+- **Scripted demo path** — input file → chord list → playback → live chord,
+  documented honestly in the README.
 - Lyrics engine integration, synchronized lyrics, editing/undo-redo,
   transpose/simplify/export workflows, packaging.
 
@@ -135,8 +150,10 @@ displayed chord as playback advances.
 
 **Until this works, the project must not be described as a functional
 Chordify/Chord AI-style application — it is an analysis laboratory.**
-Links 1–4 of that path already exist and were verified on real audio; links
-5–7 (playback, position, synchronized display) do not exist at all.
+Links 1–4 of that path were verified on real audio; links 5–6 (playback and the
+playhead position) now exist as a tested headless layer plus `SongSession`;
+**link 7 — a user seeing the chord change as the song plays — does not exist
+yet.**
 
 ---
 
@@ -145,7 +162,10 @@ Links 1–4 of that path already exist and were verified on real audio; links
 Search the repository before creating anything new.
 
 - `audio/` — `validation.py` (safe input), `probe.py` (ffprobe/WAV metadata),
-  `ffmpeg.py` (discovery, install hints, no-shell execution).
+  `ffmpeg.py` (discovery, install hints, no-shell execution), `decode.py`
+  (the shared decode service) and `playback.py` (player + timeline).
+- `app/session.py` — `SongSession` / `SessionSnapshot`: the headless service a
+  GUI or CLI drives (open, play, `chord_at`, snapshot).
 - `engines/base.py` — protocols `ChordEngine`, `LyricsEngine`, `BeatEngine`,
   `KeyEngine`, `TempoEngine`; `EngineKind`; options dataclasses.
 - `engines/registry.py` — `EngineRegistry`, `create_default_registry()`.
@@ -254,12 +274,17 @@ are obsolete).
 
 1. `AGENT_HANDOFF.md` (this file),
 2. `ROADMAP.md`,
-3. the relevant source modules (start with `analysis/service.py`,
-   `engines/`, `audio/`, `cli/`).
+3. the relevant source modules (start with `app/session.py`,
+   `audio/playback.py`, `audio/decode.py`, `analysis/service.py`).
 
-Then **audit the first incomplete product-critical phase** (currently
-Phase A — audio input & playback foundation, and the untested real-file E2E in
-Phase B) and propose the **smallest** implementation sequence that advances
-the First Product Milestone. Wait for the user/developer's direction before
-undertaking large or unrelated work. No new features were to be implemented in
-the reset session itself — that boundary was respected.
+The headless half of the First Product Milestone is done and tested: real audio
+is analysed, played, and `SongSession.chord_at()`/`current_chord()` report the
+right event for any instant. What is missing is the last step: **something the
+user can see**. The next smallest step is the remaining Phase C work — a minimal
+read-only display (or the first slice of the Phase D PyQt6 window) driven only
+by `SongSession.snapshot()`, plus the scripted demo path documented in the
+README — before any lyrics, editing or accuracy work.
+
+Verify by running the real thing (`songlab analyze` + the new tests), update
+`ROADMAP.md` markers in the same change, run the full gate, and only then
+commit. Keep the GUI → `app/` → engines direction; never GUI → librosa.

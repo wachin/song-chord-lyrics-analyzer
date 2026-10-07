@@ -59,15 +59,15 @@ submodule is never the integration path.
 `ROADMAP.md` tracks its own progress. Every section, subsection and task carries a
 bracket marker:
 
-* `[x]` — already achieved when the convention was introduced (2026-09-23);
-* `[ ]` — not achieved yet; an italic *Status* line states what exists and what is
-  missing;
-* `[*]` — **newly completed**, and it must carry the completion date, for example
-  `[*] (2026-09-24)`.
+* `[x]` — **implemented**: the requirement exists in the repository, runs, and was
+  verified by executing it (not by documentation or partial tests);
+* `[~]` — **partially implemented**: the missing part is stated in the phase;
+* `[ ]` — **not implemented**.
 
 Finish work and mark it in the same change. A change that advances a roadmap item but
 leaves its marker unset is incomplete, exactly like a change with no tests. Never mark
-a section `[x]` because it looks close, and never invent a fourth marker.
+a section `[x]` because it looks close, and never invent a fourth marker. (The old
+`[*]` convention belongs to the archived pre-reset roadmap.)
 
 ## Other rules that are easy to get wrong
 

@@ -7,7 +7,7 @@
 [![Offline-first](https://img.shields.io/badge/offline--first-yes-success.svg)](#design-principles)
 [![Core dependencies](https://img.shields.io/badge/core%20dependencies-none-brightgreen.svg)](#design-principles)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
-[![Tests](https://img.shields.io/badge/tests-505%20passing-brightgreen.svg)](#development)
+[![Tests](https://img.shields.io/badge/tests-1231%20passing-brightgreen.svg)](#development)
 
 A cross-platform, offline-first laboratory that analyzes an audio song and
 produces a synchronized representation of its **lyrics, chords, beats, tempo
@@ -221,13 +221,13 @@ songlab export    song.mp3 --format chordpro  ChordPro, JSON, Markdown, ...
 ## Development
 
 ```bash
-pytest                # 1165 tests + 9 environment-dependent skips, no network, no models
+pytest                # 1231 tests + environment-dependent skips, no network, no models
 ruff check . && ruff format --check .
 python -m mypy
 ```
 
-Finished roadmap work must be marked in the same change: a new completion gets a
-`[*]` marker with its date in [`ROADMAP.md`](ROADMAP.md); see
+Finished roadmap work must be marked in the same change: the task moves to `[x]`
+in [`ROADMAP.md`](ROADMAP.md) (`[~]` when only part of it landed); see
 [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 See [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) for setup conventions and how to
@@ -280,7 +280,7 @@ temporary WAVs).
 
 | Document | Contents |
 | --- | --- |
-| [`ROADMAP.md`](ROADMAP.md) | the specification, phase plan and live progress tracker (`[x]` / `[ ]` / `[*]` markers) |
+| [`ROADMAP.md`](ROADMAP.md) | the specification, phase plan and live progress tracker (`[x]` / `[~]` / `[ ]` markers) |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | layering, model, error codes, status |
 | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | setup, conventions, adding an engine |
 | [`AGENTS.md`](AGENTS.md) | rules for coding agents: `external/` is reference-only, roadmap markers |

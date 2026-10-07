@@ -113,9 +113,14 @@ improvements → additional engines/research.**
 ## 1. Current Reality / Baseline Audit
 
 **[P]** Verified by execution on 2026-10-06 (Linux, Python 3.13, CPU-only).
-Gate at the time of audit: `ruff check` clean, `ruff format --check` 84 files
+Gate at the time of the audit: `ruff check` clean, `ruff format --check` 84 files
 clean, `mypy` 57 files clean, `pytest` **1165 passed / 9 skipped** (core venv)
 and **1173 passed / 1 skipped** (DSP venv with numpy/librosa).
+
+Gate re-run after the headless Phase A/B/C work (same day): `ruff` clean,
+`ruff format --check` 98 files,
+`mypy` 61 files, `pytest` **1231 passed / 49 skipped** (core venv) and **1279
+passed / 1 skipped** (DSP venv with numpy/librosa/soundfile/sounddevice).
 
 ### The product path, link by link
 

@@ -36,6 +36,14 @@ dev = [
     "ruff>=0.5",
     "mypy>=1.10",
 ]
+# Optional DSP stack used by the chord/key/tempo engines. Kept out of the
+# required dependencies so `songlab info` and `songlab doctor` work on a bare
+# install; see docs/DEPENDENCY_MATRIX.md for the licence audit.
+dsp = [
+    "numpy>=1.24",
+    "librosa>=0.10",
+    "soundfile>=0.12",
+]
 
 [project.scripts]
 songlab = "song_chord_lyrics_analyzer.cli.main:main"

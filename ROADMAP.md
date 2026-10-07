@@ -163,9 +163,11 @@ development system**, not yet a functional Chordify/Chord AI-style application.
   `ENGINE_COMPARISON.md`, `BENCHMARK.md`, `TROUBLESHOOTING.md`.
 * `[~]` Chord confidence: `ChordEvent.confidence` exists but the baseline
   engine reports `unknown` (honestly — it has no calibrated confidence yet).
-* `[~]` Real-file E2E: verified manually during this audit; there is **no
-  committed automated test** that runs a real song file end to end (tests use
-  synthetic WAV fixtures and fake engines).
+* `[x]` Real-file E2E: `tests/integration/test_analysis_e2e.py` runs the real
+  default registry (chroma-baseline + krumhansl + librosa-tempo) over a
+  deterministic generated WAV and, with FFmpeg, over its MP3 transcode, and
+  asserts timestamped chord events cover the file. It skips without the
+  optional DSP stack.
 * `[~]` Transposition: `transpose_chord_label()` /
   `transpose_note_name()` exist and are tested as library functions; there is
   no user-facing transpose workflow (CLI or GUI).
@@ -250,9 +252,12 @@ output, not the algorithm.
 - [x] Serialization through the canonical JSON codec (schema version 1)
 - [x] Exposed via `run_analysis()` and `songlab analyze --json`
 - [x] Verified manually on a real MP3 song (2026-10-06): 76 timestamped events, exit 0
-- [ ] Committed end-to-end integration test: real audio file → `run_analysis()`
+- [x] Committed end-to-end integration test: real audio file → `run_analysis()`
   → assert timestamped chord events cover the duration (fixture audio committed
-  or generated deterministically; must not depend on a private submodule)
+  or generated deterministically; must not depend on a private submodule).
+  `tests/integration/test_analysis_e2e.py` writes a deterministic C–G–F–C WAV,
+  runs the real default registry and, where FFmpeg exists, the same file as an
+  MP3 transcode; skips honestly without the DSP stack.
 - [ ] Per-chord confidence from the baseline (score margin), so `confidence` is
   a measured number instead of always `unknown`
 - [ ] Document the stable JSON serialization contract (fields of a chord event,

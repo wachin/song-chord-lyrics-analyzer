@@ -6,6 +6,14 @@ readable with the standard library so the CLI works out of the box.
 
 from __future__ import annotations
 
+from song_chord_lyrics_analyzer.audio.decode import (
+    BACKEND_AUTO,
+    BACKEND_DSP,
+    BACKEND_WAVE,
+    DecodedAudio,
+    decode_audio,
+    decode_with_wave,
+)
 from song_chord_lyrics_analyzer.audio.ffmpeg import (
     FFMPEG_ENV_VAR,
     FFPROBE_ENV_VAR,
@@ -29,11 +37,17 @@ from song_chord_lyrics_analyzer.audio.validation import (
 )
 
 __all__ = [
+    "BACKEND_AUTO",
+    "BACKEND_DSP",
+    "BACKEND_WAVE",
     "FFMPEG_ENV_VAR",
     "FFPROBE_ENV_VAR",
     "SUPPORTED_AUDIO_EXTENSIONS",
+    "DecodedAudio",
     "FfmpegTools",
     "compute_file_hash",
+    "decode_audio",
+    "decode_with_wave",
     "discover_ffmpeg_tools",
     "ffmpeg_install_hint",
     "find_ffmpeg",

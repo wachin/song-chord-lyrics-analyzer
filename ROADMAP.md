@@ -122,7 +122,7 @@ and **1173 passed / 1 skipped** (DSP venv with numpy/librosa).
 | # | Link | Status | Evidence |
 | --- | --- | --- | --- |
 | 1 | Real audio file input | `[x]` | `audio/validation.py` + `audio/probe.py` (ffprobe; WAV via stdlib). Verified on a real song file (296.8 s, MP3, 324 kbit/s). |
-| 2 | Decoding to samples | `[~]` | Works: each DSP engine calls `librosa.load` itself (`engines/chroma_baseline.py`, `key_krumhansl.py`, `tempo_librosa.py`; soundfile backend decodes MP3). **Missing:** no shared application-level decode service, and nothing decodes audio for playback. |
+| 2 | Decoding to samples | `[~]` | Shared service landed (`audio/decode.py` → `decode_audio()`: librosa/soundfile backend plus a stdlib WAV backend, mono/interleaved floats + sample rate), tested on a real compressed transcode. The DSP engines still call `librosa.load` themselves, and the service is not yet wired into playback. |
 | 3 | Chord engine on real audio | `[x]` | `ChromaBaselineEngine` registered, tested, measured (CSR 0.4260 with Viterbi 0.80 on 180 GuitarSet takes — `docs/ENGINE_COMPARISON.md`). Ran on a real song during the audit. |
 | 4 | Timestamped ChordEvent sequence | `[x]` | `songlab chords` printed 76 events with `start`/`end`/`label` on a real song; `songlab analyze --json` emitted the same inside the canonical document with provenance (schema version 1, `schema/codec.py`). |
 | 5 | Audio playback | `[ ]` | **No playback code exists in `src/`.** The only playback implementations in the repository are inside `external/` (read-only third-party reference submodules). |
@@ -198,18 +198,27 @@ development system**, not yet a functional Chordify/Chord AI-style application.
 - [x] Metadata probing: ffprobe + WAV fallback (`audio/probe.py`)
 - [x] FFmpeg discovery, no-shell invocation, install hints (`audio/ffmpeg.py`)
 - [~] Decoding to samples for **analysis** — works, but only inside each engine
-  via `librosa.load`; there is no shared decode entry point
-- [ ] Shared application-level decode service (path → mono/stereo samples +
-  sample rate) reused by analysis *and* playback, so engines stop owning decoding
+  via `librosa.load`; the shared service exists (below) but the engines have not
+  been switched over to it yet
+- [~] Shared application-level decode service (path → mono/stereo samples +
+  sample rate): `audio/decode.py` exposes `decode_audio()` with a librosa/soundfile
+  backend and a dependency-free stdlib WAV backend, and returns one flat
+  interleaved float buffer plus its sample rate. Tests: `tests/unit/test_decode.py`
+  (WAV half runs in the core venv) and `tests/integration/test_decode_integration.py`
+  (a real compressed transcode). **Remaining:** engines and playback must call it
+  so engines stop owning decoding
 - [ ] Playback abstraction: player interface with `load`, `play`, `pause`,
   `seek`, `position()`, `duration()`, `state` callbacks (no Qt types in it)
 - [ ] Playback backend decision (candidate: `sounddevice`; alternative: Qt
   Multimedia in Phase D) — small dependency research, license noted in
   `docs/DEPENDENCY_MATRIX.md`, then implement
 - [ ] Waveform peak data extraction for the timeline (downsampled min/max per pixel bucket)
-- [ ] Tests: unit tests with committed WAV fixtures; integration test that
-  plays/seeks a short file headlessly (CI-safe: no audio device → mock/skip)
-- [ ] Works with a real MP3 file, not only WAV
+- [ ] Tests: integration test that plays/seeks a short file headlessly
+  (CI-safe: no audio device → mock/skip). The decode half of this task is done
+  (`tests/unit/test_decode.py`, `tests/integration/test_decode_integration.py`)
+- [x] Works with a real MP3 file, not only WAV: `decode_audio()` reads a real
+  compressed file through soundfile/librosa, and the E2E analysis test runs the
+  whole pipeline on an MP3 transcode of its generated fixture
 
 ### Files / modules
 

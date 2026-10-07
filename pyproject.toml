@@ -44,6 +44,12 @@ dsp = [
     "librosa>=0.10",
     "soundfile>=0.12",
 ]
+# Optional playback backend (roadmap Phase A). sounddevice is MIT and binds the
+# system PortAudio through cffi; numpy is needed for the stream callback buffer.
+playback = [
+    "numpy>=1.24",
+    "sounddevice>=0.5",
+]
 
 [project.scripts]
 songlab = "song_chord_lyrics_analyzer.cli.main:main"

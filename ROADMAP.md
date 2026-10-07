@@ -125,13 +125,15 @@ and **1173 passed / 1 skipped** (DSP venv with numpy/librosa).
 | 2 | Decoding to samples | `[~]` | Shared service landed (`audio/decode.py` → `decode_audio()`: librosa/soundfile backend plus a stdlib WAV backend, mono/interleaved floats + sample rate), tested on a real compressed transcode. The DSP engines still call `librosa.load` themselves, and the service is not yet wired into playback. |
 | 3 | Chord engine on real audio | `[x]` | `ChromaBaselineEngine` registered, tested, measured (CSR 0.4260 with Viterbi 0.80 on 180 GuitarSet takes — `docs/ENGINE_COMPARISON.md`). Ran on a real song during the audit. |
 | 4 | Timestamped ChordEvent sequence | `[x]` | `songlab chords` printed 76 events with `start`/`end`/`label` on a real song; `songlab analyze --json` emitted the same inside the canonical document with provenance (schema version 1, `schema/codec.py`). |
-| 5 | Audio playback | `[ ]` | **No playback code exists in `src/`.** The only playback implementations in the repository are inside `external/` (read-only third-party reference submodules). |
-| 6 | Current playback timestamp | `[ ]` | Follows from 5: there is no player, so no position query exists. |
+| 5 | Audio playback | `[x]` | `audio/playback.py`: `SoundDevicePlayer` streams decoded samples through PortAudio (`sounddevice`, optional `playback` extra), with `load`/`play`/`pause`/`stop`/`seek`/`close`. Verified on a real device on 2026-10-06; skipped honestly where no output device exists. |
+| 6 | Current playback timestamp | `[x]` | `position()` on the same player, backed by a pure `PlaybackTimeline` (injectable clock) and re-anchored to the frames PortAudio actually consumed. Deterministic unit tests plus a real-device test. |
 | 7 | Synchronized chord display | `[ ]` | **No GUI and no display code exists in `src/`** (no Qt import anywhere in the package). `docs/GUI_REQUIREMENTS.md` is a plan only. |
 
-**Conclusion:** links 1–4 exist and are verified on real audio; links 5–7 do
-not exist at all. Until 5–7 work, this project is an **analysis laboratory /
-development system**, not yet a functional Chordify/Chord AI-style application.
+**Conclusion:** links 1–6 now exist (1–4 verified on real audio, 5–6 as a
+library-level player with a tested playhead); link 7 — a synchronized on-screen
+chord — still does not. Until 7 works, this project is still an **analysis
+laboratory / development system** with a playback foundation, not a functional
+Chordify/Chord AI-style application.
 
 ### What is genuinely implemented today
 
@@ -171,9 +173,11 @@ development system**, not yet a functional Chordify/Chord AI-style application.
 * `[~]` Transposition: `transpose_chord_label()` /
   `transpose_note_name()` exist and are tested as library functions; there is
   no user-facing transpose workflow (CLI or GUI).
-* `[ ]` Playback, waveform/timeline data, GUI, lyrics engine, beats engine,
-  stem separation, alignment, fusion, editing, undo/redo, ChordPro/Markdown
-  export, packaging.
+* `[x]` Playback foundation: `audio/playback.py` (`Player` protocol, timeline,
+  `sounddevice` backend) and the shared decode service `audio/decode.py` it uses.
+* `[ ]` Waveform/timeline data, GUI, lyrics engine, beats engine, stem
+  separation, alignment, fusion, editing, undo/redo, ChordPro/Markdown export,
+  packaging.
 * Empty packages (placeholders only, `__init__.py`): `export/`, `alignment/`,
   `fusion/`, `i18n/`.
 
@@ -207,14 +211,19 @@ development system**, not yet a functional Chordify/Chord AI-style application.
   (WAV half runs in the core venv) and `tests/integration/test_decode_integration.py`
   (a real compressed transcode). **Remaining:** engines and playback must call it
   so engines stop owning decoding
-- [ ] Playback abstraction: player interface with `load`, `play`, `pause`,
-  `seek`, `position()`, `duration()`, `state` callbacks (no Qt types in it)
-- [ ] Playback backend decision (candidate: `sounddevice`; alternative: Qt
-  Multimedia in Phase D) — small dependency research, license noted in
-  `docs/DEPENDENCY_MATRIX.md`, then implement
+- [x] Playback abstraction: player interface with `load`, `play`, `pause`,
+  `seek`, `position()`, `duration()`, `state` callbacks (no Qt types in it).
+  `audio/playback.py`: a `Player` Protocol, a pure `PlaybackTimeline` (position
+  state machine driven by an injectable clock) and `SoundDevicePlayer`
+- [x] Playback backend decision: **`sounddevice`** chosen over Qt Multimedia
+  (which arrives with the GUI in Phase D and would implement the same protocol).
+  MIT, optional, behind the `playback` extra; licensed and justified in
+  `docs/DEPENDENCY_MATRIX.md` §2.1
 - [ ] Waveform peak data extraction for the timeline (downsampled min/max per pixel bucket)
-- [ ] Tests: integration test that plays/seeks a short file headlessly
-  (CI-safe: no audio device → mock/skip). The decode half of this task is done
+- [x] Tests: unit tests with committed WAV fixtures, a fake-PortAudio stream test
+  for the headless contract, and a real-device integration test that plays,
+  pauses, resumes and seeks a short file (`tests/integration/test_playback_integration.py`,
+  skipped when no output device exists). The decode half landed earlier
   (`tests/unit/test_decode.py`, `tests/integration/test_decode_integration.py`)
 - [x] Works with a real MP3 file, not only WAV: `decode_audio()` reads a real
   compressed file through soundfile/librosa, and the E2E analysis test runs the

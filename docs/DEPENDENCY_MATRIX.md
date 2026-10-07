@@ -28,7 +28,7 @@ engine working.
 
 | Verdict | Packages |
 | --- | --- |
-| **Adopt** (as optional extras, when their phase arrives) | numpy, scipy, librosa, soundfile, music21, faster-whisper, beat_this |
+| **Adopt** (as optional extras, when their phase arrives) | numpy, scipy, librosa, soundfile, sounddevice, music21, faster-whisper, beat_this |
 | **Adopt with a documented condition** | basic-pitch — Apache-2.0 and functionally verified, but its official install path is broken on Python >= 3.12 (see §6 and §10) |
 | **Adopt for the GUI (phase 15)** | PyQt6 (GPL-3.0-or-later compatible); PySide6 recorded as the permissive alternative |
 | **Candidate — measure before trusting** | torchcrepe, openai-whisper, spleeter, audio-separator |
@@ -59,6 +59,28 @@ Python **≥ 3.12**. The package floor stays at 3.10 (the core needs nothing), b
 any extra that pulls the modern DSP stack effectively needs 3.12+, or pip will
 silently resolve older releases on 3.10/3.11. Those older resolutions are **not
 verified here**; the CI matrix will surface them when the extras land.
+
+### 2.1 Playback backend (roadmap Phase A)
+
+Playback needs to turn decoded samples into sound and report the playhead. The
+choice is recorded here before it is used, as Phase A requires.
+
+| Package | Latest resolved | Requires-Python | Licence (verified) | Platform | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| **sounddevice** | 0.5.6 | `>=3.7` | **MIT** — metadata `License-Expression: MIT`, `LICENSE` reads "Copyright 2015-2025 Matthias Geier". Pure-Python wheel (`py3-none-any`); it binds the system **PortAudio** through **cffi** at runtime. PortAudio is MIT-licensed too. `Requires-Dist: cffi` (MIT); numpy is only imported for array data, which the callback path needs. | OS Independent, but needs a system PortAudio (`libportaudio.so.2`, `portaudio.dll`, `libportaudio.dylib`) | **adopt** as the Phase A playback backend, behind the `playback` extra |
+
+Why this one: it is a thin, MIT-licensed binding with no compiled extension of
+its own, so it works on the Python versions this project targets and needs no
+wheels matched to the interpreter. It streams raw buffers, so the player can feed
+the decode service's samples directly. The alternative recorded in the roadmap —
+Qt Multimedia — arrives with the PyQt6 GUI in Phase D and would implement the same
+`Player` Protocol, so this choice is not irreversible.
+
+Verified in this environment (2026-10-06): `sounddevice` 0.5.6 imports against
+`libportaudio.so.2` (PortAudio V19.6.0) and `query_devices(kind="output")` finds
+the ALSA default device, so the abstraction can be exercised locally. CI machines
+have no audio output; there the player is expected to raise a
+`DependencyError`/skip, not to pretend it played something.
 
 ## 3. Chord, beat, key and tempo engines
 

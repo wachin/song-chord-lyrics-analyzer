@@ -24,6 +24,13 @@ from song_chord_lyrics_analyzer.audio.ffmpeg import (
     find_ffprobe,
     require_ffprobe,
 )
+from song_chord_lyrics_analyzer.audio.playback import (
+    PlaybackState,
+    PlaybackTimeline,
+    Player,
+    SoundDevicePlayer,
+    create_player,
+)
 from song_chord_lyrics_analyzer.audio.probe import (
     compute_file_hash,
     probe_audio,
@@ -45,7 +52,12 @@ __all__ = [
     "SUPPORTED_AUDIO_EXTENSIONS",
     "DecodedAudio",
     "FfmpegTools",
+    "PlaybackState",
+    "PlaybackTimeline",
+    "Player",
+    "SoundDevicePlayer",
     "compute_file_hash",
+    "create_player",
     "decode_audio",
     "decode_with_wave",
     "discover_ffmpeg_tools",

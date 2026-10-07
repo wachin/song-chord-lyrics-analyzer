@@ -13,7 +13,7 @@
 **License:** GPL-3.0-or-later
 **Language:** Python 3.10+ (developed on 3.13, Linux), core has **zero required dependencies**
 **Target platforms:** Linux, Windows, macOS
-**Planned GUI:** PyQt6 (never started)
+**Planned GUI:** PyQt6 (not started; the terminal display `songlab play` exists)
 
 ---
 
@@ -44,7 +44,9 @@ sequence → audio playback → synchronized chord display
 
 ## Current State
 
-Audit executed **2026-10-06** by running the code (not by reading docs).
+Audit executed **2026-10-06** by running the code (not by reading docs); the
+Phase C display work landed **2026-10-07** and the counts below are from the
+gate re-run that day.
 
 ### Implemented (verified by execution)
 
@@ -56,6 +58,10 @@ Audit executed **2026-10-06** by running the code (not by reading docs).
   canonical document with provenance (SHA-256, versions, engines, config) via
   `analysis/service.py`. **Verified on the same real MP3** (E major, 143.6 BPM,
   `run.steps` all `ok`).
+- `songlab play` — **the product command**: opens one file through
+  `SongSession`, plays it and draws the chord under the playhead, refreshing as
+  the song advances (`app/display.py` + `cli/commands/play.py`). `--at SECONDS`
+  prints one frame without playing. **Verified on a real device and headless.**
 - `songlab benchmark --engine` — kind-agnostic benchmark runner (`benchmark/`).
 - Engines registered in `engines/registry.py`: **chords** `chroma-baseline`
   (CQT chroma + 24 triad templates + majority/Viterbi decoder, change penalty
@@ -79,9 +85,22 @@ Audit executed **2026-10-06** by running the code (not by reading docs).
     decode unit + integration tests, playback unit (fake PortAudio) + real-device
     tests, session unit (fake clock) + integration tests. A new CI job installs
     the `dsp` extra so the real engines run somewhere in CI.
-- Tests: **1231 passed / 49 skipped** (core `.venv`), **1279 passed / 1
-  skipped** (DSP `.venv-chords`); `ruff check`, `ruff format --check` (98
-  files), `mypy` (61 files) all green.
+- **Phase C display work (2026-10-07):**
+  - `app/display.py` — the presenter: `DisplayFrame`, pure `frame_from()` /
+    `render_frame()`, `ConsoleDisplay` (in-place redraw on a tty, one line per
+    frame otherwise) and `follow(session, display, interval, sleep, max_frames)`
+    with the sleep injected, so the refresh loop is tested on a fake clock.
+  - `cli/commands/play.py` — **`songlab play`**: open → analyze → print a short
+    header → play → draw the chord under the playhead while it advances.
+    `--at SECONDS` prints one frame without playing (used by tests and CI),
+    `--interval`, `--frames`, `--no-inline`, `--engine KIND=NAME`, `--no-hash`.
+  - Tests: `tests/unit/test_display.py` (24), `tests/unit/test_play_command.py`
+    (13), `tests/integration/test_display_integration.py` (3, real analysis and
+    real playback with the assertion that every drawn frame carries exactly the
+    chord `chord_at()` claims for its position).
+- Tests: **1268 passed / 52 skipped** (core `.venv`), **1319 passed / 1
+  skipped** (DSP `.venv-chords`); `ruff check`, `ruff format --check` (103
+  files), `mypy` (63 files) all green.
 
 ### Partially implemented
 
@@ -89,9 +108,9 @@ Audit executed **2026-10-06** by running the code (not by reading docs).
   `librosa.load` themselves and are not yet switched over to it (roadmap
   Phase A).
 - **Waveform peak data** for the timeline: not implemented.
-- **Synchronized display**: `SongSession` answers the right chord for any
-  instant, but nothing renders it — links 5 and 6 of the milestone exist,
-  link 7 (a user *seeing* it change) does not.
+- **Synchronized display**: works, but only as text. `songlab play` draws the
+  chord under the playhead and refreshes it while the song plays; the desktop
+  window that renders the same `DisplayFrame` with widgets does not exist yet.
 - **Chord confidence**: field exists, baseline engine reports `unknown`.
 - **Transpose**: `transpose_chord_label()` / `transpose_note_name()` exist as
   library functions only — no user-facing workflow.
@@ -112,10 +131,9 @@ Audit executed **2026-10-06** by running the code (not by reading docs).
 
 ### Planned / not started (product path)
 
-- **Any GUI / display** — zero Qt code in `src/`; `docs/GUI_REQUIREMENTS.md`
-  is a plan only. Nothing yet renders the chord that `SongSession` reports.
-- **Scripted demo path** — input file → chord list → playback → live chord,
-  documented honestly in the README.
+- **Any Qt GUI** — zero Qt code in `src/`; `docs/GUI_REQUIREMENTS.md` is a plan
+  only. The chord is currently rendered as a terminal line, not in a window.
+- **Waveform peak data** for a rendered timeline (Phase A, still missing).
 - Lyrics engine integration, synchronized lyrics, editing/undo-redo,
   transpose/simplify/export workflows, packaging.
 
@@ -148,12 +166,15 @@ MP3/audio file and the application can (1) load it, (2) analyze it,
 playback timestamp, (6) display the corresponding chord, (7) update the
 displayed chord as playback advances.
 
-**Until this works, the project must not be described as a functional
-Chordify/Chord AI-style application — it is an analysis laboratory.**
-Links 1–4 of that path were verified on real audio; links 5–6 (playback and the
-playhead position) now exist as a tested headless layer plus `SongSession`;
-**link 7 — a user seeing the chord change as the song plays — does not exist
-yet.**
+**Status: all seven work (2026-10-07)** — verified by running it: `songlab play`
+on a real device while the chord changed with the playhead, plus a headless
+integration test that asserts every drawn frame carries exactly the chord
+`chord_at()` claims for that position. Links 1–4 were verified on real audio,
+5–6 are the tested player/playhead, and 7 is the terminal display.
+
+Two honest limits on that claim: the display is a **terminal line**, not a
+desktop window (Phase D), and the claim is about **synchronization, not
+accuracy** — wrong chords are still wrong until Phase I.
 
 ---
 
@@ -166,6 +187,10 @@ Search the repository before creating anything new.
   (the shared decode service) and `playback.py` (player + timeline).
 - `app/session.py` — `SongSession` / `SessionSnapshot`: the headless service a
   GUI or CLI drives (open, play, `chord_at`, snapshot).
+- `app/display.py` — the presenter a GUI must reuse: `DisplayFrame`,
+  `frame_from()`, `render_frame()`, `ConsoleDisplay`, `follow()`. A Qt window
+  should render `DisplayFrame` rather than re-deriving positions, and should
+  keep Qt imports out of `app/`.
 - `engines/base.py` — protocols `ChordEngine`, `LyricsEngine`, `BeatEngine`,
   `KeyEngine`, `TempoEngine`; `EngineKind`; options dataclasses.
 - `engines/registry.py` — `EngineRegistry`, `create_default_registry()`.
@@ -275,16 +300,31 @@ are obsolete).
 1. `AGENT_HANDOFF.md` (this file),
 2. `ROADMAP.md`,
 3. the relevant source modules (start with `app/session.py`,
-   `audio/playback.py`, `audio/decode.py`, `analysis/service.py`).
+   `app/display.py`, `audio/playback.py`, `audio/decode.py`,
+   `analysis/service.py`).
 
-The headless half of the First Product Milestone is done and tested: real audio
-is analysed, played, and `SongSession.chord_at()`/`current_chord()` report the
-right event for any instant. What is missing is the last step: **something the
-user can see**. The next smallest step is the remaining Phase C work — a minimal
-read-only display (or the first slice of the Phase D PyQt6 window) driven only
-by `SongSession.snapshot()`, plus the scripted demo path documented in the
-README — before any lyrics, editing or accuracy work.
+The First Product Milestone (Phase C) is reached: `songlab play` shows the chord
+under the playhead and updates it while the song plays, from one
+`SongSession.snapshot()` per refresh. The next step is **Phase D, the minimal
+PyQt6 window** — the smallest desktop app around that same slice: open a file,
+play/pause, seek, show the time and always show the chord for the current
+position, rendering the existing `DisplayFrame`/`SessionSnapshot` instead of
+re-implementing synchronization.
 
-Verify by running the real thing (`songlab analyze` + the new tests), update
+Concretely, in order:
+
+1. Add PyQt6 as an optional `gui` extra (core stays dependency-free), record the
+   licence in `docs/LICENSE_AUDIT.md`, and keep the CI gate working without Qt.
+2. Put the logic in plain-Python presenters under `app/` and keep the widgets
+   thin, so the window is tested with `QT_QPA_PLATFORM=offscreen`.
+3. Widgets read **only** `SongSession`/`DisplayFrame`: hard rule GUI → `app/` →
+   engines; never GUI → librosa/engines/`analysis/` internals.
+
+Useful context already in place: `app/session.py` + `app/display.py` (the
+service and the frame), `audio/playback.py` (the `Player` protocol a Qt
+Multimedia backend would implement), and `docs/GUI_REQUIREMENTS.md` (the widget
+plan). Reuse them; do not build a second synchronization path.
+
+Verify by running the real thing (`songlab play` plus the new tests), update
 `ROADMAP.md` markers in the same change, run the full gate, and only then
 commit. Keep the GUI → `app/` → engines direction; never GUI → librosa.

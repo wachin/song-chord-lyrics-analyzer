@@ -14,7 +14,14 @@ import traceback
 from collections.abc import Sequence
 
 from song_chord_lyrics_analyzer import CLI_NAME, PROJECT_NAME, __version__
-from song_chord_lyrics_analyzer.cli.commands import analyze, benchmark, chords, doctor, info
+from song_chord_lyrics_analyzer.cli.commands import (
+    analyze,
+    benchmark,
+    chords,
+    doctor,
+    info,
+    play,
+)
 from song_chord_lyrics_analyzer.utils.errors import SongLabError
 from song_chord_lyrics_analyzer.utils.logging import configure_logging, get_logger
 
@@ -28,6 +35,7 @@ Commands:
   doctor     report environment, dependency and engine status
   chords     detect chords with a selectable engine
   analyze    run the full pipeline and assemble the canonical document
+  play       play an audio file and watch the chord under the playhead change
   benchmark  score benchmark cases, optionally running an engine
 
 Planned commands (added phase by phase, see ROADMAP.md):
@@ -127,6 +135,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     analyze.add_arguments(analyze_parser)
     analyze_parser.set_defaults(handler=analyze.run)
+
+    play_parser = subparsers.add_parser(
+        "play",
+        help="play an audio file and show the chord under the playhead",
+        description=(
+            "Open one audio file, analyse it and follow it while it plays, "
+            "showing the chord under the playhead. This is the first product "
+            "command (roadmap Phase C): analysis, playback and the synchronized "
+            "display come from the same application session. Use --at SECONDS "
+            "to print the chord at one position without playing anything."
+        ),
+    )
+    play.add_arguments(play_parser)
+    play_parser.set_defaults(handler=play.run)
 
     benchmark_parser = subparsers.add_parser(
         "benchmark",

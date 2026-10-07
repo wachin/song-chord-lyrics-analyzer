@@ -1,17 +1,18 @@
 # Architecture
 
 This document describes the layered design of `song-chord-lyrics-analyzer` and
-what is implemented today. It follows the roadmap ordering: the analysis engine
-is built and validated before any GUI exists.
+what is implemented today. The authoritative plan is
+[`ROADMAP.md`](../ROADMAP.md) (reset on 2026-10-06 around the product path); this
+file explains *how* the layers fit together, not what to build next.
 
 ## 1. Layering
 
 ```text
-                 CLI (songlab)                PyQt6 GUI (phase 15)
+                 CLI (songlab)                PyQt6 GUI (Phase D)
                        │                              │
                        └──────────────┬───────────────┘
                                       ▼
-                            Application services
+                    app/  session + presenter   (no Qt, no ML)
                                       ▼
                             Analysis pipeline
                                       ▼
@@ -24,11 +25,17 @@ is built and validated before any GUI exists.
         normalization → alignment → fusion → metrics → export
 ```
 
+`app/` is the layer both front ends share: `SongSession` (open → decode →
+analyze → own the player → `chord_at(seconds)`) and `display.py` (the pure
+presenter that turns a `SessionSnapshot` into a `DisplayFrame`). A front end
+renders frames; it never re-implements synchronization. `songlab play` is the
+terminal renderer, and the Phase D window renders the same frame with widgets.
+
 Rules that keep this honest:
 
 * The CLI and (later) the GUI contain **no** audio-analysis algorithm.
 * No concrete engine (`madmom`, `librosa`, `demucs`, `faster-whisper`, ...) may
-  be imported by the GUI, and none is a hard dependency of the package.
+  be imported by the GUI or by `app/`, and none is a hard dependency of the package.
 * The canonical document is never Markdown or ChordPro. Those are exporters.
 * Raw engine output is preserved next to normalized output.
 
@@ -40,8 +47,9 @@ src/song_chord_lyrics_analyzer/
 ├── __main__.py           `python -m song_chord_lyrics_analyzer`
 ├── cli/                  argument parsing and command implementations
 │   ├── main.py           parser, error translation, exit codes
-│   └── commands/         info, doctor, chords, analyze, benchmark
-├── audio/                validation, FFmpeg discovery, metadata probing
+│   └── commands/         info, doctor, chords, analyze, play, benchmark
+├── app/                  session (open/analyze/play/chord_at) + display presenter
+├── audio/                validation, FFmpeg discovery, metadata probing, shared decode, playback
 ├── engines/              engine protocols, options, registry, chord + key + tempo engines, decoding
 ├── schema/               canonical JSON codec
 ├── models/               canonical typed data model (dataclasses)
@@ -216,16 +224,17 @@ Only WAV files can be inspected without FFmpeg.
 
 | Area | Status |
 | --- | --- |
-| Phase 0 repository bootstrap | done |
-| Phase 1 dependency research | done for the pre-analysis candidates, including smoke tests of the adopted ones on Linux; heavy ML options and Windows/macOS runtime deliberately still open (see `DEPENDENCY_MATRIX.md` §10, `LICENSE_AUDIT.md`) |
-| Phase 2 audio foundation | metadata + FFmpeg discovery done; resampling/decoding pending |
-| Phase 3 lyrics laboratory | not started |
-| Phase 4 chord laboratory | chord normalization done; `chroma-baseline` engine reaching the user through `songlab chords` and `songlab benchmark --engine`, with a measured Viterbi decoder (roadmap 19/20); richer engines pending |
-| Phase 5 key/tempo/beats | key done (`krumhansl`, roadmap 32) and tempo done (`librosa-tempo`, roadmap 33), both registered and scored by `songlab benchmark --engine`; beat positions pending |
-| Phases 6-14 | not started; phase 11 chord, key, tempo and lyrics metrics exist as library code in `metrics/` (roadmap §44) and `songlab benchmark` scores reference/hypothesis cases into reports (roadmap §46), filling the hypothesis from a measured engine run when a case declares audio |
-| Phase 15+ GUI | not started (by design) |
+| Area (this file) | Status |
+| --- | --- |
+| Model, codec, registry, audio metadata, CLI | implemented; the canonical model, the engine protocols and the commands `info`, `doctor`, `chords`, `analyze` and `play` all run |
+| Audio decoding and playback | implemented as a shared service (`audio/decode.py`) and a tested `Player` with a real `sounddevice` backend (`audio/playback.py`). **Still open:** the DSP engines call `librosa.load` themselves instead of the shared decoder, and there is no waveform peak data yet |
+| Chord engine | `chroma-baseline` registered, tested and measured (CSR 0.4260, 180 GuitarSet takes); per-chord confidence still reports `unknown` |
+| Key and tempo engines | `krumhansl` and `librosa-tempo` registered, tested and measured; an engine for beats does not exist |
+| Product slice (open → analyze → play → synchronized chord) | **reached** on 2026-10-07 as `songlab play` + `app/display.py`; the display is a terminal line |
+| GUI | not started; the Phase D window renders the existing `DisplayFrame`/`SongSession` |
+| Lyrics, beats, stems, alignment, fusion, export, packaging | not started; `metrics/`/`evaluation/` metrics and the `benchmark/` runner exist as library code, `export/`, `alignment/`, `fusion/` and `i18n/` are empty placeholders |
 
-`ROADMAP.md` is the authoritative progress view: every section carries a bracket
-marker (`[x]` achieved on 2026-09-23, `[ ]` open, `[*]` finished afterwards with
-its date), and sections whose work is partly done carry an italic *Status* line.
-This table summarises that state and must never disagree with it.
+[`ROADMAP.md`](../ROADMAP.md) is the authoritative progress view, with `[x]` /
+`[~]` / `[ ]` markers per task and per phase; this table summarises it and must
+never disagree with it. The old `[*]` convention belongs to the archived
+pre-reset roadmap and is history only.

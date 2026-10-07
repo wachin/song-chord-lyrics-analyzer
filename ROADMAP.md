@@ -122,6 +122,11 @@ Gate re-run after the headless Phase A/B/C work (same day): `ruff` clean,
 `mypy` 61 files, `pytest` **1231 passed / 49 skipped** (core venv) and **1279
 passed / 1 skipped** (DSP venv with numpy/librosa/soundfile/sounddevice).
 
+Gate re-run after the Phase C display work (2026-10-07, same machine): `ruff`
+clean, `ruff format --check` 103 files, `mypy` 63 files, `pytest` **1268 passed
+/ 52 skipped** (core venv) and **1319 passed / 1 skipped** (DSP venv, where the
+real-device playback and display-follow tests run).
+
 ### The product path, link by link
 
 | # | Link | Status | Evidence |
@@ -132,13 +137,17 @@ passed / 1 skipped** (DSP venv with numpy/librosa/soundfile/sounddevice).
 | 4 | Timestamped ChordEvent sequence | `[x]` | `songlab chords` printed 76 events with `start`/`end`/`label` on a real song; `songlab analyze --json` emitted the same inside the canonical document with provenance (schema version 1, `schema/codec.py`). |
 | 5 | Audio playback | `[x]` | `audio/playback.py`: `SoundDevicePlayer` streams decoded samples through PortAudio (`sounddevice`, optional `playback` extra), with `load`/`play`/`pause`/`stop`/`seek`/`close`. Verified on a real device on 2026-10-06; skipped honestly where no output device exists. |
 | 6 | Current playback timestamp | `[x]` | `position()` on the same player, backed by a pure `PlaybackTimeline` (injectable clock) and re-anchored to the frames PortAudio actually consumed. Deterministic unit tests plus a real-device test. |
-| 7 | Synchronized chord display | `[ ]` | **No GUI and no display code exists in `src/`** (no Qt import anywhere in the package). `docs/GUI_REQUIREMENTS.md` is a plan only. |
+| 7 | Synchronized chord display | `[x]` | `songlab play` draws the chord under the playhead from `SessionSnapshot` (`app/display.py`: `frame_from`, `render_frame`, `ConsoleDisplay`, `follow`; `cli/commands/play.py`), refreshing while the song plays and updating the frame as the chord changes. `--at SECONDS` prints one frame headlessly. Verified end to end on a real device on 2026-10-07 (the chord changed during real playback) and headlessly in CI. **Terminal display:** the on-screen desktop window (Phase D) still does not exist — no Qt import anywhere in the package. |
 
-**Conclusion:** links 1–6 now exist (1–4 verified on real audio, 5–6 as a
-library-level player with a tested playhead); link 7 — a synchronized on-screen
-chord — still does not. Until 7 works, this project is still an **analysis
-laboratory / development system** with a playback foundation, not a functional
-Chordify/Chord AI-style application.
+**Conclusion:** all seven links now exist. Links 1–4 are verified on real audio,
+5–6 are a tested player with a playhead, and 7 is the terminal display driven by
+the same session: the frame drawn at each refresh carries exactly the chord
+`chord_at()` claims for that position, so the display cannot drift from the
+playhead. The **First Product Milestone (Phase C) is therefore reached as a
+command-line product slice**. What is still missing is the *desktop* experience:
+the chord is shown as a line of text in a terminal, so the project is a working
+product with a console UI, not yet a Chordify/Chord AI-style desktop
+application. That window is Phase D, and it is now the next product step.
 
 ### What is genuinely implemented today
 
@@ -180,17 +189,24 @@ Chordify/Chord AI-style application.
   no user-facing transpose workflow (CLI or GUI).
 * `[x]` Playback foundation: `audio/playback.py` (`Player` protocol, timeline,
   `sounddevice` backend) and the shared decode service `audio/decode.py` it uses.
-* `[ ]` Waveform/timeline data, GUI, lyrics engine, beats engine, stem
-  separation, alignment, fusion, editing, undo/redo, ChordPro/Markdown export,
-  packaging.
+* `[x]` Synchronized chord display (terminal): `app/display.py` (pure
+  `frame_from`/`render_frame`, `ConsoleDisplay`, `follow` with an injectable
+  sleep) and `songlab play`, which draws the chord under the playhead and
+  refreshes it while the song plays.
+* `[ ]` GUI (PyQt6 window), waveform/timeline data, lyrics engine, beats engine,
+  stem separation, alignment, fusion, editing, undo/redo, ChordPro/Markdown
+  export, packaging.
 * Empty packages (placeholders only, `__init__.py`): `export/`, `alignment/`,
   `fusion/`, `i18n/`.
 
 ### Known documentation drift (fix opportunistically, not a phase)
 
-* `README.md` badge says "505 tests"; actual count is 1165+.
-* `README.md` / `AGENTS.md` still describe the old `[*]` marker convention and
-  "no analysis engine exists yet"; the marker rules of *this* file apply.
+* Resolved on 2026-10-06/07: the stale `README.md` test badge, the description
+  of the old `[*]` marker convention in `README.md`/`AGENTS.md`, the "no
+  analysis engine exists yet" wording, and the `last (phase 15)` GUI row, which
+  referenced the pre-reset phase numbering. Counts are re-verified whenever the
+  gate is re-run and are stated with their date, so they can never be read as
+  live numbers.
 
 ---
 
@@ -320,8 +336,11 @@ REAL AUDIO → chord analysis → timestamped chord events → usable JSON/domai
 representation → playback timeline → synchronized chord display
 ```
 
-**Current status:** `[~]` — the headless half works (links 5–6); a display that
-shows the chord changing is still missing (link 7).
+**Current status:** `[x]` — reached on 2026-10-07, as a **terminal display**: all
+seven acceptance criteria work, verified on a real device and headless in CI.
+The display is deliberately the smallest honest surface (one line of text over
+`SessionSnapshot`); the desktop window that renders the same frame with widgets
+is Phase D and is *not* part of this milestone.
 
 This is the **first product milestone**. It is deliberately small: the first
 version does not need perfect chord recognition — it needs to be real,
@@ -342,16 +361,20 @@ by better engines later. Accuracy work happens in Phase I, **after** this works.
   the last end return `None`; `N` is returned as a claim of silence, not skipped.
   `tests/unit/test_session.py` drives a fake clock; `tests/integration/test_session_integration.py`
   runs the real pipeline (and real playback where a device exists)
-- [ ] Minimal display surface showing the current chord, updating with
-  playback (this may be the first slice of the Phase D window — either way,
-  the milestone is not declared until a user can *see* it change)
-- [ ] One scripted demo path: real song file in → chord list + playback + live
-  chord out, documented in the README with honest wording
+- [x] Minimal display surface showing the current chord, updating with
+  playback: `app/display.py` (presenter + console renderer + refresh loop) and
+  `songlab play`. Deliberately the first slice the Phase D window will reuse:
+  the Qt view renders the same `DisplayFrame`, which keeps the synchronization
+  logic dependency-free and testable
+- [x] One scripted demo path: real song file in → chord list + playback + live
+  chord out, documented in the README with honest wording (the transcript is
+  captured from a generated fixture and says so)
 
 ### Files / modules
 
-New `src/song_chord_lyrics_analyzer/app/` (session/service layer — no Qt, no
-ML imports), `audio/playback.py` (Phase A), `analysis/service.py`, tests.
+`src/song_chord_lyrics_analyzer/app/` (`session.py`, `display.py` — session and
+presenter layer, no Qt, no ML imports), `cli/commands/play.py`,
+`audio/playback.py` (Phase A), `analysis/service.py`, tests.
 
 ### Acceptance criteria — **First Product Milestone**
 
@@ -367,6 +390,13 @@ A user can provide a real MP3/audio file and the application can:
 
 **Until all seven work, the project must not be described as a functional
 Chordify/Chord AI-style application.** It is an analysis laboratory.
+
+**Status: all seven work (2026-10-07).** They were verified by running the code:
+`songlab play` on a real device while the chord changed with the playhead, and a
+headless integration test asserting that every rendered frame carries exactly
+the chord the session claims for that position. The claim being made is
+*synchronization*, not accuracy, and it is made about a **terminal** display —
+the desktop application is Phase D.
 
 ### Dependencies / blockers
 

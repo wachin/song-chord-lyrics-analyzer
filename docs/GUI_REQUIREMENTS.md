@@ -1,20 +1,34 @@
 # GUI Requirements
 
-**Status: not started — the analysis engine comes first (roadmap section 2).**
+**Status: not started — and it is now the next product step (roadmap Phase D).**
 
-The GUI is a client of the analysis engine. It must never contain audio-analysis
-algorithms and must never import `librosa`, `madmom`, `demucs`, `whisper` or any
-other engine directly.
+The headless slice it depends on already exists: `SongSession`
+(`app/session.py`) owns the song, the player and `chord_at(seconds)`, and
+`app/display.py` turns a snapshot into a `DisplayFrame`
+(`position`, `duration`, `state`, `chord`, `progress`, `time_text`).
+`songlab play` already renders that frame as a terminal line, and the window must
+render the *same* frame with widgets instead of re-deriving synchronization.
+
+The GUI is a client of the application layer. It must never contain
+audio-analysis or synchronization algorithms and must never import `librosa`,
+`madmom`, `demucs`, `whisper`, `analysis/` internals or any other engine
+directly.
 
 ## Architecture constraint
 
 ```text
-PyQt6 GUI
+PyQt6 GUI             (thin widgets)
     ↓
-Application services      (no Qt, no engines)
+app/ session + presenter   (SongSession, DisplayFrame — no Qt, no engines)
     ↓
 Analysis pipeline → engine interfaces → concrete engines
 ```
+
+## Testing constraint
+
+The logic stays in plain-Python presenters so the window can be tested without a
+display: widgets get `QT_QPA_PLATFORM=offscreen`, and the Qt dependency is an
+optional `gui` extra so the core install and the CI gate stay Qt-free.
 
 ## Planned modules (roadmap section 97)
 

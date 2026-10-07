@@ -7,11 +7,21 @@ both before changing anything.
 
 ## What this repository is
 
-`song-chord-lyrics-analyzer` is a **Python package plus a CLI** (`songlab`). It is in
-phase 2 of the roadmap: canonical typed model, engine interfaces, audio metadata and
-two console commands (`songlab info`, `songlab doctor`). **No analysis engine exists
-yet**, so no accuracy claim about lyrics, chords, key, tempo or beats may be made
-anywhere.
+`song-chord-lyrics-analyzer` is a **Python package plus a CLI** (`songlab`), on its
+way to a desktop application. The roadmap was reset on 2026-10-06 around the product
+path, and the *first product milestone* (Phase C) is reached: canonical typed model,
+engine interfaces, audio metadata and validation, a shared decode service, a tested
+playback layer, and the commands `songlab info`, `doctor`, `chords`, `analyze` and
+`play` — the last one plays a file and draws the chord under the playhead as it
+advances. Registered engines: chords `chroma-baseline`, key `krumhansl`, tempo
+`librosa-tempo`.
+
+Two claims are allowed and no more: what was **measured** (always with its
+environment and date) and what was **verified by running it**. Chord accuracy is
+*measured but low* (CSR 0.4260 on 180 GuitarSet takes), lyrics are still research
+with no engine registered, and the display is a terminal line — so the project is
+not yet a Chordify-style desktop application, and it must not be described as one.
+The authoritative status is the marker table in [`ROADMAP.md`](ROADMAP.md) §1.
 
 | Path | What it is |
 | --- | --- |
@@ -78,8 +88,11 @@ a section `[x]` because it looks close, and never invent a fourth marker. (The o
   docs or commits unless it was measured, and a measurement must state the
   environment and the date.
 * **English only** for identifiers, CLI text, errors, logs, docs and test names.
-* **GUI last.** No PyQt6/GUI code before the analysis engine is stable (phase 15).
-  Rule 1 of the roadmap.
+* **GUI after the product slice, and always through `app/`.** The headless slice
+  (Phase C) exists, so the minimal PyQt6 window is the next product step (Phase D)
+  rather than something to defer indefinitely. When it is built, widgets read
+  `SongSession`/`DisplayFrame` only: GUI → `app/` → engines, never GUI → librosa,
+  and the logic stays in plain-Python presenters so it can be tested offscreen.
 * **Licences.** This project is GPL-3.0-or-later. Model weights, datasets and external
   tools have their own licences and several of the audited candidates are non-free for
   commercial use. Check `docs/LICENSE_AUDIT.md` before proposing anything.

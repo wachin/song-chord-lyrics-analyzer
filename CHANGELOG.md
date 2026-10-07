@@ -644,6 +644,47 @@ collapses are a **penalty artefact of the legacy in-place Viterbi loop, not a de
   investigation entry above); `docs/DEPENDENCY_MATRIX.md` §13.12 holds the per-repo
   verdicts. Same rules as every `external/` clone: never imported, executed or copied.
 
+### Product vertical slice: one decode service, playback, session and the live chord display (roadmap Phase A/B/C)
+
+* **This is the first product milestone, not an engine or a benchmark (2026-10-07).**
+  The roadmap was reset on 2026-10-06 so that the product path — file → decoding →
+  chord analysis → timestamped events → playback → a chord that updates on screen —
+  runs before any further research, and that path now runs end to end.
+* **`audio/decode.py` (2026-10-06).** One shared decode service: `decode_audio()`
+  returns a flat interleaved float buffer plus its sample rate, with a
+  librosa/soundfile backend for any format (and resampling) and a dependency-free
+  stdlib WAV backend that works in the core install. Asking for resampling without
+  the DSP stack raises a `DependencyError` instead of returning samples at a
+  sample rate they do not have.
+* **`audio/playback.py` (2026-10-06).** A Qt-free `Player` protocol, a pure
+  `PlaybackTimeline` (injectable clock; pause, resume, seek, end of track) and a
+  `sounddevice` backend behind the optional `playback` extra (MIT;
+  `docs/DEPENDENCY_MATRIX.md` §2.1). Pausing re-anchors the playhead to the frames
+  the device actually played, so the reported position cannot drift with the audio
+  buffer, and a pause is never mistaken for the end of the track. Verified on a real
+  output device; the real-device tests skip honestly where no device exists.
+* **`app/session.py` (2026-10-06).** `SongSession`: open → decode → analyze → own
+  the player → `chord_at(seconds)` by binary search over half-open intervals, with
+  explicit silence (`N`) preserved rather than skipped. No Qt, no ML imports.
+* **`app/display.py` and `songlab play` (2026-10-07).** The last missing link: a
+  pure presenter (`frame_from`, `render_frame`), a `ConsoleDisplay` that redraws one
+  line on a terminal and prints one line per frame otherwise, and `follow()`, whose
+  sleep is injected so the refresh loop is tested on a fake clock. `songlab play`
+  opens one file, plays it and draws the chord under the playhead as it advances;
+  `--at SECONDS` prints a single frame without playing anything, and `--interval` /
+  `--frames` / `--no-inline` make the loop checkable headlessly.
+* **What the claim is, and what it is not.** Every drawn frame carries exactly the
+  chord `chord_at()` claims for that position — that is synchronization, and it is
+  asserted against real playback in `tests/integration/test_display_integration.py`.
+  It is *not* an accuracy claim (a wrong chord is still shown wrongly) and it is
+  *not* a desktop application: the display is a terminal line, and the PyQt6 window
+  is Phase D. The README demo transcript is captured from a generated fixture and
+  says so.
+* Tests: `tests/unit/test_display.py`, `tests/unit/test_play_command.py`,
+  `tests/integration/test_display_integration.py`. Full suite: 1268 passed, 52
+  skipped (1319 passed, 1 skipped with the optional DSP/playback stack), `ruff` and
+  `mypy` (63 files) clean.
+
 ### Documentation
 
 * `ROADMAP.md` now tracks its own progress with bracket markers: `[x]` for work

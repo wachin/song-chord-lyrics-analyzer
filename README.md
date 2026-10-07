@@ -7,7 +7,7 @@
 [![Offline-first](https://img.shields.io/badge/offline--first-yes-success.svg)](#design-principles)
 [![Core dependencies](https://img.shields.io/badge/core%20dependencies-none-brightgreen.svg)](#design-principles)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
-[![Tests](https://img.shields.io/badge/tests-1231%20passing-brightgreen.svg)](#development)
+[![Tests](https://img.shields.io/badge/tests-1268%20passing-brightgreen.svg)](#development)
 
 A cross-platform, offline-first laboratory that analyzes an audio song and
 produces a synchronized representation of its **lyrics, chords, beats, tempo
@@ -17,19 +17,21 @@ and key** — with confidence and provenance attached to every inference.
 * **CLI:** `songlab`
 * **Platforms:** Linux, Windows, macOS
 * **Licence:** GPL-3.0-or-later
-* **Status:** phase 0 complete and phase 1 dependency research done — repository,
-  CLI, canonical model, engine interfaces, audio metadata, tests and CI. The
-  chord metric suite already exists as dependency-free library code, and the
-  **first chord engine is integrated**: `chroma-baseline` (CQT chroma matched
-  against triad templates through an optional numpy/librosa front end) runs
-  behind `songlab benchmark --engine`, which measures its own run cost.
-  Candidates were resolved, licence-audited, adopted/deferred/rejected, and the
-  adopted ones were smoke-tested in a throw-away environment on Linux (runtime
-  verified on Linux only, no accuracy claim). The earlier measurements — the
-  lyrics-ASR investigation and the chord measurements — were produced by a
-  temporary, gitignored harness; see [`docs/ENGINE_COMPARISON.md`](docs/ENGINE_COMPARISON.md),
-  the [roadmap](ROADMAP.md) for the order of work, and
-  [`docs/DEPENDENCY_MATRIX.md`](docs/DEPENDENCY_MATRIX.md) for the findings.
+* **Status:** the *first product milestone* is reached as a **terminal display** —
+  the whole path runs end to end: real audio file → shared decode service →
+  chord analysis → timestamped `ChordEvent`s → playback → the chord under the
+  playhead drawn by `songlab play` and updated while the song plays (see the
+  [demo](#demo-the-chords-follow-the-song)). The repository, CLI, canonical
+  typed model, engine interfaces, audio metadata, playback layer, tests and CI
+  are all in place, and three engines are registered: chords `chroma-baseline`
+  (CQT chroma matched against triad templates through an optional numpy/librosa
+  front end), key `krumhansl` and tempo `librosa-tempo`. What does **not** exist
+  yet is the desktop window — the display is a terminal line, and the PyQt6 GUI
+  is phase D in the [roadmap](ROADMAP.md). Accuracy work (Phase I) comes after
+  that slice; the measurements behind it (lyrics ASR, chord decoding, key,
+  tempo) were produced by a temporary, gitignored harness and are recorded in
+  [`docs/ENGINE_COMPARISON.md`](docs/ENGINE_COMPARISON.md) and
+  [`docs/DEPENDENCY_MATRIX.md`](docs/DEPENDENCY_MATRIX.md).
 
 ## Why
 
@@ -126,11 +128,12 @@ before the CLI is allowed to grow. Current state and direction:
 | `songlab benchmark` — `benchmark/{benchmark.json,csv,md}` over stored results | implemented; `--engine` runs a registered chord engine over cases with audio |
 | `songlab chords` — first analysis command, on a selectable registered engine | implemented |
 | `songlab analyze` — chord + key + tempo engines assembled into the canonical document with provenance | implemented |
+| `songlab play` — playback plus the chord under the playhead, refreshed as the song advances (`--at` for one position) | implemented |
 | `chroma-baseline` engine — template matching with a Viterbi decoder (roadmap 19/20) | implemented |
 | `krumhansl` key engine — chroma profile vs the Krumhansl-Kessler profiles (roadmap 31/32) | implemented |
 | `librosa-tempo` tempo engine — BPM with half/double readings kept (roadmap 33) | implemented |
 | Stem separation, alignment, fusion, exports | later |
-| GUI | last (phase 15) |
+| PyQt6 window (waveform timeline, seek, chord display) | next (Phase D); the headless display `songlab play` already exists |
 
 The metric definitions are already fixed in [`docs/BENCHMARK.md`](docs/BENCHMARK.md):
 chord (exact/root/quality + segment overlap + timing error + change detection),
@@ -168,6 +171,8 @@ songlab info song.mp3 --hash   # add the SHA-256 used for caching/provenance
 songlab chords song.wav        # chord detection with the first available engine
 songlab chords song.wav --engine chroma-baseline --json   # select an engine, emit JSON
 songlab analyze song.wav       # chords + key + tempo, assembled with provenance
+songlab play song.wav          # play it and watch the chord under the playhead
+songlab play song.wav --at 42  # just print the chord at 00:00:42
 ```
 
 Example:
@@ -186,11 +191,51 @@ File size:   37.95 MiB
 Probed with: ffprobe
 ```
 
+`songlab play` needs the optional `dsp` extra (the chord engine) and, to make
+sound, the `playback` extra plus an output device:
+
+```bash
+python -m pip install -e ".[dev,dsp,playback]"
+```
+
+Without an output device, `--at SECONDS` still answers *which chord is there*
+(nothing is played), and a missing backend is reported as a dependency error
+with an install hint rather than silence.
+
+## Demo: the chords follow the song
+
+One command turns a file into something you can watch. The line below is
+refreshed in place while the song plays; with `--no-inline` (or when the output
+is a pipe) every frame is printed on its own line, which is what the tests
+assert. This transcript is captured from a generated four-second C-G-F-C
+fixture — the same kind of file the tests build, not a real recording and not a
+hand-written example; a real song simply prints its own file name, duration and
+chord count:
+
+```text
+$ songlab play song.wav --frames 5 --interval 0.5 --no-inline
+Playing
+=======
+File:     song.wav
+Duration: 00:00:04.000
+Chords:   4 events from chroma-baseline
+00:00:00.000 / 00:00:04.000  [------------------------]  C    playing
+00:00:00.505 / 00:00:04.000  [###---------------------]  C    playing
+00:00:01.004 / 00:00:04.000  [######------------------]  C    playing
+00:00:01.504 / 00:00:04.000  [#########---------------]  G    playing
+00:00:02.005 / 00:00:04.000  [############------------]  G    playing
+```
+
+The chord, the position and the progress bar all come from the same
+`SessionSnapshot` the synchronization tests drive on a fake clock, so the
+display cannot show a chord the session does not claim for that instant. Chords
+this engine gets wrong are still wrong — that is Phase I work, after the
+desktop window; the demo claims synchronization, not accuracy.
+
 Planned commands, added phase by phase:
 
 ```text
 songlab lyrics    song.mp3                    word-level lyric timestamps
-songlab analyze   song.mp3 [--full]           the whole pipeline
 songlab compare   song.mp3                    several engines side by side
 songlab separate  song.mp3                    stem separation
 songlab fuse      song.mp3                    consensus over engines
@@ -212,6 +257,8 @@ songlab export    song.mp3 --format chordpro  ChordPro, JSON, Markdown, ...
 | `krumhansl` key engine — key, mode and correlation confidence, scored by `songlab benchmark --engine` | implemented |
 | `librosa-tempo` tempo engine — BPM scored as absolute, half-time and double-time error by `songlab benchmark --engine` | implemented |
 | `songlab analyze` — the canonical document (`AnalysisResult` + `Provenance` + `AnalysisRun`) from the registered engines | implemented |
+| `songlab play` — play a file and show the chord under the playhead, updating with playback (terminal display; `--at`, `--interval`, `--frames`) | implemented |
+| `SongSession` + display presenter (`app/`) — open → decode → analyze → player → `chord_at()` → `SessionSnapshot` → frame | implemented |
 | Chord metrics (`metrics/`) — timing-free and boundary-aware scoring views | implemented as library code |
 | Key, tempo and lyrics metrics (`metrics/`) — WER/CER, key relation, half/double BPM | implemented as library code |
 | Chord scoring semantics (`evaluation/`) — MIREX equality, duration-weighted CSR | implemented as library code |
@@ -221,7 +268,7 @@ songlab export    song.mp3 --format chordpro  ChordPro, JSON, Markdown, ...
 ## Development
 
 ```bash
-pytest                # 1231 tests + environment-dependent skips, no network, no models
+pytest                # 1268 tests + environment-dependent skips, no network, no models
 ruff check . && ruff format --check .
 python -m mypy
 ```

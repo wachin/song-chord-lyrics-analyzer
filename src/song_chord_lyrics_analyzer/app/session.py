@@ -19,6 +19,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from song_chord_lyrics_analyzer.analysis import AnalysisOutcome, StepOutcome, run_analysis
+from song_chord_lyrics_analyzer.audio.decode import DecodedAudio, decode_audio
+from song_chord_lyrics_analyzer.audio.peaks import DEFAULT_PEAK_BUCKETS, WaveformPeaks, peaks_of
 from song_chord_lyrics_analyzer.audio.playback import PlaybackState, Player, create_player
 from song_chord_lyrics_analyzer.audio.validation import validate_audio_file
 from song_chord_lyrics_analyzer.models.analysis import AnalysisResult
@@ -85,6 +87,8 @@ class SongSession:
         self._outcome: AnalysisOutcome | None = None
         self._events: tuple[ChordEvent, ...] = ()
         self._starts: tuple[float, ...] = ()
+        self._audio: DecodedAudio | None = None
+        self._peaks: dict[int, WaveformPeaks] = {}
 
     # -- lifecycle ---------------------------------------------------------
 
@@ -110,7 +114,9 @@ class SongSession:
         resolved = validate_audio_file(path)
         self.close()
         try:
-            self.player.load(resolved)
+            # The player decodes; keeping what it decoded is what lets the
+            # timeline draw a waveform without a second decode (Phase D).
+            audio = self.player.load(resolved)
             outcome = self._analyze(resolved, engines=engines, input_hash=input_hash)
         except Exception:
             self.close()
@@ -118,6 +124,7 @@ class SongSession:
 
         events = tuple(sorted(outcome.result.chords, key=lambda event: event.start))
         self._path = resolved
+        self._audio = audio
         self._outcome = outcome
         self._events = events
         self._starts = tuple(event.start for event in events)
@@ -132,6 +139,8 @@ class SongSession:
         self._outcome = None
         self._events = ()
         self._starts = ()
+        self._audio = None
+        self._peaks = {}
 
     @property
     def is_open(self) -> bool:
@@ -179,6 +188,37 @@ class SongSession:
     def position(self) -> float:
         """Current playhead in seconds."""
         return self._player.position() if self._player is not None else 0.0
+
+    def waveform_peaks(self, *, buckets: int = DEFAULT_PEAK_BUCKETS) -> WaveformPeaks:
+        """The waveform of the open song, reduced to ``buckets`` columns.
+
+        The samples come from what the player already decoded, so drawing a
+        waveform costs no second decode; a player that hands nothing back is
+        decoded through the shared decode service instead. Results are cached
+        per resolution, which is what makes a resized timeline cheap to redraw.
+
+        Args:
+            buckets: Requested resolution, i.e. one bucket per drawn column.
+
+        Raises:
+            InputError: When no song is open, or ``buckets`` is not positive.
+        """
+        if self._path is None:
+            raise InputError(
+                "No song is open.",
+                hint="Call session.open(path) before reading its waveform.",
+            )
+        if buckets < 1:
+            raise InputError(f"buckets must be positive, got {buckets!r}")
+        cached = self._peaks.get(buckets)
+        if cached is not None:
+            return cached
+        audio = self._audio
+        if audio is None:  # a player that decodes without returning the samples
+            audio = decode_audio(self._path, mono=True)
+        peaks = peaks_of(audio, buckets=buckets)
+        self._peaks[buckets] = peaks
+        return peaks
 
     def snapshot(self) -> SessionSnapshot:
         """The playback timeline model at this instant, for a display to render.

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Callable
 from pathlib import Path
 
@@ -72,3 +73,19 @@ class FakeEngine:
 def fake_engine() -> type[FakeEngine]:
     """Return the :class:`FakeEngine` class so tests can build engines."""
     return FakeEngine
+
+
+@pytest.fixture
+def qt_app() -> object:
+    """A ``QApplication`` on the offscreen platform, or skip without PyQt6.
+
+    The GUI is tested through its widgets, never through a screen: the offscreen
+    platform plugin draws into memory, so ``render()`` and ``paintEvent`` run on
+    a CI machine with no display and the core install (no Qt) simply skips.
+    """
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    widgets = pytest.importorskip("PyQt6.QtWidgets", reason="PyQt6 is not installed")
+    existing = widgets.QApplication.instance()
+    if existing is not None:
+        return existing
+    return widgets.QApplication(["pytest"])

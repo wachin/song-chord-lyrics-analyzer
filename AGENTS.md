@@ -84,15 +84,19 @@ a section `[x]` because it looks close, and never invent a fourth marker. (The o
 * **Gate before claiming done.** All of these must pass:
   `ruff check .`, `ruff format --check .`, `python -m mypy`, `pytest -q`. Markdown is
   excluded from the formatter on purpose — do not "fix" the roadmap's formatting.
+  `mypy` type-checks `gui/` against the real PyQt6 stubs, so the development venv
+  installs the `gui` extra (`pip install -e ".[dev,gui]"`); that is a dev-environment
+  requirement, not a dependency of the installed package.
 * **Never invent numbers.** No benchmark, timing or accuracy figure may appear in
   docs or commits unless it was measured, and a measurement must state the
   environment and the date.
 * **English only** for identifiers, CLI text, errors, logs, docs and test names.
 * **GUI after the product slice, and always through `app/`.** The headless slice
-  (Phase C) exists, so the minimal PyQt6 window is the next product step (Phase D)
-  rather than something to defer indefinitely. When it is built, widgets read
-  `SongSession`/`DisplayFrame` only: GUI → `app/` → engines, never GUI → librosa,
-  and the logic stays in plain-Python presenters so it can be tested offscreen.
+  (Phase C) exists and so does the minimal window (Phase D, `songlab gui`, behind
+  the optional `gui` extra). Widgets read `SongSession` and the `app/` presenters
+  only: GUI → `app/` → engines, never GUI → librosa, and new logic goes into
+  plain-Python presenters so it stays testable offscreen. `gui/` imports Qt
+  lazily, so the core install and the test matrix stay Qt-free.
 * **Licences.** This project is GPL-3.0-or-later. Model weights, datasets and external
   tools have their own licences and several of the audited candidates are non-free for
   commercial use. Check `docs/LICENSE_AUDIT.md` before proposing anything.

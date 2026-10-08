@@ -7,7 +7,7 @@
 [![Offline-first](https://img.shields.io/badge/offline--first-yes-success.svg)](#design-principles)
 [![Core dependencies](https://img.shields.io/badge/core%20dependencies-none-brightgreen.svg)](#design-principles)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
-[![Tests](https://img.shields.io/badge/tests-1268%20passing-brightgreen.svg)](#development)
+[![Tests](https://img.shields.io/badge/tests-1340%20passing-brightgreen.svg)](#development)
 
 A cross-platform, offline-first laboratory that analyzes an audio song and
 produces a synchronized representation of its **lyrics, chords, beats, tempo
@@ -17,19 +17,22 @@ and key** — with confidence and provenance attached to every inference.
 * **CLI:** `songlab`
 * **Platforms:** Linux, Windows, macOS
 * **Licence:** GPL-3.0-or-later
-* **Status:** the *first product milestone* is reached as a **terminal display** —
-  the whole path runs end to end: real audio file → shared decode service →
-  chord analysis → timestamped `ChordEvent`s → playback → the chord under the
-  playhead drawn by `songlab play` and updated while the song plays (see the
-  [demo](#demo-the-chords-follow-the-song)). The repository, CLI, canonical
-  typed model, engine interfaces, audio metadata, playback layer, tests and CI
-  are all in place, and three engines are registered: chords `chroma-baseline`
-  (CQT chroma matched against triad templates through an optional numpy/librosa
-  front end), key `krumhansl` and tempo `librosa-tempo`. What does **not** exist
-  yet is the desktop window — the display is a terminal line, and the PyQt6 GUI
-  is phase D in the [roadmap](ROADMAP.md). Accuracy work (Phase I) comes after
-  that slice; the measurements behind it (lyrics ASR, chord decoding, key,
-  tempo) were produced by a temporary, gitignored harness and are recorded in
+* **Status:** the *first product milestone* is reached **in two front ends**. The
+  whole path runs end to end: real audio file → shared decode service → chord
+  analysis → timestamped `ChordEvent`s → playback → the chord under the playhead,
+  drawn by `songlab play` as a terminal line (see the
+  [demo](#demo-the-chords-follow-the-song)) and by `songlab gui` in a **desktop
+  window** with a waveform timeline, a chord strip and a seekable playhead
+  (roadmap Phase D, 2026-10-08). The repository, CLI, canonical typed model,
+  engine interfaces, audio metadata, playback layer, tests and CI are all in
+  place, and three engines are registered: chords `chroma-baseline` (CQT chroma
+  matched against triad templates through an optional numpy/librosa front end),
+  key `krumhansl` and tempo `librosa-tempo`. What is still missing is the
+  *depth* of that window — editing, lyrics, exports, translations, the `[F]`
+  work listed in [`docs/GUI_REQUIREMENTS.md`](docs/GUI_REQUIREMENTS.md). Accuracy
+  work (Phase I) comes after that foundation; the measurements behind it (lyrics
+  ASR, chord decoding, key, tempo) were produced by a temporary, gitignored
+  harness and are recorded in
   [`docs/ENGINE_COMPARISON.md`](docs/ENGINE_COMPARISON.md) and
   [`docs/DEPENDENCY_MATRIX.md`](docs/DEPENDENCY_MATRIX.md).
 
@@ -100,8 +103,9 @@ in [`docs/DATASET.md`](docs/DATASET.md).
 
 ## Design principles
 
-1. **No GUI first.** The command-line laboratory is built and validated before
-   any PyQt6 code exists.
+1. **No GUI first.** The command-line laboratory was built and validated before
+   any PyQt6 code existed; the window (Phase D) then arrived as one more client
+   of the same session, so it holds no analysis of its own.
 2. **Engines behind interfaces.** Any chord or lyrics engine is an adapter; the
    CLI and GUI never import it directly.
 3. **A canonical typed model.** Not Markdown, not ChordPro — those are exporters.
@@ -133,7 +137,8 @@ before the CLI is allowed to grow. Current state and direction:
 | `krumhansl` key engine — chroma profile vs the Krumhansl-Kessler profiles (roadmap 31/32) | implemented |
 | `librosa-tempo` tempo engine — BPM with half/double readings kept (roadmap 33) | implemented |
 | Stem separation, alignment, fusion, exports | later |
-| PyQt6 window (waveform timeline, seek, chord display) | next (Phase D); the headless display `songlab play` already exists |
+| PyQt6 window — waveform timeline, chord strip, seekable playhead, chord label, analysis panel (`songlab gui`) | **implemented** (Phase D, minimal window; optional `gui` extra) |
+| Editing, undo/redo, lyrics view, transpose, exports, translations in that window | not started (`[F]` work, see [`docs/GUI_REQUIREMENTS.md`](docs/GUI_REQUIREMENTS.md)) |
 
 The metric definitions are already fixed in [`docs/BENCHMARK.md`](docs/BENCHMARK.md):
 chord (exact/root/quality + segment overlap + timing error + change detection),
@@ -154,6 +159,9 @@ source .venv/bin/activate          # Windows: .venv\Scripts\Activate.ps1
 
 python -m pip install --upgrade pip setuptools wheel
 python -m pip install -e .         # add ".[dev]" for tests, linting, mypy
+
+# to open the window, and to hear the song it plays:
+python -m pip install -e ".[gui,dsp,playback]"
 ```
 
 FFmpeg is optional but recommended: WAV files work out of the box, everything
@@ -173,6 +181,7 @@ songlab chords song.wav --engine chroma-baseline --json   # select an engine, em
 songlab analyze song.wav       # chords + key + tempo, assembled with provenance
 songlab play song.wav          # play it and watch the chord under the playhead
 songlab play song.wav --at 42  # just print the chord at 00:00:42
+songlab gui song.wav           # open it in the desktop window (needs the gui extra)
 ```
 
 Example:
@@ -202,6 +211,19 @@ Without an output device, `--at SECONDS` still answers *which chord is there*
 (nothing is played), and a missing backend is reported as a dependency error
 with an install hint rather than silence.
 
+`songlab gui` needs the same two extras plus `gui` (PyQt6):
+
+```bash
+python -m pip install -e ".[gui,dsp,playback]"
+songlab gui              # empty window; use Open... to pick a file
+songlab gui song.wav     # or open one right away
+```
+
+Qt stays optional on purpose: `gui/` imports it lazily, so without the extra
+every other command keeps working and `songlab gui` reports
+`The desktop window needs PyQt6, which is not installed.` with the install
+command, exiting with code 3 like any other missing optional dependency.
+
 ## Demo: the chords follow the song
 
 One command turns a file into something you can watch. The line below is
@@ -229,8 +251,38 @@ Chords:   4 events from chroma-baseline
 The chord, the position and the progress bar all come from the same
 `SessionSnapshot` the synchronization tests drive on a fake clock, so the
 display cannot show a chord the session does not claim for that instant. Chords
-this engine gets wrong are still wrong — that is Phase I work, after the
-desktop window; the demo claims synchronization, not accuracy.
+this engine gets wrong are still wrong — that is Phase I work; the demo claims
+synchronization, not accuracy.
+
+## The same slice, in a window
+
+`songlab gui` opens the minimal desktop window (roadmap Phase D). It draws what
+the terminal line prints, plus the surrounding timeline:
+
+* the **waveform** of the decoded song, from peaks reduced to one column per
+  pixel (`audio/peaks.py`) — drawn at true amplitude, so a quiet recording looks
+  quiet;
+* a **chord strip** under it, one band per detected event (`app/timeline.py`),
+  with the label the session would report for that instant;
+* a **playhead** over both, moved by the same frame the terminal display renders,
+  so the window and the CLI can never disagree about what is sounding;
+* a **transport** (open, play/pause, stop, back/forward) and a click-or-drag
+  timeline that seeks, plus an **analysis panel** with the file, the duration,
+  the key, the tempo, which engine ran for each layer, which layer was skipped,
+  the run status and the provenance summary.
+
+The synchronization is the same one the command line uses: one
+`SongSession.snapshot()` per refresh, projected onto the same `DisplayFrame`. The
+window is tested that way too — driven through a fake player and a frozen clock
+offscreen, with one assertion that every frame it draws carries exactly the chord
+`chord_at()` claims for its position, and one integration test that repeats it on
+a generated song the real engine analysed and, where the machine has an output
+device, during real playback.
+
+What it deliberately does **not** do yet: edit chords or lyrics, undo/redo,
+transpose, simplify, export, show per-chord confidence in a panel, or translate
+its UI. Those are the `[F]` items in
+[`docs/GUI_REQUIREMENTS.md`](docs/GUI_REQUIREMENTS.md).
 
 Planned commands, added phase by phase:
 
@@ -258,20 +310,28 @@ songlab export    song.mp3 --format chordpro  ChordPro, JSON, Markdown, ...
 | `librosa-tempo` tempo engine — BPM scored as absolute, half-time and double-time error by `songlab benchmark --engine` | implemented |
 | `songlab analyze` — the canonical document (`AnalysisResult` + `Provenance` + `AnalysisRun`) from the registered engines | implemented |
 | `songlab play` — play a file and show the chord under the playhead, updating with playback (terminal display; `--at`, `--interval`, `--frames`) | implemented |
-| `SongSession` + display presenter (`app/`) — open → decode → analyze → player → `chord_at()` → `SessionSnapshot` → frame | implemented |
+| `songlab gui` — the desktop window: waveform timeline, chord bands, playhead, transport, seek, analysis panel (optional `gui` extra) | implemented (minimal window, roadmap Phase D) |
+| `SongSession` + presenters (`app/`) — open → decode → analyze → player → `chord_at()` → `SessionSnapshot` → frame, band and summary rows | implemented |
+| Waveform peak data (`audio/peaks.py`) — min/max per drawn column, frame-aligned, dependency-free | implemented |
 | Chord metrics (`metrics/`) — timing-free and boundary-aware scoring views | implemented as library code |
 | Key, tempo and lyrics metrics (`metrics/`) — WER/CER, key relation, half/double BPM | implemented as library code |
 | Chord scoring semantics (`evaluation/`) — MIREX equality, duration-weighted CSR | implemented as library code |
 | `songlab benchmark` — scores stored reference/hypothesis cases into `benchmark/{json,csv,md}` | implemented; `--engine chroma-baseline` fills cases from a real measured run |
-| Further chord decoders, lyrics/key/tempo/beat engines, separation, alignment, fusion, exports, GUI | not started |
+| GUI editing, undo/redo, lyrics view, transpose, exports, translations | not started (`[F]` work) |
+| Further chord decoders, lyrics/beat engines, separation, alignment, fusion | not started |
 
 ## Development
 
 ```bash
-pytest                # 1268 tests + environment-dependent skips, no network, no models
+pytest                # 1340 tests + environment-dependent skips, no network, no models
 ruff check . && ruff format --check .
 python -m mypy
 ```
+
+Without PyQt6 the window's tests skip; the development environment installs it
+with the other extras, `python -m pip install -e ".[dev,dsp,playback,gui]"`,
+which is what the CI jobs do (`mypy` type-checks `gui/` against the real PyQt6
+stubs, so the lint job installs `gui` too).
 
 Finished roadmap work must be marked in the same change: the task moves to `[x]`
 in [`ROADMAP.md`](ROADMAP.md) (`[~]` when only part of it landed); see
@@ -338,7 +398,7 @@ temporary WAVs).
 | [`docs/BENCHMARK.md`](docs/BENCHMARK.md) | the metric specification and the planned `songlab benchmark` command |
 | [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) | exit codes, FFmpeg, caches |
 | [`docs/INTERNATIONALIZATION.md`](docs/INTERNATIONALIZATION.md) | English-first policy and Qt Linguist plan |
-| [`docs/GUI_REQUIREMENTS.md`](docs/GUI_REQUIREMENTS.md) | planned GUI work, nothing claimed yet |
+| [`docs/GUI_REQUIREMENTS.md`](docs/GUI_REQUIREMENTS.md) | the window that exists, and the `[F]` GUI work that does not |
 
 ## Contributing
 

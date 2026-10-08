@@ -36,7 +36,20 @@ python -m pip install -e ".[dev]"
 
 The core package has **no** required dependencies. Analysis engines are opt-in
 extras that are added phase by phase, with their licence and platform support
-recorded in `docs/DEPENDENCY_MATRIX.md` first.
+recorded in `docs/DEPENDENCY_MATRIX.md` first. The environment the full gate is
+run in installs the extras the tests need:
+
+```bash
+python -m pip install -e ".[dev,dsp,playback,gui]"
+```
+
+`dsp` (numpy/librosa/soundfile) runs the real engines, `playback` (sounddevice)
+the real player, and `gui` (PyQt6) the desktop window,
+which its tests drive on the offscreen platform plugin (`QT_QPA_PLATFORM=offscreen`,
+set by the `qt_app` fixture) so no display or sound card is required. `mypy`
+type-checks `gui/` against the real PyQt6 stubs, so the lint gate installs `gui`
+as well; the installed package itself stays Qt-free and the test matrix runs
+without it.
 
 ## 3. Everyday commands
 

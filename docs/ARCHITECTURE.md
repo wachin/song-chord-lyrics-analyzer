@@ -8,11 +8,12 @@ file explains *how* the layers fit together, not what to build next.
 ## 1. Layering
 
 ```text
-                 CLI (songlab)                PyQt6 GUI (Phase D)
+                 CLI (songlab)              PyQt6 window (gui/, optional)
                        │                              │
                        └──────────────┬───────────────┘
                                       ▼
-                    app/  session + presenter   (no Qt, no ML)
+            app/  session + presenters        (no Qt, no ML)
+            session · display · timeline · summary
                                       ▼
                             Analysis pipeline
                                       ▼
@@ -26,14 +27,16 @@ file explains *how* the layers fit together, not what to build next.
 ```
 
 `app/` is the layer both front ends share: `SongSession` (open → decode →
-analyze → own the player → `chord_at(seconds)`) and `display.py` (the pure
-presenter that turns a `SessionSnapshot` into a `DisplayFrame`). A front end
-renders frames; it never re-implements synchronization. `songlab play` is the
-terminal renderer, and the Phase D window renders the same frame with widgets.
+analyze → own the player → `chord_at(seconds)`) and the presenters - `display.py`
+(the pure function that turns a `SessionSnapshot` into a `DisplayFrame`),
+`timeline.py` (a chord event as a band in seconds, and the seconds/pixel mapping
+in both directions) and `summary.py` (the analysis as label/value rows). A front
+end renders; it never re-implements synchronization or geometry. `songlab play`
+is the terminal renderer, `gui/` is the window, and both draw the same frame.
 
 Rules that keep this honest:
 
-* The CLI and (later) the GUI contain **no** audio-analysis algorithm.
+* The CLI and the GUI contain **no** audio-analysis algorithm.
 * No concrete engine (`madmom`, `librosa`, `demucs`, `faster-whisper`, ...) may
   be imported by the GUI or by `app/`, and none is a hard dependency of the package.
 * The canonical document is never Markdown or ChordPro. Those are exporters.
@@ -47,9 +50,12 @@ src/song_chord_lyrics_analyzer/
 ├── __main__.py           `python -m song_chord_lyrics_analyzer`
 ├── cli/                  argument parsing and command implementations
 │   ├── main.py           parser, error translation, exit codes
-│   └── commands/         info, doctor, chords, analyze, play, benchmark
-├── app/                  session (open/analyze/play/chord_at) + display presenter
-├── audio/                validation, FFmpeg discovery, metadata probing, shared decode, playback
+│   └── commands/         info, doctor, chords, analyze, play, gui, benchmark
+├── app/                  session (open/analyze/play/chord_at) + the presenters
+│                         (display frame, timeline bands/geometry, summary rows)
+├── gui/                  (phase D, optional `gui` extra) PyQt6 window: main_window,
+│                         timeline widget, analysis panel; reads app/ only
+├── audio/                validation, FFmpeg discovery, metadata probing, shared decode, playback, waveform peaks
 ├── engines/              engine protocols, options, registry, chord + key + tempo engines, decoding
 ├── schema/               canonical JSON codec
 ├── models/               canonical typed data model (dataclasses)
@@ -224,14 +230,12 @@ Only WAV files can be inspected without FFmpeg.
 
 | Area | Status |
 | --- | --- |
-| Area (this file) | Status |
-| --- | --- |
-| Model, codec, registry, audio metadata, CLI | implemented; the canonical model, the engine protocols and the commands `info`, `doctor`, `chords`, `analyze` and `play` all run |
-| Audio decoding and playback | implemented as a shared service (`audio/decode.py`) and a tested `Player` with a real `sounddevice` backend (`audio/playback.py`). **Still open:** the DSP engines call `librosa.load` themselves instead of the shared decoder, and there is no waveform peak data yet |
+| Model, codec, registry, audio metadata, CLI | implemented; the canonical model, the engine protocols and the commands `info`, `doctor`, `chords`, `analyze`, `play` and `gui` all run |
+| Audio decoding and playback | implemented as a shared service (`audio/decode.py`), a tested `Player` with a real `sounddevice` backend (`audio/playback.py`) and waveform peaks (`audio/peaks.py`, min/max per bucket, no numpy import). **Still open:** the DSP engines call `librosa.load` themselves instead of the shared decoder |
 | Chord engine | `chroma-baseline` registered, tested and measured (CSR 0.4260, 180 GuitarSet takes); per-chord confidence still reports `unknown` |
 | Key and tempo engines | `krumhansl` and `librosa-tempo` registered, tested and measured; an engine for beats does not exist |
-| Product slice (open → analyze → play → synchronized chord) | **reached** on 2026-10-07 as `songlab play` + `app/display.py`; the display is a terminal line |
-| GUI | not started; the Phase D window renders the existing `DisplayFrame`/`SongSession` |
+| Product slice (open → analyze → play → synchronized chord) | **reached** on 2026-10-07 as `songlab play` + `app/display.py`, and reachable through a window since 2026-10-08 (`songlab gui`) |
+| GUI | **minimal window implemented** (2026-10-08): `gui/main_window.py`, `gui/timeline.py` (waveform + chord bands + playhead, click/drag to seek), `gui/analysis_panel.py`; PyQt6 behind the optional `gui` extra, tested offscreen. Editing, lyrics, exports and translations are `[F]` work and not started |
 | Lyrics, beats, stems, alignment, fusion, export, packaging | not started; `metrics/`/`evaluation/` metrics and the `benchmark/` runner exist as library code, `export/`, `alignment/`, `fusion/` and `i18n/` are empty placeholders |
 
 [`ROADMAP.md`](../ROADMAP.md) is the authoritative progress view, with `[x]` /

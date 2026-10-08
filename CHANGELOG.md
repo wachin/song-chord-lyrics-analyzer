@@ -6,6 +6,68 @@ the project uses [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+* **The minimal desktop window (roadmap Phase D, 2026-10-08).** `songlab gui`
+  opens the smallest usable desktop application around the Phase C slice: open
+  an audio file, see its waveform timeline with the detected chords, play/pause,
+  stop, seek by clicking or dragging the timeline (or with the arrow keys), and
+  always see the chord for the current position next to the track time and the
+  analysis summary (key, tempo, engines that ran, skipped layers, provenance).
+  * `gui/main_window.py` — `MainWindow` and `launch()`: one `snapshot()` per
+    timer tick turned into the same `DisplayFrame` `songlab play` prints, so the
+    window cannot drift from the playhead. Transport actions, file dialog,
+    honest `QMessageBox` reporting for expected failures, `closeEvent` releases
+    the player. `refresh()` is public and deterministic, which is how the tests
+    drive it.
+  * `gui/timeline.py` — `TimelineWidget`: waveform, chord strip and playhead in
+    one widget, with a `seek_requested(seconds)` signal on click or drag.
+  * `gui/analysis_panel.py` — `AnalysisPanel`: the rows `summarize()` produced.
+  * `gui/__init__.py` — Qt is imported lazily, so a Qt-free install keeps every
+    other command working and `songlab gui` raises `DependencyError` (exit 3)
+    with the `pip install "...[gui]"` hint instead of a traceback.
+  * PyQt6 is an **optional `gui` extra** (`PyQt6>=6.5`, GPL-3.0 option, recorded
+    in `docs/LICENSE_AUDIT.md` and `docs/DEPENDENCY_MATRIX.md` §8); the core
+    install, the test matrix and every other command stay Qt-free.
+* **Waveform peak data (roadmap Phase A task).** `audio/peaks.py` reduces the
+  decoded samples to one min/max pair per drawn column
+  (`waveform_peaks()`, `peaks_of()`, `WaveformPeaks`): frame-aligned for
+  interleaved audio, dependency-free (it never imports numpy; a bucket uses the
+  array's own `min`/`max` or the builtins) and exposed to the window through
+  `SongSession.waveform_peaks(buckets)`, which reuses the samples the player
+  already decoded and caches the result per resolution.
+* **Two presenters the window renders.** `app/timeline.py` lays the chord events
+  out as bands (`chord_bands()`) with exactly the semantics of
+  `SongSession.chord_at()` — half-open intervals, the latest event that started
+  wins, clipped to the track — and maps seconds to pixels and back
+  (`x_for_position()` / `position_for_x()`), which is what makes a click a seek.
+  `app/summary.py` turns the document plus the run steps into `SummaryRow`s
+  (file, duration, chords, key, tempo, engines, skipped/failed layers, run
+  status, versions, platform, input hash, warning count), omitting a row rather
+  than inventing a value.
+* `songlab gui [AUDIO] [--engine KIND=NAME] [--no-hash]` — the command, in the
+  command list, in `songlab --help` and in the README.
+* Tests: `tests/unit/test_peaks.py`, `tests/unit/test_timeline_presenter.py`,
+  `tests/unit/test_summary_presenter.py`, `tests/unit/test_gui_main_window.py`,
+  `tests/unit/test_gui_command.py`,
+  `tests/integration/test_gui_integration.py`. Suite: 1340 passed / 57 skipped
+  (core), 1395 passed / 2 skipped with the optional DSP + GUI stack; `ruff` and
+  `mypy` (71 files) clean. The window is driven on the offscreen platform
+  plugin, with a fake player and a frozen clock in the unit tests and the real
+  engine, real file and real device in the integration tests; CI installs the
+  `gui` extra in the DSP job and the lint job so mypy checks the real Qt stubs.
+* Documentation: `ROADMAP.md` (Phase D complete, Phase A peak task complete, the
+  link-7 row and the milestone conclusion rewritten),
+  `docs/GUI_REQUIREMENTS.md` (what exists now, what is still `[F]`),
+  `docs/ARCHITECTURE.md` (layer diagram, layout, status table),
+  `AGENT_HANDOFF.md`, `README.md`, `AGENTS.md` and the dependency/licence docs.
+
+Honest limits of that window: it is the **minimal** window, so editing,
+undo/redo, lyrics, transpose, exports, a confidence panel and translations are
+not in it; it reuses the session's `sounddevice` player rather than a Qt
+Multimedia backend; and it claims **synchronization, not accuracy** — wrong
+chords are still wrong until Phase I.
+
 ### Research
 
 * **Guitar-dataset inventory registered (2026-10-04).** The 13-source guitar

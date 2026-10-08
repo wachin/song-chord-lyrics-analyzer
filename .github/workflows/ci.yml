@@ -25,8 +25,11 @@ jobs:
       - name: Upgrade packaging tools
         run: python -m pip install --upgrade pip setuptools wheel
 
+      # The `gui` extra is installed so mypy type-checks the optional window
+      # against the real PyQt6 stubs; the core install and the test matrix stay
+      # Qt-free and the window's own tests skip there.
       - name: Install the project
-        run: python -m pip install -e ".[dev]"
+        run: python -m pip install -e ".[dev,gui]"
 
       - name: Ruff lint
         run: ruff check .
@@ -70,9 +73,11 @@ jobs:
 
   # The real chord/key/tempo engines need the optional DSP stack
   # (numpy/librosa/soundfile), which the matrix job above does not install and
-  # whose tests therefore skip there. This job installs the `dsp` extra plus
-  # FFmpeg and runs the whole suite, so the real-engine end-to-end tests (and
-  # the transcode path) actually execute somewhere in CI.
+  # whose tests therefore skip there. This job installs the `dsp` and `gui`
+  # extras plus FFmpeg and runs the whole suite, so the real-engine end-to-end
+  # tests (and the transcode path) actually execute somewhere in CI - together
+  # with the desktop window, which the tests drive on the offscreen platform
+  # plugin, with no display and no sound card.
   dsp:
     name: DSP engines (Ubuntu, FFmpeg)
     runs-on: ubuntu-latest
@@ -87,10 +92,10 @@ jobs:
       - name: Install FFmpeg
         run: sudo apt-get update && sudo apt-get install --yes ffmpeg
 
-      - name: Install the project with development and DSP extras
-        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev,dsp]"
+      - name: Install the project with development, DSP and GUI extras
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev,dsp,gui]"
 
-      - name: Run the test suite with the DSP stack
+      - name: Run the test suite with the DSP stack and the window
         run: python -m pytest -q
 
   # Integration tests use real FFmpeg. They are skipped automatically when the

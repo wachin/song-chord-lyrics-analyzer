@@ -31,6 +31,7 @@ model card, or the vendor's own licence page. Nothing here is legal advice, and
 | Package | Version | Licence | Source of the finding |
 | --- | --- | --- | --- |
 | numpy | 2.5.3 | BSD-3-Clause | `numpy/LICENSE.txt` |
+| PyQt6 (optional `gui` extra, in use since 2026-10-08) | 6.11.0 | GPL-3.0 or Riverbank Commercial | Riverbank's own page (see §6 for the LGPL Qt build the wheels carry) |
 | scipy | 1.18.1 | BSD-3-Clause | package metadata + bundled notices (see §6) |
 | librosa | 1.0.0 | ISC | package metadata (`license = ISC`, ISC classifier) |
 | soundfile | 0.14.0 | BSD-3-Clause | package metadata; wraps LGPL libsndfile (§6) |
@@ -103,7 +104,12 @@ packaging, which is why it is written down now.
 ## 7. Compatibility conclusions
 
 * **GPL-3.0-or-later** is our licence; PyQt6's GPL-3 option, and the permissive
-  BSD/ISC/MIT/Apache-2.0 dependencies, are all fine.
+  BSD/ISC/MIT/Apache-2.0 dependencies, are all fine. PyQt6 is now an actual
+  optional dependency: the `gui` extra added on 2026-10-08 for the roadmap
+  Phase D window distributes PyQt6 under its GPL-3.0 option, which matches this
+  project's licence. Nothing else follows from it: it is never imported by the
+  core package, so a Qt-free installation remains GPL-3.0-or-later with no extra
+  obligations, and PySide6 stays recorded as the permissive alternative.
 * **AGPL-3.0-only (Essentia library)** can be combined with GPLv3 in principle,
   but the network clause and the non-commercial model licences make it a poor fit
   for what this project is trying to be. Rejected as a dependency.

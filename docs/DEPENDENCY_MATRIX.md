@@ -30,7 +30,7 @@ engine working.
 | --- | --- |
 | **Adopt** (as optional extras, when their phase arrives) | numpy, scipy, librosa, soundfile, sounddevice, music21, faster-whisper, beat_this |
 | **Adopt with a documented condition** | basic-pitch — Apache-2.0 and functionally verified, but its official install path is broken on Python >= 3.12 (see §6 and §10) |
-| **Adopt for the GUI (phase 15)** | PyQt6 (GPL-3.0-or-later compatible); PySide6 recorded as the permissive alternative |
+| **Adopted for the GUI (2026-10-08, roadmap Phase D)** | PyQt6 (GPL-3.0-or-later compatible), behind the optional `gui` extra; PySide6 recorded as the permissive alternative |
 | **Candidate — measure before trusting** | torchcrepe, openai-whisper, spleeter, audio-separator |
 | **Defer (heavy, only if a phase needs it)** | torch, torchaudio |
 | **Reject for integration** | madmom (does not build on current Python; non-commercial weights), Essentia (AGPL library + non-commercial models + no Windows support), MOSS-Music (18.1 GB bf16 weights, no quantization path and CUDA-only runtime — not viable on the CPU target, §13.11) |
@@ -73,8 +73,11 @@ Why this one: it is a thin, MIT-licensed binding with no compiled extension of
 its own, so it works on the Python versions this project targets and needs no
 wheels matched to the interpreter. It streams raw buffers, so the player can feed
 the decode service's samples directly. The alternative recorded in the roadmap —
-Qt Multimedia — arrives with the PyQt6 GUI in Phase D and would implement the same
-`Player` Protocol, so this choice is not irreversible.
+Qt Multimedia — would implement the same `Player` Protocol, so this choice is not
+irreversible. **Decided in Phase D (2026-10-08):** the window reuses this player
+through `SongSession` instead of adding a Qt Multimedia backend, so `songlab play`
+and `songlab gui` share one tested audio path and the GUI's optional extra stays
+a single package.
 
 Verified in this environment (2026-10-06): `sounddevice` 0.5.6 imports against
 `libportaudio.so.2` (PortAudio V19.6.0) and `query_devices(kind="output")` finds
@@ -138,7 +141,7 @@ have no audio output; there the player is expected to raise a
 
 | Package | Latest resolved | Requires-Python | Licence (verified) | Verdict |
 | --- | --- | --- | --- | --- |
-| **PyQt6** | 6.11.0 | `>=3.10` | Riverbank's own page: "PyQt is dual licensed on all supported platforms under the **GNU GPL v3** and the Riverbank Commercial License. Unlike Qt, PyQt is **not** available under the LGPL", and the GPL-version binary wheels "include a copy of the corresponding **LGPL** version of Qt". | **adopt** — compatible with this project's GPL-3.0-or-later; record which Qt build the wheels carry if binaries are ever distributed |
+| **PyQt6** | 6.11.0 | `>=3.10` | Riverbank's own page: "PyQt is dual licensed on all supported platforms under the **GNU GPL v3** and the Riverbank Commercial License. Unlike Qt, PyQt is **not** available under the LGPL", and the GPL-version binary wheels "include a copy of the corresponding **LGPL** version of Qt". | **adopted** — in use since 2026-10-08 behind the optional `gui` extra (`PyQt6>=6.5`), compatible with this project's GPL-3.0-or-later; record which Qt build the wheels carry if binaries are ever distributed |
 | PySide6 | 6.11.2 | `<3.15,>=3.10` | Metadata `license`: `LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only` | documented alternative (permissive option if the licence position ever changes) |
 
 ## 9. External executables

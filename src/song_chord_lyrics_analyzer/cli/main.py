@@ -19,6 +19,7 @@ from song_chord_lyrics_analyzer.cli.commands import (
     benchmark,
     chords,
     doctor,
+    gui,
     info,
     play,
 )
@@ -36,6 +37,7 @@ Commands:
   chords     detect chords with a selectable engine
   analyze    run the full pipeline and assemble the canonical document
   play       play an audio file and watch the chord under the playhead change
+  gui        open the desktop window (needs the optional "gui" extra)
   benchmark  score benchmark cases, optionally running an engine
 
 Planned commands (added phase by phase, see ROADMAP.md):
@@ -149,6 +151,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     play.add_arguments(play_parser)
     play_parser.set_defaults(handler=play.run)
+
+    gui_parser = subparsers.add_parser(
+        "gui",
+        help='open the desktop window (needs the optional "gui" extra)',
+        description=(
+            "Open the minimal desktop window (roadmap Phase D): open an audio "
+            "file, see its waveform timeline and its chords, play, pause, seek "
+            "and always see the chord under the playhead. The window renders "
+            "the same application session as 'songlab play', so it needs "
+            'PyQt6 (pip install "song-chord-lyrics-analyzer[gui]").'
+        ),
+    )
+    gui.add_arguments(gui_parser)
+    gui_parser.set_defaults(handler=gui.run)
 
     benchmark_parser = subparsers.add_parser(
         "benchmark",

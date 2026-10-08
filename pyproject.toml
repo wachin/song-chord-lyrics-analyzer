@@ -50,6 +50,14 @@ playback = [
     "numpy>=1.24",
     "sounddevice>=0.5",
 ]
+# Optional desktop window (roadmap Phase D). PyQt6 is GPL-3.0/commercial and
+# GPL-3.0-or-later compatible for this project; see docs/LICENSE_AUDIT.md. It is
+# an extra so the core install, the test matrix and the CI gate stay Qt-free,
+# and so `songlab gui` can report an honest dependency error instead of failing
+# to import at all. The window needs the dsp and playback extras as well.
+gui = [
+    "PyQt6>=6.5",
+]
 
 [project.scripts]
 songlab = "song_chord_lyrics_analyzer.cli.main:main"

@@ -22,10 +22,12 @@ from dataclasses import dataclass
 
 from song_chord_lyrics_analyzer.analysis.service import StepOutcome, StepStatus
 from song_chord_lyrics_analyzer.models.analysis import AnalysisResult
+from song_chord_lyrics_analyzer.utils.text import pluralize
 from song_chord_lyrics_analyzer.utils.time import format_timestamp
 
 __all__ = [
     "SummaryRow",
+    "lyrics_label",
     "summarize",
 ]
 
@@ -82,6 +84,23 @@ def _describe_chords(document: AnalysisResult) -> str:
     return f"{count} events{suffix}"
 
 
+def _count(count: int, noun: str) -> str:
+    """``1 segment`` / ``2 segments`` - these counts are read by a person."""
+    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
+
+
+def lyrics_label(document: AnalysisResult) -> str | None:
+    """How much of the lyrics layer the document carries, or ``None`` for none.
+
+    Shared by the two front ends so the window panel and the ``analyze`` report
+    say the same thing about the same document.
+    """
+    if not document.lyrics:
+        return None
+    words = sum(len(segment.words) for segment in document.lyrics)
+    return f"{pluralize(len(document.lyrics), 'segment')}, {pluralize(words, 'word')}"
+
+
 def summarize(
     document: AnalysisResult,
     *,
@@ -108,6 +127,9 @@ def summarize(
         if audio.duration:
             rows.append(SummaryRow("Duration", format_timestamp(float(audio.duration))))
     rows.append(SummaryRow("Chords", _describe_chords(document)))
+    lyrics = lyrics_label(document)
+    if lyrics is not None:
+        rows.append(SummaryRow("Lyrics", lyrics))
     rows.append(SummaryRow("Key", document.key.label if document.key is not None else "unknown"))
 
     tempo = _describe_tempo(document)

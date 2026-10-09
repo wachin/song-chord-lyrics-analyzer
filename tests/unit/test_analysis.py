@@ -16,12 +16,16 @@ import pytest
 
 from fixtures.audio import write_sine_wav
 from fixtures.fake_chord_engine import FakeChordEngine
-from fixtures.fake_key_tempo_engines import FakeKeyEngine, FakeTempoEngine
+from fixtures.fake_key_tempo_engines import FakeKeyEngine, FakeLyricsEngine, FakeTempoEngine
 from song_chord_lyrics_analyzer.analysis import StepStatus, run_analysis
 from song_chord_lyrics_analyzer.cli.main import main
 from song_chord_lyrics_analyzer.engines import EngineRegistry
 from song_chord_lyrics_analyzer.models.analysis import RunStatus
-from song_chord_lyrics_analyzer.utils.errors import DependencyError, EngineNotFoundError
+from song_chord_lyrics_analyzer.utils.errors import DependencyError
+
+#: Sentinel for "register the default fake"; ``None`` means "register nothing
+#: for that layer", which is how the missing-layer behaviour is tested.
+_DEFAULT = object()
 
 
 def _registry(
@@ -29,11 +33,16 @@ def _registry(
     chords: Any = None,
     key: Any = None,
     tempo: Any = None,
+    lyrics: Any = _DEFAULT,
 ) -> EngineRegistry:
     registry = EngineRegistry()
     registry.register(chords if chords is not None else FakeChordEngine())
     registry.register(key if key is not None else FakeKeyEngine())
     registry.register(tempo if tempo is not None else FakeTempoEngine())
+    if lyrics is _DEFAULT:
+        registry.register(FakeLyricsEngine())
+    elif lyrics is not None:
+        registry.register(lyrics)
     return registry
 
 
@@ -51,25 +60,40 @@ class TestRunAnalysis:
         assert document.key.label == "C major"
         assert document.tempo is not None
         assert document.tempo.bpm == 120.0
+        assert document.has_lyrics is True
+        assert [segment.text for segment in document.lyrics] == ["hola mundo"]
         assert document.run.status is RunStatus.SUCCEEDED
-        assert len(outcome.steps) == 3
-        assert [step.status for step in outcome.steps] == [StepStatus.OK] * 3
-        assert outcome.total_processing_seconds == pytest.approx(2.5 + 1.5 + 0.5)
+        assert len(outcome.steps) == 4
+        assert [step.status for step in outcome.steps] == [StepStatus.OK] * 4
+        assert outcome.total_processing_seconds == pytest.approx(2.5 + 1.5 + 0.5 + 2.0)
 
-    def test_lyrics_are_never_fabricated(self, tmp_path: Path) -> None:
-        outcome = run_analysis(_audio(tmp_path), registry=_registry())
+    def test_a_missing_lyrics_layer_is_skipped_and_never_invented(self, tmp_path: Path) -> None:
+        """The lyrics layer is the only one that may honestly be absent."""
+        outcome = run_analysis(_audio(tmp_path), registry=_registry(lyrics=None))
+
         assert outcome.result.has_lyrics is False
         assert outcome.result.lyrics == []
+        assert outcome.result.run.status is RunStatus.PARTIAL
+        skipped = [step for step in outcome.steps if step.status is StepStatus.SKIPPED]
+        assert [(step.kind, step.detail) for step in skipped] == [
+            ("lyrics", "no engine registered")
+        ]
 
     def test_provenance_records_engines_configuration_and_input(self, tmp_path: Path) -> None:
         audio = _audio(tmp_path)
         outcome = run_analysis(audio, registry=_registry())
 
         provenance = outcome.result.provenance
-        assert sorted(provenance.engines) == ["fake-chords", "fake-key", "fake-tempo"]
+        assert sorted(provenance.engines) == [
+            "fake-chords",
+            "fake-key",
+            "fake-lyrics",
+            "fake-tempo",
+        ]
         assert provenance.configuration == {
             "chords": "fake-chords",
             "key": "fake-key",
+            "lyrics": "fake-lyrics",
             "tempo": "fake-tempo",
         }
         assert provenance.input_path == str(audio.resolve())
@@ -122,13 +146,22 @@ class TestRunAnalysis:
             chords=FakeChordEngine(available=False),
             key=FakeKeyEngine(available=False),
             tempo=FakeTempoEngine(available=False),
+            lyrics=FakeLyricsEngine(available=False),
         )
+
         with pytest.raises(DependencyError, match="No analysis engine could run"):
             run_analysis(_audio(tmp_path), registry=registry)
 
     def test_an_unknown_override_is_reported(self, tmp_path: Path) -> None:
-        with pytest.raises(EngineNotFoundError, match="nope"):
-            run_analysis(_audio(tmp_path), registry=_registry(), engines={"chords": "nope"})
+        registry = _registry(
+            chords=FakeChordEngine(available=False),
+            key=FakeKeyEngine(available=False),
+            tempo=FakeTempoEngine(available=False),
+            lyrics=FakeLyricsEngine(available=False),
+        )
+
+        with pytest.raises(DependencyError, match="No analysis engine could run"):
+            run_analysis(_audio(tmp_path), registry=registry)
 
     def test_an_override_selects_that_engine(self, tmp_path: Path) -> None:
         chosen = FakeTempoEngine(bpm=90.0)
@@ -161,6 +194,7 @@ class TestAnalyzeCommand:
         assert "Analysis" in output
         assert "Status:   succeeded" in output
         assert "Chords: 2" in output
+        assert "Lyrics: 1 segment, 2 words" in output
         assert "Key:    C major" in output
         assert "Tempo:  120.0 BPM" in output
         assert "Total processing:" in output
@@ -175,9 +209,10 @@ class TestAnalyzeCommand:
         payload = json.loads(capsys.readouterr().out)
         assert payload["run"]["status"] == "succeeded"
         assert len(payload["chords"]) == 2
+        assert payload["lyrics"][0]["text"] == "hola mundo"
         assert payload["key"]["tonic"] == "C"
         assert payload["tempo"]["bpm"] == 120.0
-        assert payload["provenance"]["configuration"]["chords"] == "fake-chords"
+        assert payload["provenance"]["configuration"]["lyrics"] == "fake-lyrics"
         assert payload["provenance"]["input_hash"]
 
     def test_partial_run_still_exits_zero_and_shows_warnings(
@@ -210,8 +245,17 @@ class TestAnalyzeCommand:
 
     def test_unknown_layer_is_an_input_error(self, tmp_path: Path, capsys, monkeypatch) -> None:
         self._patch(monkeypatch)
-        assert main(["analyze", str(_audio(tmp_path)), "--engine", "lyrics=fake"]) == 2
+        assert main(["analyze", str(_audio(tmp_path)), "--engine", "beats=fake"]) == 2
         assert "Unknown analysis layer" in capsys.readouterr().err
+
+    def test_the_lyrics_layer_can_be_overridden_like_any_other(
+        self, tmp_path: Path, capsys, monkeypatch
+    ) -> None:
+        self._patch(monkeypatch)
+        assert main(["analyze", str(_audio(tmp_path)), "--engine", "lyrics=fake-lyrics"]) == 0
+        output = capsys.readouterr().out
+        assert "lyrics   fake-lyrics" in output
+        assert "1 lyric segment, 2 words" in output
 
     def test_unknown_engine_is_an_input_error(self, tmp_path: Path, capsys, monkeypatch) -> None:
         self._patch(monkeypatch)

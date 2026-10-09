@@ -15,6 +15,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from song_chord_lyrics_analyzer.analysis import SUPPORTED_KINDS, AnalysisOutcome, run_analysis
+from song_chord_lyrics_analyzer.app.summary import lyrics_label
 from song_chord_lyrics_analyzer.models.analysis import AnalysisResult
 from song_chord_lyrics_analyzer.performance import real_time_factor
 from song_chord_lyrics_analyzer.schema.codec import encode
@@ -115,6 +116,9 @@ def format_report(outcome: AnalysisOutcome) -> str:
 
     lines.extend(["", "Results", "-------"])
     lines.append(f"  Chords: {len(document.chords)}")
+    lyrics = lyrics_label(document)
+    if lyrics is not None:
+        lines.append(f"  Lyrics: {lyrics}")
     lines.append(
         f"  Key:    {document.key.label if document.key is not None else 'unknown'}"
         f"  (confidence {_format_confidence(document)})"

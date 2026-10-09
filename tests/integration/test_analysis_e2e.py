@@ -126,7 +126,7 @@ class TestRealAudioDocument:
         assert document.run.status is RunStatus.SUCCEEDED
         assert document.key is not None
         assert document.tempo is not None
-        assert {step.kind for step in outcome.steps} == {"chords", "key", "tempo"}
+        assert {step.kind for step in outcome.steps} == {"chords", "key", "tempo", "lyrics"}
         assert all(step.status.value == "ok" for step in outcome.steps)
         assert outcome.total_processing_seconds is not None
         assert outcome.total_processing_seconds > 0.0
@@ -138,11 +138,17 @@ class TestRealAudioDocument:
         assert document.provenance.input_path == str(wav)
         assert document.provenance.input_hash is not None
         assert len(document.provenance.input_hash) == 64
-        assert set(document.provenance.engines) == {"chroma-baseline", "krumhansl", "librosa-tempo"}
+        assert set(document.provenance.engines) == {
+            "chroma-baseline",
+            "krumhansl",
+            "librosa-tempo",
+            "parakeet-onnx",
+        }
         assert document.provenance.configuration == {
             "chords": "chroma-baseline",
             "key": "krumhansl",
             "tempo": "librosa-tempo",
+            "lyrics": "parakeet-onnx",
         }
 
     def test_the_document_survives_a_json_round_trip(self, tmp_path: Path) -> None:

@@ -142,6 +142,9 @@ offscreen platform plugin, plus the real-device playback/follow tests).
 | 3 | Chord engine on real audio | `[x]` | `ChromaBaselineEngine` registered, tested, measured (CSR 0.4260 with Viterbi 0.80 on 180 GuitarSet takes — `docs/ENGINE_COMPARISON.md`). Ran on a real song during the audit. |
 | 4 | Timestamped ChordEvent sequence | `[x]` | `songlab chords` printed 76 events with `start`/`end`/`label` on a real song; `songlab analyze --json` emitted the same inside the canonical document with provenance (schema version 1, `schema/codec.py`). |
 | 5 | Audio playback | `[x]` | `audio/playback.py`: `SoundDevicePlayer` streams decoded samples through PortAudio (`sounddevice`, optional `playback` extra), with `load`/`play`/`pause`/`stop`/`seek`/`close`. Verified on a real device on 2026-10-06; skipped honestly where no output device exists. |
+| 6 | Lyrics engine (roadmap Phase E) | `[x]` | `ParakeetLyricsEngine` via `onnx-asr` (MIT runtime, CC-BY-4.0 weights), `songlab lyrics`, `run_analysis()` lyrics step. Chunked at 20 s; words carry `unknown` confidence. Verified on `samples/vocadito_6.wav` (real weights and real voice, offscreen) and structurally everywhere else. Model pulls (CC-BY-4.0) are fetched on first use and never committed. |
+| 7 | Synchronized display (headless) | `[x]` | Phase C: `app/display.py` renders every `DisplayFrame` on a timer tick, terminal as the first front end. |
+| 8 | Desktop window minimal slice | `[x]` | Phase D: `songlab gui`, `gui/` (`main_window.py`, `timeline.py`, `analysis_panel.py`, `__init__.py`), PyQt6 behind the `gui` extra, offscreen-verified; `app/timeline.py` + `app/summary.py` present all the data.
 | 6 | Current playback timestamp | `[x]` | `position()` on the same player, backed by a pure `PlaybackTimeline` (injectable clock) and re-anchored to the frames PortAudio actually consumed. Deterministic unit tests plus a real-device test. |
 | 7 | Synchronized chord display | `[x]` | `songlab play` draws the chord under the playhead from `SessionSnapshot` (`app/display.py`: `frame_from`, `render_frame`, `ConsoleDisplay`, `follow`; `cli/commands/play.py`), refreshing while the song plays and updating the frame as the chord changes. `--at SECONDS` prints one frame headlessly. Verified end to end on a real device on 2026-10-07 (the chord changed during real playback) and headlessly in CI. **Now with a window too:** since 2026-10-08 `songlab gui` renders the *same* frame, plus the waveform, the chord bands and the analysis panel (`gui/` + `app/timeline.py` + `app/summary.py`), so the display exists both as a terminal line and as a desktop window. |
 
@@ -524,34 +527,42 @@ but none of them exists today.
 
 ---
 
-## 6. Phase E — Lyrics Integration **[P]**
+## 7. Phase E — Lyrics Integration adopted **[P]**
 
-**Objective:** turn the existing lyrics research into a real, registered lyrics
-engine that produces timestamped words from real audio.
+**Objective:** the recorded lyrics research became a real, registered
+`ParakeetLyricsEngine` through `onnx-asr`: timestamped words from real audio,
+chunked at 20 s, `unknown` confidence, model provenance recorded.
 
-**Current status:** `[~]` — research measured, models/libraries known, metrics
-and `LyricSegment`/`LyricWord` models exist; **no engine is registered**
-(`LYRICS -> []`).
+**Current status:** `[x]` — adopted on 2026-10-08; all six tasks above are
+`[x]` and the engine flows through `run_analysis()`, `songlab lyrics` and both
+front ends. The investigation is preserved in `docs/ENGINE_COMPARISON.md` (the
+English result: WER 0.3722 vs 0.3799; RTF 0.20 vs 0.95) and the phase-4
+open-questions are listed there.
 
-### Tasks
+### Tasks — all `x`
 
-- [x] Lyrics models (`models/lyrics.py`) and WER/CER + word-timestamp metrics (`metrics/lyrics.py`)
-- [x] Research already done (see §13 — do not repeat): Parakeet-1B-v3 via
-  `onnx-asr` beats faster-whisper small on English (WER 0.3722 vs 0.3799);
-  both are MIT; **long-audio chunking (~20 s windows) is mandatory**;
-  stems do **not** improve transcription by default
-- [ ] Lyrics engine adapter implementing `LyricsEngine` (start with the measured
-  best option: Parakeet via `onnx-asr`, optional extra)
-- [ ] Chunked transcription pipeline (windowing, overlap handling, reassembly)
-- [ ] Register the engine; `songlab lyrics` command; `run_analysis()` gains a
+- [x] Lyrics engine adapter implementing `LyricsEngine` (`engines/lyrics_parakeet.py`),
+  injected transcriber so the pipeline is testable without a model
+- [x] Chunked transcription pipeline (`engines/lyrics_chunking.py`): windowing,
+  timestamp reassembly, overlap handled by the documented "earlier window wins"
+  rule
+- [x] Register the engine; `songlab lyrics` command; `run_analysis()` gains a
   lyrics step with the same honest skipped/failed status handling
-- [ ] Integration test on committed fixture audio (short, license-clean)
-- [ ] Honest output: word timestamps carry `unknown` confidence unless measured
+- [x] Integration test on committed fixture audio (`samples/vocadito_6.wav`,
+  CC-BY-4.0): real weights and real voice on the committed sample, structural
+  honesty only (no new WER claim)
+- [x] Honour the contract: `README.md` and `docs/GUI_REQUIREMENTS.md` updated;
+  `utils/text.py` holds the shared English agreement helper
+- [x] Remaining phase-4 questions: overlap semantics, second candidate, language
+  tag
 
 ### Files / modules
 
-New `engines/lyrics_*.py`, `cli/commands/lyrics.py`, `analysis/service.py`,
-`pyproject.toml` (optional extra), `tests/`.
+`engines/lyrics_chunking.py`, `engines/lyrics_parakeet.py`,
+`cli/commands/lyrics.py`, `utils/text.py`, `analysis/service.py`,
+`pyproject.toml` (optional `lyrics` extra), `tests/`; docs `ENGINE_COMPARISON.md`,
+`README.md`, `AGENT_HANDOFF.md`, `CHANGELOG.md`, `DEPENDENCY_MATRIX.md`,
+`LICENSE_AUDIT.md`.
 
 ### Acceptance criteria
 
@@ -561,13 +572,68 @@ version) recorded in the document.
 
 ### Dependencies / blockers
 
-Optional DSP extra (onnxruntime ~GB download) — must stay optional; core and
-its tests never require it. No dataset research required.
+Optional DSP extra (onnx-asr, onnxruntime, huggingface-hub, numpy, librosa,
+soundfile) — must stay optional; core and its tests never require it. Download
+of the model happens once, on first use, into the Hugging Face cache, and
+`test_lyrics_integration.py` never triggers it.
 
 ### Must NOT be considered complete
 
 WER numbers from the old harness; an adapter that only runs on one machine;
-un-timestamped transcripts.
+un-timestamped transcripts; a `lyrics` extra that can be installed without
+decoding (numpy/librosa), which the decoder and the engine both need.
+
+**Current status:** `[~]` — research measured, models/libraries known,
+`engines/lyrics_chunking.py` (windowing, reassembly) and `metrics/lyrics.py`
+exist; **no engine was registered** (`LYRICS -> []`). Adopted in 2026-10-08:
+`ParakeetLyricsEngine` through `onnx-asr` (MIT runtime, CC-BY-4.0 weights),
+chunked at 20 s, behind the new `lyrics` extra.
+
+### Tasks
+
+- [x] Lyrics models (`models/lyrics.py`) and WER/CER + word-timestamp metrics (`metrics/lyrics.py`)
+- [x] Research already done (see §13 — do not repeat): Parakeet-1B-v3 via
+  `onnx-asr` beats faster-whisper small on English (WER 0.3722 vs 0.3799);
+  both are MIT; **long-audio chunking (~20 s windows) is mandatory**;
+  stems do **not** improve transcription by default
+- [x] Lyrics engine adapter implementing `LyricsEngine` (`engines/lyrics_parakeet.py`),
+  injected transcriber so the pipeline is testable without a model
+- [x] Chunked transcription pipeline (`engines/lyrics_chunking.py`: windowing,
+  timestamp reassembly, overlap handled by the documented "earlier window
+  wins" rule)
+- [x] Register the engine; `songlab lyrics` command; `run_analysis()` gains a
+  lyrics step with the same honest skipped/failed status handling
+- [x] Integration test on committed fixture audio (`samples/vocadito_6.wav`,
+  CC-BY-4.0) with the real weights when the local cache holds them; structural
+  honesty only (no new WER claim)
+- [x] Honest output: word timestamps carry `unknown` confidence unless measured;
+  `lyrics_label()` keeps the two front ends in agreement
+
+### Files / modules
+
+New `engines/lyrics_chunking.py`, `engines/lyrics_parakeet.py`,
+`cli/commands/lyrics.py`, change in `analysis/service.py`, new
+`utils/text.py` (the English agreement helper), `pyproject.toml` (optional
+`lyrics` extra), `tests/`.
+
+### Acceptance criteria
+
+A real audio file produces timestamped lyric words through the same application
+service and CLI pattern as chords, with model provenance (name, license,
+version) recorded in the document.
+
+### Dependencies / blockers
+
+Optional DSP extra (onnx-asr, onnxruntime, huggingface-hub, numpy, librosa,
+soundfile) — must stay optional; core and its tests never require it. No
+dataset research required. The heavy model downloads on first use; tests never
+trigger it.
+
+### Must NOT be considered complete
+
+WER numbers from the old harness; an adapter that only runs on one machine;
+un-timestamped transcripts; a `lyrics` extra that can be installed without its
+decoding stack.
 
 ---
 

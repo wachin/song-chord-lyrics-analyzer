@@ -161,7 +161,12 @@ class TestDefaultRegistry:
     def test_default_registry_ships_the_first_concrete_engines(self) -> None:
         registry = create_default_registry()
         assert isinstance(registry, EngineRegistry)
-        assert registry.all_names() == ["chroma-baseline", "krumhansl", "librosa-tempo"]
+        assert registry.all_names() == [
+            "chroma-baseline",
+            "krumhansl",
+            "librosa-tempo",
+            "parakeet-onnx",
+        ]
         assert registry.kinds() == list(EngineKind)
 
     def test_the_chroma_baseline_is_registered_as_a_chord_engine(self) -> None:
@@ -181,3 +186,10 @@ class TestDefaultRegistry:
         engine = registry.get(EngineKind.TEMPO, "librosa-tempo")
         assert engine.kind is EngineKind.TEMPO
         assert engine.engine_info().version is not None
+
+    def test_parakeet_is_registered_as_a_lyrics_engine(self) -> None:
+        registry = create_default_registry()
+        engine = registry.get(EngineKind.LYRICS, "parakeet-onnx")
+        assert engine.kind is EngineKind.LYRICS
+        assert engine.engine_info().version is not None
+        assert engine.engine_info().model is not None

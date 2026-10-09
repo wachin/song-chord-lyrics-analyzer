@@ -58,6 +58,21 @@ playback = [
 gui = [
     "PyQt6>=6.5",
 ]
+# Optional lyrics stack (roadmap Phase E). onnx-asr and its CPU runtime
+# onnxruntime are MIT; "huggingface-hub" is the download route onnx-asr itself
+# uses, and the Parakeet weights it fetches are CC-BY-4.0 - they stay in the
+# Hugging Face cache and never in this repository. The decoding half of the DSP
+# stack is repeated here because the engine resamples to 16 kHz through
+# audio/decode.py, so this extra has to be self-sufficient.
+# See docs/LICENSE_AUDIT.md and docs/ENGINE_COMPARISON.md.
+lyrics = [
+    "numpy>=1.24",
+    "librosa>=0.10",
+    "soundfile>=0.12",
+    "onnx-asr>=0.12",
+    "onnxruntime>=1.18",
+    "huggingface-hub>=0.30",
+]
 
 [project.scripts]
 songlab = "song_chord_lyrics_analyzer.cli.main:main"

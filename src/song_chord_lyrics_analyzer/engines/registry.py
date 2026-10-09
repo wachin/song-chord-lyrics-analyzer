@@ -16,6 +16,7 @@ from typing import Any
 from song_chord_lyrics_analyzer.engines.base import EngineKind
 from song_chord_lyrics_analyzer.engines.chroma_baseline import ChromaBaselineEngine
 from song_chord_lyrics_analyzer.engines.key_krumhansl import KrumhanslKeyEngine
+from song_chord_lyrics_analyzer.engines.lyrics_parakeet import ParakeetLyricsEngine
 from song_chord_lyrics_analyzer.engines.tempo_librosa import LibrosaTempoEngine
 from song_chord_lyrics_analyzer.models.analysis import EngineInfo
 from song_chord_lyrics_analyzer.utils.errors import DuplicateEngineError, EngineNotFoundError
@@ -163,13 +164,20 @@ def create_default_registry() -> EngineRegistry:
     """Create the registry used by the CLI.
 
     Concrete engines are registered here as their roadmap phases land: the
-    chroma baseline (first, roadmap section 59), then Chordino/Sonic
-    Annotator, Madmom, PitchPerfect, Faster-Whisper and Demucs. Keeping this
-    function explicit means the CLI and the future GUI see exactly one place
-    where engines become available.
+    chroma baseline (first, roadmap section 59), then the key and tempo
+    baselines, then the Parakeet lyrics engine (roadmap Phase E). Chordino,
+    Madmom, PitchPerfect and Demucs follow. Keeping this function explicit
+    means the CLI and the GUI see exactly one place where engines become
+    available.
+
+    Registering an engine is not the same as being able to run it: the heavy
+    ones report ``is_available() == False`` until their optional stack is
+    installed, and the analysis service turns that into an honest *skipped*
+    step rather than an error.
     """
     registry = EngineRegistry()
     registry.register(ChromaBaselineEngine())
     registry.register(KrumhanslKeyEngine())
     registry.register(LibrosaTempoEngine())
+    registry.register(ParakeetLyricsEngine())
     return registry

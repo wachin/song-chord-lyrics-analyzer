@@ -8,10 +8,12 @@ no argument parsing, no formatting.
 
 Three rules shape it:
 
-* **A failing engine never destroys a document.** Chords, key and tempo are
-  independent; if one fails the others are still kept, the failure becomes a
+* **A failing engine never destroys a document.** Chords, lyrics, key and tempo
+  are independent; if one fails the others are still kept, the failure becomes a
   warning, and the run is marked ``partial``. Only when *nothing* could run does
-  the analysis fail.
+  the analysis fail. This is what makes the lyrics engine, whose model is a
+  ~640 MB download, safe to register: an environment without it still gets a
+  full chord/key/tempo document plus a ``skipped`` lyrics step that says so.
 * **An unavailable engine is never called.** Availability is checked first, so
   a missing optional dependency is reported as a skipped step instead of an
   exception mid-run.
@@ -35,7 +37,11 @@ from typing import Any
 
 from song_chord_lyrics_analyzer import __version__
 from song_chord_lyrics_analyzer.audio.probe import compute_file_hash, probe_audio
-from song_chord_lyrics_analyzer.engines.base import ChordAnalysisOptions, EngineKind
+from song_chord_lyrics_analyzer.engines.base import (
+    ChordAnalysisOptions,
+    EngineKind,
+    LyricsOptions,
+)
 from song_chord_lyrics_analyzer.engines.registry import create_default_registry
 from song_chord_lyrics_analyzer.models.analysis import (
     AnalysisResult,
@@ -46,6 +52,7 @@ from song_chord_lyrics_analyzer.models.analysis import (
 )
 from song_chord_lyrics_analyzer.utils.errors import DependencyError, SongLabError
 from song_chord_lyrics_analyzer.utils.logging import get_logger
+from song_chord_lyrics_analyzer.utils.text import pluralize
 
 __all__ = [
     "SUPPORTED_KINDS",
@@ -57,11 +64,12 @@ __all__ = [
 
 _logger = get_logger("analysis")
 
-#: Engine kinds this service runs today. Lyrics is deliberately absent: no
-#: lyrics engine is registered yet, and pretending otherwise would put an empty
-#: transcript in a document that claims to be analysed.
+#: Engine kinds this service runs today: chords, lyrics, key and tempo. Each
+#: one is independent, so a lyrics engine that is not installed yet costs a
+#: documented *skipped* step and never the rest of the document.
 SUPPORTED_KINDS: tuple[EngineKind, ...] = (
     EngineKind.CHORDS,
+    EngineKind.LYRICS,
     EngineKind.KEY,
     EngineKind.TEMPO,
 )
@@ -120,6 +128,8 @@ def _call(engine: Any, kind: EngineKind, audio_path: Path) -> EngineResult:
     """Invoke the engine method that matches its kind."""
     if kind is EngineKind.CHORDS:
         return engine.analyze(audio_path, ChordAnalysisOptions())
+    if kind is EngineKind.LYRICS:
+        return engine.transcribe(audio_path, LyricsOptions())
     if kind is EngineKind.KEY:
         return engine.detect_key(audio_path, {})
     return engine.detect_tempo(audio_path, {})
@@ -129,6 +139,11 @@ def _describe(kind: EngineKind, result: EngineResult) -> str:
     """A one-line summary of what an engine produced."""
     if kind is EngineKind.CHORDS:
         return f"{len(result.chords)} chords"
+    if kind is EngineKind.LYRICS:
+        words = sum(len(segment.words) for segment in result.lyrics)
+        if not result.lyrics:
+            return "no lyrics"
+        return f"{pluralize(len(result.lyrics), 'lyric segment')}, {pluralize(words, 'word')}"
     if kind is EngineKind.KEY:
         return f"key {result.key.label}" if result.key is not None else "no key"
     if result.tempo is None:
@@ -140,6 +155,8 @@ def _merge(target: AnalysisResult, kind: EngineKind, result: EngineResult) -> No
     """Copy one engine's canonical output into the document."""
     if kind is EngineKind.CHORDS:
         target.chords = list(result.chords)
+    elif kind is EngineKind.LYRICS:
+        target.lyrics = list(result.lyrics)
     elif kind is EngineKind.KEY:
         target.key = result.key
     else:

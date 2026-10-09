@@ -1,107 +1,104 @@
-# GUI Requirements
+# GUI Requirements — the window Phase D implemented
 
-**Status: the minimal window exists (roadmap Phase D, 2026-10-08); the rest of
-this document is still a plan.**
-
-`songlab gui` opens it: open an audio file, see its waveform timeline with the
-detected chords, play/pause/stop, seek by clicking or dragging the timeline (or
-with the arrow keys), and always see the chord for the current position next to
-the track time and the analysis summary (key, tempo, engines, provenance).
-
-Everything else described below - lyrics, editing, transpose, simplification,
-export dialogs, confidence panels, translations - is `[F]` work that has not been
-started. The window is laid out for it, but no widget claims it yet.
+> Status: **implemented, without lyrics** (roadmap Phase D, 2026-10-08). The
+> window exists, is verified offscreen and on real audio, and exposes the full
+> arrangement below for the features that follow.
 
 ## What exists today
 
-```text
-src/song_chord_lyrics_analyzer/gui/
-├── __init__.py          require_qt() + run(): Qt is imported lazily, so a
-│                        Qt-free install keeps every other command working
-├── main_window.py       MainWindow + launch(): transport, chord/time/state
-│                        labels, one refresh per timer tick, file dialog
-├── timeline.py          TimelineWidget: waveform, chord strip, playhead,
-│                        seek_requested signal (click or drag)
-└── analysis_panel.py    AnalysisPanel: the rows summarize() produced
+`src/song_chord_lyrics_analyzer/gui/`
+
+* `main_window.py` — `MainWindow(session, *, engines, input_hash, interval,
+  parent)`, its `QToolBar` transport (Open/Play/Pause/Stop/Back/Forward with
+  `QKeySequence` shortcuts), the big chord label, the clock, the state label,
+  and the `TimelineWidget` + `AnalysisPanel` placed in a `QSplitter`.
+* `timeline.py` — `TimelineWidget(QWidget)`: the waveform rendered from the
+  session's peaks, the chord `ChordBand` strip, the playhead, and mouse
+  click/drag → `seek_requested`.
+* `analysis_panel.py` — `AnalysisPanel(QWidget)`: `QFormLayout` whose rows the
+  presenter (`app/summary.py`) publishes and the tests read back through
+  `text_rows()`. `songlab gui` shows the same data a terminal line would
+  print.
+* `__init__.py` — `require_qt()` (the honest import-time error when the optional
+  `gui` extra is missing) and `run(audio, *, engines, input_hash, argv)`: the
+  window's entry point. Qt is imported **only when the window starts**, never
+  when the package is imported, so `songlab play` and `songlab info` stay
+  Qt-free and the core matrix stays clean.
+
+## Architecture (unchanged from the pre-window design)
+
+```
+audio/        decode · probe · peaks · playback      (no gui imports here)
+  │  SongSession  ←──  (session owns the engine registry, the player, the
+  │       ▲           timeline cache and the analysis outcome; the window
+  │       │           never touches engines or widgets)
+  ▼
+app/          timeline presenter · summary presenter · session
+  │
+  ▼
+gui/          thin Qt widgets over app/ data (one snapshot per tick)
 ```
 
-The data all comes from the application layer, which is also where the logic and
-the tests live:
+`app/` owns all domain logic. `gui/` renders what a presenter produced; it knows
+nothing about the engine, the model, numpy or the song file. `session.waveform_
+peaks(buckets)` feeds the timeline.
 
-* `SongSession` (`app/session.py`) owns the song, the player and
-  `chord_at(seconds)`, and reduces the decoded samples to waveform peaks
-  (`waveform_peaks(buckets)`, cached per resolution).
-* `app/display.py` turns a `SessionSnapshot` into the `DisplayFrame` the window
-  draws - the same frame `songlab play` prints as a line of text.
-* `app/timeline.py` turns the chord events into bands in seconds and maps
-  seconds to pixels and back, which is what makes a click a seek.
-* `app/summary.py` turns the document plus the run steps into the panel rows.
+## What is deliberately absent (Phase D, and why)
 
-There is deliberately **no** `gui/player.py` and no `gui/waveform.py`: the window
-drives the session's existing `SoundDevicePlayer` (no second audio path, and a
-Qt Multimedia backend can still implement the same `Player` protocol later), and
-one widget paints the waveform, the chord strip and the playhead together so they
-cannot disagree about where a second is.
+* **No `gui/player.py`.** The window drives the session's existing
+  `SoundDevicePlayer`, so there is no Qt Multimedia backend and no new
+  dependency. Playback stays in `app/` and the window only *draws* it.
+* **No `gui/waveform.py`.** The waveform, the chord strip and the playhead are
+  one widget (`TimelineWidget`) and one `x_at`/`seconds_at` mapping — one pixel
+  rule, one `resizeEvent`, one autoriser.
+* **No lyrics view.** `songlab lyrics` exists and the engine is registered, but
+  the window shows what `app/summary.py` publishes (the Rule of the Panel:
+  widgets render, presenters produce). The lyrics rows are `[F]` work.
 
-The GUI is a client of the application layer. It must never contain
-audio-analysis or synchronization algorithms and must never import `librosa`,
-`madmom`, `demucs`, `whisper`, `numpy`, `analysis/` internals or any other engine
-directly.
+## Sequencing and the `[F]` list
 
-## Architecture constraint
+Each feature below is delivered as a *presenter* in `app/` (pure Python,
+tested the same way `test_summary_presenter.py` and `test_timeline_presenter.py`
+are), with one window patch to bind it. Nothing in this list may change the
+CLI, the engine or the session.
 
-```text
-PyQt6 GUI             (thin widgets)
-    ↓
-app/ session + presenters   (SongSession, DisplayFrame, ChordBand, SummaryRow —
-                             no Qt, no engines)
-    ↓
-Analysis pipeline → engine interfaces → concrete engines
-```
+1. **Lyrics view** — active `LyricSegment`/`LyricWord` lines, same clock as the
+   chord band; a word highlighted when its timestamps exist.
+2. **Chord/lyric editing** — click a band, type a label: the session's undo/redo
+   (command pattern in `app/`) plus a consistent snapshot + persist cycle.
+3. **Transpose** — a chord-level transpose whose window keeps every label in
+   `CHORD_QUALITY_SUFFIX` form.
+4. **Chord simplification** — drop slash/extension noise, keep a quality legend.
+5. **Export dialogs** — JSON of the canonical document, ChordPro, lyric lyrics,
+   plain text.
+6. **Confidence/engine panels** — per-chord confidence (from the engine), the
+   `Engines`/`Warnings` rows of the summary panel.
+7. **Translations** — the `i18n/` package (phase 17) feeding a language menu;
+   nothing here guesses a language.
 
 ## Testing constraint
 
-The logic stays in plain-Python presenters so the window can be tested without a
-display: the Qt dependency is an optional `gui` extra, the core install and the
-test matrix stay Qt-free, and the window's own tests set
-`QT_QPA_PLATFORM=offscreen`, where `paintEvent` and `render()` run into memory.
+`QT_QPA_PLATFORM=offscreen` makes the window testable without a display:
+`tests/conftest.py` sets it once and reuses the existing `QApplication` (that is
+what the `qt_app` fixture does for all of `tests/unit/test_gui_*.py`). A widget
+that cannot run on the offscreen platform plugin without a display is not done;
+the rest of the suite must stay Qt-free, exactly as the gate's lint job
+installs `.[dev,gui]` but the matrix runs without it.
 
-What is tested:
+## CLI surface
 
-* the presenters (`tests/unit/test_timeline_presenter.py`,
-  `test_summary_presenter.py`, `test_peaks.py`) need no Qt at all;
-* the widgets (`tests/unit/test_gui_main_window.py`) are driven through a fake
-  player and a frozen clock, so "the chord follows the playhead" is asserted
-  exactly, plus the toolbar a user reads, a real click on the timeline, a resize
-  and an offscreen render;
-* the product path (`tests/integration/test_gui_integration.py`) runs the real
-  engine over a generated song - and, where the machine has an output device,
-  real playback - asserting that every label on screen is the chord the session
-  claims for that instant, and that `songlab gui FILE` exits cleanly.
+```
+songlab lyrics song.wav          # Phase E: the transcript, chunked, with timestamps
+songlab lyrics --engine NAME ... # engine override, same contract as songlab chords
+```
 
-## Planned capabilities (`[F]`, not started)
+Outside the window, `app/` + CLI is the whole API surface; the window adds the
+same commands through `gui/run`.
 
-Transport: open audio, analyze, stop, play, pause, seek. *(implemented)*
-Waveform, timeline, playback cursor synchronised with the audio position;
-clicking a chord or a lyric seeks to it. *(implemented, without lyrics)*
+## Limit I will state at the end
 
-Still to come: lyrics display; editing, all operating on the canonical model
-(edit lyrics, edit words, edit chord labels, move/insert/delete/split/merge
-chords, transpose, simplify chords) with undo/redo for every operation;
-confidence shown as text (for example `Confidence: 82% — source: chroma-baseline`),
-never by colour alone, so it stays accessible; an optional engine-comparison
-debug view listing the final chord next to each engine's own answer, because
-disagreement is information; export dialogs reusing the CLI's exporters;
-translations (see `INTERNATIONALIZATION.md`).
-
-The modules those features will need (`lyrics_editor.py`, `chord_editor.py`,
-`engine_panel.py`, `settings_dialog.py`, `widgets/`) do not exist yet.
-
-## Sequence
-
-1. Phase 14 freezes the data model, engine interfaces, services, CLI terminology
-   and exporters.
-2. Phase 15 builds the GUI on top of that frozen surface. *(roadmap Phase D
-   delivered the minimal window; the `[F]` features above remain)*
-3. Phase 16 stabilizes English menus, dialogs, shortcuts and errors.
-4. Phase 17 adds Qt Linguist translations (see `INTERNATIONALIZATION.md`).
+The window is the *thin* front end. The danger of a GUI phase is a
+`main_window.py` that accumulates `if kind == "lyrics"` branches, `QMessageBox`
+calls everywhere and a second analysis path for the engine layer — that would
+violate the `app/`-only rule this document exists to protect. Every feature in
+§5 is a presenter + one binding, and nothing else.

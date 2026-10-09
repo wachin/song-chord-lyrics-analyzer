@@ -59,7 +59,7 @@ def test_the_session_opens_a_song_with_the_real_pipeline(tmp_path: Path) -> None
         assert session.is_open is True
         assert document.run.status.value in {"succeeded", "partial"}
         assert document.chords, "the real chord engine must produce events"
-        assert {step.kind for step in session.steps} == {"chords", "key", "tempo"}
+        assert {step.kind for step in session.steps} == {"chords", "key", "tempo", "lyrics"}
         assert session.duration() == pytest.approx(DURATION, abs=0.1)
     finally:
         session.close()

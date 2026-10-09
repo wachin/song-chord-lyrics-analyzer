@@ -21,6 +21,7 @@ from song_chord_lyrics_analyzer.cli.commands import (
     doctor,
     gui,
     info,
+    lyrics,
     play,
 )
 from song_chord_lyrics_analyzer.utils.errors import SongLabError
@@ -35,13 +36,13 @@ Commands:
   info       inspect an audio file and report its metadata
   doctor     report environment, dependency and engine status
   chords     detect chords with a selectable engine
+  lyrics     transcribe lyrics with word-level timestamps (needs the "lyrics" extra)
   analyze    run the full pipeline and assemble the canonical document
   play       play an audio file and watch the chord under the playhead change
   gui        open the desktop window (needs the optional "gui" extra)
   benchmark  score benchmark cases, optionally running an engine
 
 Planned commands (added phase by phase, see ROADMAP.md):
-  lyrics    transcribe lyrics with word-level timestamps
   compare   compare several engines on the same song
   separate  separate the mix into stems
   fuse      combine engine results into one consensus analysis
@@ -126,17 +127,32 @@ def build_parser() -> argparse.ArgumentParser:
 
     analyze_parser = subparsers.add_parser(
         "analyze",
-        help="run chords, key and tempo engines and assemble the canonical document",
+        help="run the chords, lyrics, key and tempo engines and assemble the document",
         description=(
-            "Analyse one audio file with the registered chord, key and tempo "
-            "engines and assemble the canonical document with its provenance. "
-            "A layer whose engine is unavailable is reported as skipped and the "
-            "rest of the analysis is kept. Lyrics are not analysed yet: no "
-            "lyrics engine is registered."
+            "Analyse one audio file with the registered chord, lyrics, key and "
+            "tempo engines and assemble the canonical document with its "
+            "provenance. A layer whose engine is unavailable is reported as "
+            "skipped and the rest of the analysis is kept, so a machine without "
+            "the optional lyrics stack still gets an honest document."
         ),
     )
     analyze.add_arguments(analyze_parser)
     analyze_parser.set_defaults(handler=analyze.run)
+
+    lyrics_parser = subparsers.add_parser(
+        "lyrics",
+        help='transcribe lyrics with word timestamps (needs the "lyrics" extra)',
+        description=(
+            "Transcribe one audio file into timestamped lyric segments and words "
+            "(roadmap Phase E) with a registered lyrics engine. Long audio is "
+            "transcribed in fixed windows, because the packaged model cannot take "
+            "a whole song: see --chunk-seconds. The word timestamps come from the "
+            "model's own token timestamps and carry no confidence, because it "
+            "reports none."
+        ),
+    )
+    lyrics.add_arguments(lyrics_parser)
+    lyrics_parser.set_defaults(handler=lyrics.run)
 
     play_parser = subparsers.add_parser(
         "play",

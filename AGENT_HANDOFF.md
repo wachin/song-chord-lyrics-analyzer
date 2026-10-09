@@ -352,50 +352,50 @@ are obsolete).
 
 ---
 
-## Immediate Next Task
+## Immediate Next Task — complete, recorded for the next session
 
-**Do not begin by researching.** First read, in order:
+**Phase E was completed 2026-10-08.** It is no longer the next task: the
+lyrics engine is a registered, optional extra (`ParakeetLyricsEngine`, via
+`onnx-asr`, MIT runtime / CC-BY-4.0 weights), chunked at 20 s, flow through
+`run_analysis()`, `songlab lyrics` and both front ends, and structurally
+verified on `samples/vocadito_6.wav` (real weights, real voice).
 
-1. `AGENT_HANDOFF.md` (this file),
-2. `ROADMAP.md`,
-3. the relevant source modules (start with `app/session.py`, `app/display.py`,
-   `app/timeline.py`, `app/summary.py`, `gui/main_window.py`,
-   `audio/playback.py`, `audio/decode.py`, `analysis/service.py`).
+Use it as the reference for the session that wants to continue here
+(`ROADMAP.md` §7 tracks the completion in the same change):
 
-Phase C (the product slice) and Phase D (the minimal window) are both reached:
-`songlab play` prints the chord under the playhead and `songlab gui` draws the
-same frame in a window, both from one `SongSession.snapshot()` per refresh. The
-next product step is therefore **Phase E, lyrics integration**
-(`ROADMAP.md` §6): turn the already-measured lyrics research into a real,
-registered lyrics engine that produces timestamped words, without blocking
-anything else.
+* `engines/lyrics_parakeet.py` (engine + `Transcriber` seam, `is_available()`
+  honest, model download stays out of the repository),
+* `engines/lyrics_chunking.py` (windowing, timestamp reassembly, the
+  documented "earlier window wins" overlap rule),
+* `cli/commands/lyrics.py` (`songlab lyrics`, `--engine NAME`, `--chunk-`*
+  `--start`/`--end`/`--language`/`--no-words`),
+* `analysis/service.py` (lyrics step, same skipped/failed handling as the
+  other layers),
+* `utils/text.py` (the English agreement helper shared by the two front ends),
+* `tests/integration/test_lyrics_integration.py` and the `test_lyrics_*.py`
+  units (injected transcriber, real decode + windows on a generated song,
+  structural honesty only on the committed sample),
+* `pyproject.toml` (optional `lyrics` extra), `ROADMAP.md` §7, the docs
+  (`ENGINE_COMPARISON.md`, `DEPENDENCY_MATRIX.md`, `GUI_REQUIREMENTS.md`).
 
-Concretely, in order:
+The gate for this work is known and unforgiving (same as every phase):
+`.venv/bin/ruff check . --output-format=concise`, `.venv/bin/ruff format --check`,
+`.venv/bin/python -m mypy` and `.venv/bin/python -m pytest -q` — plus the
+`.venv-chords` suite with the DSP and GUI extras, and the privacy grep that
+must exit 1. Nothing extra lands between the code and the commit: the
+`ROADMAP.md` markers move in the same change, the docs update together and
+then the signed commit goes out.
 
-1. Read the recorded lyrics research before writing code
-   (`docs/ENGINE_COMPARISON.md` and the lyrics section of `ROADMAP.md` §6):
-   Parakeet-1B-v3 via `onnx-asr` (WER 0.3722, MIT) is the measured leader over
-   faster-whisper small (0.3799), long audio **must** be chunked (~20 s windows),
-   and Demucs stems do not help by default. Nothing else needs re-measuring.
-2. Implement it as a registered `LyricsEngine` (`engines/base.py` protocol,
-   `EngineKind.LYRICS`), behind an optional extra, with `is_available()`
-   reporting honestly when the model or its dependencies are missing, and the
-   model download staying out of the repository.
-3. Let it flow through the existing pipeline: `analysis/service.py` already
-   handles a kind with no engine honestly, and `AnalysisResult.lyrics` +
-   `metrics/` (WER/CER) already exist. Do not add a second analysis path.
-4. Surface it in the two front ends only through `app/`: `gui/` renders what a
-   presenter produced (a lyrics view is `[F]` GUI work -
-   `docs/GUI_REQUIREMENTS.md`), and the CLI gets a command the same way `play`
-   and `gui` were added.
+**What remains open (and what is not the next task):**
 
-An honest alternative if lyrics is not what the user wants next: the `[F]` GUI
-list in `docs/GUI_REQUIREMENTS.md` (editing with undo/redo, transpose, exports,
-confidence panel, translations) is also open, and each item is small enough to
-land on its own - but it must go through an `app/` presenter with offscreen
-tests, never into a widget's innards.
-
-Whatever you pick: verify by running the real thing, update `ROADMAP.md` markers
-in the same change, run the full gate (including the `.venv-chords` suite with
-the DSP and GUI extras), and only then commit. Keep the GUI → `app/` → engines
-direction; never GUI → librosa.
+* The `[F]` GUI list in `docs/GUI_REQUIREMENTS.md` — lyrics view, chord/
+  lyric editing with undo/redo, transpose, chord simplification, export
+  dialogs, confidence/engine panels, translations. Each item is small enough to
+  land on its own and every one of them needs an `app/` presenter with
+  offscreen tests.
+* **Confidence per chord + the JSON contract** — the `lyrics` step carries
+  `unknown` confidence and the canonical `EngineResult` ships a `lyrics` field;
+  exposing that honestly per position in the window is `[F]` work, not more
+  engine work.
+* Any of the four alternatives the user replies with, if they prefer not to
+  follow the phase list.

@@ -213,9 +213,10 @@ Phase D and the later phases, not a missing foundation.
 * `[x]` Minimal GUI window (Phase D): `gui/` + `songlab gui`, PyQt6 behind the
   optional `gui` extra, with the waveform timeline, the chord strip, the
   seekable playhead and the analysis panel.
-* `[ ]` GUI editing/undo-redo/lyrics view/exports/translations (the `[F]` list in
-  `docs/GUI_REQUIREMENTS.md`), lyrics engine, beats engine, stem separation,
-  alignment, fusion, ChordPro/Markdown export, packaging.
+* `[ ]` GUI editing/undo-redo/exports/translations (the remaining `[F]` list in
+  `docs/GUI_REQUIREMENTS.md`; the first item, the lyrics view, was delivered
+  2026-10-09), lyrics engine, beats engine, stem separation, alignment,
+  fusion, ChordPro/Markdown export, packaging.
 * Empty packages (placeholders only, `__init__.py`): `export/`, `alignment/`,
   `fusion/`, `i18n/`.
 
@@ -519,11 +520,13 @@ feature list below — that is `[F]` work, added after the minimal GUI works.
 
 ### Later GUI features (progressive, `[F]`)
 
-Still open, and deliberately not part of the milestone above: a lyrics view →
-chord/lyric editing with undo/redo → transpose → chord simplification → export
-dialogs → confidence/engine panels → translations. The window's layout is
-already prepared for them (`app/` produces the data, the widgets only render),
-but none of them exists today.
+Delivered from this list, in order: the lyrics view (2026-10-09, `app/`
+lyrics-view presenter + `gui/lyrics_view.py`, active segment and active word on
+the same snapshot the chord label reads; see `docs/GUI_REQUIREMENTS.md` §5.1).
+Still open: chord/lyric editing with undo/redo → transpose → chord
+simplification → export dialogs → confidence/engine panels → translations. The
+window's layout is already prepared for them (`app/` produces the data, the
+widgets only render), but nothing else exists today.
 
 ---
 

@@ -25,6 +25,8 @@ from song_chord_lyrics_analyzer.models.analysis import (
     RunStatus,
 )
 from song_chord_lyrics_analyzer.models.audio import AudioDocument
+from song_chord_lyrics_analyzer.models.confidence import ConfidenceScore
+from song_chord_lyrics_analyzer.models.lyrics import LyricSegment, LyricWord
 from song_chord_lyrics_analyzer.models.music import (
     ChordEvent,
     ChordQuality,
@@ -47,6 +49,31 @@ EVENTS: list[ChordEvent] = [
     ChordEvent(start=3.0, end=4.0, root="F", quality=ChordQuality.MAJOR, source="fake-chords"),
 ]
 
+#: One lyric line per second, so the lyrics view has something active in every
+#: second of the fake song, word timestamps included for the highlight.
+LYRICS: list[LyricSegment] = [
+    LyricSegment(
+        text="hola mundo",
+        start=0.0,
+        end=1.0,
+        words=[
+            LyricWord(text="hola", start=0.0, end=0.5, confidence=ConfidenceScore.unknown()),
+            LyricWord(text="mundo", start=0.5, end=1.0, confidence=ConfidenceScore.unknown()),
+        ],
+        source="fake-lyrics",
+    ),
+    LyricSegment(
+        text="adios amor",
+        start=2.0,
+        end=3.0,
+        words=[
+            LyricWord(text="adios", start=2.0, end=2.5, confidence=ConfidenceScore.unknown()),
+            LyricWord(text="amor", start=2.5, end=3.0, confidence=ConfidenceScore.unknown()),
+        ],
+        source="fake-lyrics",
+    ),
+]
+
 #: One engine step per layer, as the analysis service would report them.
 STEPS: tuple[StepOutcome, ...] = (
     StepOutcome("chords", "fake-chords", StepStatus.OK, "4 chords", 0.5),
@@ -62,6 +89,7 @@ def analysis_outcome(
     duration: float = DURATION,
     steps: tuple[StepOutcome, ...] = STEPS,
     warnings: list[str] | None = None,
+    lyrics: list[LyricSegment] | None = LYRICS,
 ) -> AnalysisOutcome:
     """Build a complete document for one song, as if the pipeline had run."""
     resolved = Path(path)
@@ -76,6 +104,7 @@ def analysis_outcome(
         ),
         audio=AudioDocument(path=resolved, duration=duration),
         chords=list(EVENTS if chords is None else chords),
+        lyrics=list(LYRICS if lyrics is None else lyrics),
         key=KeyEstimate(tonic="C", mode=KeyMode.MAJOR, source="fake-key"),
         tempo=TempoEstimate(bpm=120.0, source="fake-tempo"),
         run=AnalysisRun(

@@ -10,6 +10,7 @@ Roadmap Phases C and D.
 
 from __future__ import annotations
 
+import song_chord_lyrics_analyzer.app.lyrics_view as _lyrics_view
 from song_chord_lyrics_analyzer.app.display import (
     DEFAULT_REFRESH_INTERVAL,
     ConsoleDisplay,
@@ -18,6 +19,7 @@ from song_chord_lyrics_analyzer.app.display import (
     frame_from,
     render_frame,
 )
+from song_chord_lyrics_analyzer.app.lyrics_view import lyric_at, lyric_lines, word_at
 from song_chord_lyrics_analyzer.app.session import SessionSnapshot, SongSession
 from song_chord_lyrics_analyzer.app.summary import SummaryRow, summarize
 from song_chord_lyrics_analyzer.app.timeline import (
@@ -38,8 +40,14 @@ __all__ = [
     "chord_bands",
     "follow",
     "frame_from",
+    "lyric_at",
+    "lyric_lines",
     "position_for_x",
     "render_frame",
     "summarize",
+    "word_at",
     "x_for_position",
 ]
+
+#: Re-exported module, so front ends can reach the lyrics view by one import.
+lyrics_view = _lyrics_view

@@ -51,9 +51,11 @@ peaks(buckets)` feeds the timeline.
 * **No `gui/waveform.py`.** The waveform, the chord strip and the playhead are
   one widget (`TimelineWidget`) and one `x_at`/`seconds_at` mapping — one pixel
   rule, one `resizeEvent`, one autoriser.
-* **No lyrics view.** `songlab lyrics` exists and the engine is registered, but
-  the window shows what `app/summary.py` publishes (the Rule of the Panel:
-  widgets render, presenters produce). The lyrics rows are `[F]` work.
+* ~~No lyrics view.~~ **Delivered 2026-10-09** (`[F]` item 1): the window shows
+  the active `LyricSegment` and highlights the active `LyricWord`, from the same
+  snapshot the chord label is drawn from (presenters in `app/lyrics_view.py`,
+  the widget in `gui/lyrics_view.py`); untimed segments are drawn after the
+  timed ones, dimmed, and never become active.
 
 ## Sequencing and the `[F]` list
 
@@ -62,8 +64,11 @@ tested the same way `test_summary_presenter.py` and `test_timeline_presenter.py`
 are), with one window patch to bind it. Nothing in this list may change the
 CLI, the engine or the session.
 
-1. **Lyrics view** — active `LyricSegment`/`LyricWord` lines, same clock as the
-   chord band; a word highlighted when its timestamps exist.
+1. ~~**Lyrics view**~~ **(done, 2026-10-09)** — active `LyricSegment`/
+   `LyricWord` lines, same clock as the chord band; a word highlighted when its
+   timestamps exist. Presenters: `app/lyrics_view.py` (`lyric_lines`,
+   `lyric_at`, `word_at`); widget: `gui/lyrics_view.py`; bind: the window's
+   `open_file`/`refresh`.
 2. **Chord/lyric editing** — click a band, type a label: the session's undo/redo
    (command pattern in `app/`) plus a consistent snapshot + persist cycle.
 3. **Transpose** — a chord-level transpose whose window keeps every label in

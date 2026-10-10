@@ -49,6 +49,7 @@ from song_chord_lyrics_analyzer.app import (
 )
 from song_chord_lyrics_analyzer.audio.playback import PlaybackState
 from song_chord_lyrics_analyzer.gui.analysis_panel import AnalysisPanel
+from song_chord_lyrics_analyzer.gui.lyrics_view import LyricsWidget
 from song_chord_lyrics_analyzer.gui.timeline import TimelineWidget
 from song_chord_lyrics_analyzer.utils.errors import SongLabError
 
@@ -153,6 +154,11 @@ class MainWindow(QMainWindow):
         """The analysis summary panel."""
         return self._panel
 
+    @property
+    def lyrics(self) -> LyricsWidget:
+        """The lyrics view bound to the same clock as the chord band."""
+        return self._lyrics
+
     # -- construction ------------------------------------------------------
 
     def _build_actions(self) -> None:
@@ -209,14 +215,17 @@ class MainWindow(QMainWindow):
 
         self._timeline = TimelineWidget()
         self._timeline.seek_requested.connect(self.seek)
+        self._lyrics = LyricsWidget()
         self._panel = AnalysisPanel()
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.addWidget(self._timeline)
+        splitter.addWidget(self._lyrics)
         splitter.addWidget(self._panel)
         splitter.setStretchFactor(0, 3)
         splitter.setStretchFactor(1, 1)
-        splitter.setSizes([640, 320])
+        splitter.setStretchFactor(2, 1)
+        splitter.setSizes([520, 260, 180])
 
         central = QWidget(self)
         layout = QVBoxLayout(central)
@@ -253,6 +262,7 @@ class MainWindow(QMainWindow):
                 input_hash=self._input_hash,
             )
             self._populate_timeline()
+            self._lyrics.set_document(tuple(document.lyrics) if document is not None else ())
             self._panel.set_rows(summarize(document, steps=self._session.steps))
         except SongLabError as error:
             self._report(error)
@@ -351,6 +361,7 @@ class MainWindow(QMainWindow):
         self._state_label.setText(frame.state.value)
         self._play_action.setText("Pause" if frame.state is PlaybackState.PLAYING else "Play")
         self._timeline.set_playhead(frame.position, frame.duration)
+        self._lyrics.set_playhead(frame.position)
         return frame
 
     def _report(self, error: SongLabError) -> None:

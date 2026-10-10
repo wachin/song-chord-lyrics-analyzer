@@ -295,6 +295,48 @@ class TestTheChordFollowsThePlayhead:
         assert window.state_label.text() == "stopped"
 
 
+class TestTheLyricsViewFollowsTheSameClock:
+    """The lyrics highlight must agree with the chord band, not with a second opinion.
+
+    The fake document has one lyric line over each second of the song, so at
+    every step both views have something to claim: the highlighted line is the
+    one the presenter claims for the same playhead the chord label was drawn
+    from, and where the chord band says silence the lyrics say nothing too.
+    """
+
+    def test_opening_draws_the_document_in_display_order(self, window: MainWindow) -> None:
+        assert [line.text for line in window.lyrics.lines] == ["hola mundo", "adios amor"]
+        assert window.lyrics.has_lyrics() is True
+
+    def test_the_active_line_and_word_follow_the_playhead(self, window: MainWindow) -> None:
+        window.seek(2.6)  # inside "adios amor": word "amor" starts at 2.5
+
+        assert window.lyrics.active_index == 1
+        assert window.lyrics.active_word == "amor"
+
+    def test_both_views_read_the_same_clock_on_every_tick(self, window: MainWindow) -> None:
+        """The one assertion that both front-end views share one clock."""
+        window.toggle_play()
+        _advance(window, 0.5)  # 0.5 s: "mundo" starts exactly there
+        assert window.chord_label.text() == "C"
+        assert window.lyrics.active_index == 0
+        assert window.lyrics.active_word == "mundo"
+
+        _advance(window, 2.0)  # 2.5 s: chord says silence, lyrics say a word
+        assert window.chord_label.text() == "N"  # explicit silence, 2.0..3.0
+        assert window.lyrics.active_index == 1  # "adios amor" spans 2.0..3.0
+        assert window.lyrics.active_word == "amor"  # its second word starts at 2.5
+
+    def test_a_tick_outside_any_word_clears_the_highlight(self, window: MainWindow) -> None:
+        window.seek(2.6)
+        assert window.lyrics.active_word is not None
+
+        window.seek(DURATION)  # past the last line and the last chord
+
+        assert window.lyrics.active_index is None
+        assert window.lyrics.active_word is None
+
+
 class TestSeeking:
     def test_a_click_on_the_timeline_seeks_to_that_position(self, window: MainWindow) -> None:
         _click_timeline(window, 0.625)

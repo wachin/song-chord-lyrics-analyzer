@@ -19,11 +19,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from song_chord_lyrics_analyzer.analysis import AnalysisOutcome, StepOutcome, run_analysis
+from song_chord_lyrics_analyzer.app.lyrics_view import lyric_at, lyric_lines, word_at
 from song_chord_lyrics_analyzer.audio.decode import DecodedAudio, decode_audio
 from song_chord_lyrics_analyzer.audio.peaks import DEFAULT_PEAK_BUCKETS, WaveformPeaks, peaks_of
 from song_chord_lyrics_analyzer.audio.playback import PlaybackState, Player, create_player
 from song_chord_lyrics_analyzer.audio.validation import validate_audio_file
 from song_chord_lyrics_analyzer.models.analysis import AnalysisResult
+from song_chord_lyrics_analyzer.models.lyrics import LyricSegment, LyricWord
 from song_chord_lyrics_analyzer.models.music import ChordEvent
 from song_chord_lyrics_analyzer.utils.errors import InputError
 from song_chord_lyrics_analyzer.utils.logging import get_logger
@@ -87,6 +89,7 @@ class SongSession:
         self._outcome: AnalysisOutcome | None = None
         self._events: tuple[ChordEvent, ...] = ()
         self._starts: tuple[float, ...] = ()
+        self._lyrics: tuple[LyricSegment, ...] = ()
         self._audio: DecodedAudio | None = None
         self._peaks: dict[int, WaveformPeaks] = {}
 
@@ -128,7 +131,13 @@ class SongSession:
         self._outcome = outcome
         self._events = events
         self._starts = tuple(event.start for event in events)
-        _logger.debug("opened %s with %d chord events", resolved, len(events))
+        self._lyrics = lyric_lines(outcome.result.lyrics)
+        _logger.debug(
+            "opened %s with %d chord events and %d lyric lines",
+            resolved,
+            len(events),
+            len(self._lyrics),
+        )
         return outcome.result
 
     def close(self) -> None:
@@ -139,6 +148,7 @@ class SongSession:
         self._outcome = None
         self._events = ()
         self._starts = ()
+        self._lyrics = ()
         self._audio = None
         self._peaks = {}
 
@@ -292,3 +302,42 @@ class SongSession:
     def current_chord(self) -> ChordEvent | None:
         """The chord at the current playhead, or ``None`` when none covers it."""
         return self.chord_at(self.position())
+
+    def lyric_at(self, position: float) -> LyricSegment | None:
+        """The lyric line sounding at ``position`` seconds, or ``None``.
+
+        The lyrics layer read through the session, exactly like
+        :meth:`chord_at` reads the chords layer: the same half-open
+        ``start <= position < end`` coverage, the same ``None`` meaning *no
+        line is claimed there*, the same negative-position error. A front end
+        feeding both this and :meth:`chord_at` from one snapshot cannot show
+        two views of two clocks.
+
+        Args:
+            position: Playhead in seconds.
+
+        Raises:
+            InputError: When ``position`` is negative.
+        """
+        return lyric_at(self._lyrics, position)
+
+    def word_at(self, position: float) -> LyricWord | None:
+        """The lyric word sounding at ``position`` seconds, or ``None``.
+
+        The word-level companion of :meth:`lyric_at`: the active word inside
+        the active line, when the engine reported word timestamps at all.
+        ``None`` is also what an untimed transcript yields, which a view
+        renders as a line highlight only.
+
+        Args:
+            position: Playhead in seconds.
+
+        Raises:
+            InputError: When ``position`` is negative.
+        """
+        return word_at(self.lyric_at(position), position)
+
+    @property
+    def lyrics(self) -> tuple[LyricSegment, ...]:
+        """The open song's lyric lines in display order (timed first)."""
+        return self._lyrics

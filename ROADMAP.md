@@ -644,23 +644,35 @@ decoding stack.
 
 **Objective:** show lyrics and chords together on the same playback clock.
 
-**Current status:** `[ ]`
+**Current status:** `[~]` — the clock-sharing work is landed and tested
+(2026-10-10, on top of the 2026-10-09 lyrics view): `SongSession.lyric_at()` /
+`word_at()` answer the lyrics layer exactly the way `chord_at()` answers the
+chords layer, and the window's refresh feeds both widgets from one snapshot.
+Remaining: external timed-text alignment below.
 
 ### Tasks
 
-- [ ] Lyric timeline model aligned to the same position clock as chords
-- [ ] `lyrics_at(position)` alongside `chord_at(position)` in the session layer
-- [ ] GUI: lyric line display synchronized with playback (active word
-  highlighted when word timestamps exist)
+- [x] Lyric timeline model aligned to the same position clock as chords
+  (`app/lyrics_view.py` presenters, 2026-10-09)
+- [x] `lyric_at(position)` + `word_at(position)` alongside `chord_at(position)`
+  in the session layer (`app/session.py`, 2026-10-10); the same half-open
+  `start <= position < end` coverage, the same `None` = "no claim"
+- [x] GUI: lyric line display synchronized with playback (active word
+  highlighted when word timestamps exist). The widget takes the session's
+  answers (`set_active(segment, word)`) and decides nothing about the clock
 - [ ] Alignment rules when lyrics come from an external timed-text file
   (`.lrc`/sidecar) — reuse `alignment/` (currently empty) instead of a new
   duplicate module
-- [ ] Tests: fake-clock synchronization for both streams; boundary cases
+- [x] Tests: fake-clock synchronization for both streams; boundary cases
+  (`TestLyricLookup` in `tests/unit/test_session.py` pins the same edges as
+  `chord_at`; `TestTheLyricsViewFollowsTheSameClock` asserts both front-end
+  views read one snapshot)
 
 ### Acceptance criteria
 
 While a song plays, both the current chord and the current lyric line update in
-sync, from one timestamped source of truth.
+sync, from one timestamped source of truth. **Met for the engine-transcribed
+lyrics on 2026-10-10.**
 
 ### Dependencies / blockers
 

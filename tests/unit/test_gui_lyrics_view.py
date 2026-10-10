@@ -76,13 +76,28 @@ class TestTheDocument:
 
 
 class TestTheClock:
+    """The caller decides what is active; the widget only draws it.
+
+    ``set_active`` takes the answers the session's ``lyric_at``/``word_at``
+    produce, computed with the same helpers the session uses, so these tests
+    exercise exactly the hand-off the window's refresh performs.
+    """
+
+    @staticmethod
+    def _answers(lines, position: float):
+        """What the session would answer for ``position`` over these lines."""
+        from song_chord_lyrics_analyzer.app.lyrics_view import lyric_at, word_at
+
+        segment = lyric_at(lines, position)
+        return segment, word_at(segment, position)
+
     def test_at_the_start_the_first_line_is_active_with_its_first_word(
         self, qt_app: object
     ) -> None:
         view = LyricsWidget()
         view.set_document(DOCUMENT)
 
-        view.set_playhead(0.0)
+        view.set_active(*self._answers(view.lines, 0.0))
 
         assert view.active_index == 0
         assert view.active_word == "hola"
@@ -91,7 +106,7 @@ class TestTheClock:
         view = LyricsWidget()
         view.set_document(DOCUMENT)
 
-        view.set_playhead(1.5)
+        view.set_active(*self._answers(view.lines, 1.5))
 
         assert view.active_index == 0
         assert view.active_word == "mundo"
@@ -99,10 +114,10 @@ class TestTheClock:
     def test_a_gap_between_lines_deactivates_the_previous_one(self, qt_app: object) -> None:
         view = LyricsWidget()
         view.set_document(DOCUMENT)
-        view.set_playhead(1.5)
+        view.set_active(*self._answers(view.lines, 1.5))
         assert view.active_index == 0
 
-        view.set_playhead(2.5)
+        view.set_active(*self._answers(view.lines, 2.5))
 
         assert view.active_index is None
 
@@ -110,7 +125,7 @@ class TestTheClock:
         view = LyricsWidget()
         view.set_document(DOCUMENT)
 
-        view.set_playhead(4.0)
+        view.set_active(*self._answers(view.lines, 4.0))
 
         assert view.active_index == 1
         assert view.active_word == "amor"
@@ -120,14 +135,25 @@ class TestTheClock:
         view.set_document(DOCUMENT)
 
         for position in (0.0, 2.5, 6.0):
-            view.set_playhead(position)
+            view.set_active(*self._answers(view.lines, position))
             assert view.active_index != 2
 
-    def test_a_negative_playhead_is_clamped_like_the_timeline_clamps(self, qt_app: object) -> None:
+    def test_clearing_the_active_line_without_a_position(self, qt_app: object) -> None:
+        view = LyricsWidget()
+        view.set_document(DOCUMENT)
+        view.set_active(*self._answers(view.lines, 1.5))
+        assert view.active_index is not None
+
+        view.set_active()
+
+        assert view.active_index is None
+        assert view.active_word is None
+
+    def test_a_segment_outside_the_drawn_document_draws_nothing(self, qt_app: object) -> None:
         view = LyricsWidget()
         view.set_document(DOCUMENT)
 
-        view.set_playhead(-0.5)
+        view.set_active(_segment("otra", 0.0, 1.0), _word("otra", 0.0, 1.0))
 
-        assert view.active_index == 0
-        assert view.active_word == "hola"
+        assert view.active_index is None
+        assert view.active_word is None

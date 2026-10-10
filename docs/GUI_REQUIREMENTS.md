@@ -55,7 +55,11 @@ peaks(buckets)` feeds the timeline.
   the active `LyricSegment` and highlights the active `LyricWord`, from the same
   snapshot the chord label is drawn from (presenters in `app/lyrics_view.py`,
   the widget in `gui/lyrics_view.py`); untimed segments are drawn after the
-  timed ones, dimmed, and never become active.
+  timed ones, dimmed, and never become active. **Closed through the session
+  layer 2026-10-10** (Phase F): `SongSession.lyric_at()` / `word_at()` answer
+  the lyrics layer exactly as `chord_at()` answers the chords layer, and the
+  window's refresh feeds both widgets from that one snapshot — the widget's
+  `set_active(segment, word)` decides nothing about the clock.
 
 ## Sequencing and the `[F]` list
 

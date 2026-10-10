@@ -13,7 +13,10 @@ that decision as pure functions over the canonical
 * :func:`lyric_at` answers "which line is sounding at this instant?" and
   mirrors ``SongSession.chord_at`` exactly: an active segment covers
   ``start <= position < end``, a missing ``end`` runs open-ended, and ``None``
-  means *no line is claimed there* - silence, not an error.
+  means *no line is claimed there* - silence, not an error. Since Phase F,
+  ``SongSession.lyric_at`` and ``SongSession.word_at`` expose exactly these
+  answers on the session itself, so both front ends read the lyrics layer the
+  way they read the chords layer.
 * :func:`word_at` narrows that to the word whose own timestamps cover the
   instant. A word the engine left without a start never becomes active: the
   view invents nothing the model did not report.

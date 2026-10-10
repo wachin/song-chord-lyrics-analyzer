@@ -27,6 +27,7 @@ from song_chord_lyrics_analyzer.models.analysis import (
     RunStatus,
 )
 from song_chord_lyrics_analyzer.models.audio import AudioDocument
+from song_chord_lyrics_analyzer.models.lyrics import LyricSegment, LyricWord
 from song_chord_lyrics_analyzer.models.music import ChordEvent, ChordQuality
 from song_chord_lyrics_analyzer.utils.errors import (
     AudioFileNotFoundError,
@@ -55,6 +56,56 @@ def _outcome(
         run=AnalysisRun(status=RunStatus.SUCCEEDED, started_at=datetime.now(timezone.utc)),
     )
     return AnalysisOutcome(result=document, steps=())
+
+
+#: Timed at 0.0..1.0, a gap, then 2.0..3.0 — one line per chord interval, so
+#: ``lyric_at`` can be pinned against the exact same edges as ``chord_at``.
+LYRICS: list[LyricSegment] = [
+    LyricSegment(
+        text="hola mundo",
+        start=0.0,
+        end=1.0,
+        words=[
+            LyricWord(text="hola", start=0.0, end=0.5),
+            LyricWord(text="mundo", start=0.5, end=1.0),
+        ],
+        source="fake-lyrics",
+    ),
+    LyricSegment(
+        text="adios amor",
+        start=2.0,
+        end=3.0,
+        words=[
+            LyricWord(text="adios", start=2.0, end=2.5),
+            LyricWord(text="amor", start=2.5, end=3.0),
+        ],
+        source="fake-lyrics",
+    ),
+]
+
+#: A document-order line with no timestamps: never active on the clock.
+UNTIMED: list[LyricSegment] = [LyricSegment(text="fin", source="fake-lyrics")]
+
+
+def _outcome_with_lyrics(
+    path: Path, *, lyrics: list[LyricSegment] | None = None
+) -> AnalysisOutcome:
+    """The chords document of ``_outcome`` plus a lyrics layer for the lookup tests.
+
+    The default layer is ``LYRICS`` followed by ``UNTIMED`` - the document
+    order the display-order test reads back through ``session.lyrics``.
+    """
+    outcome = _outcome(path, EVENTS)
+    document = outcome.result
+    lyrics_layer = [*LYRICS, *UNTIMED] if lyrics is None else list(lyrics)
+    rebuilt = AnalysisResult(
+        provenance=document.provenance,
+        audio=document.audio,
+        chords=list(document.chords),
+        lyrics=lyrics_layer,
+        run=document.run,
+    )
+    return AnalysisOutcome(result=rebuilt, steps=outcome.steps)
 
 
 class _Recorder:
@@ -235,6 +286,78 @@ class TestChordLookup:
         assert silence is not None
         assert silence.label == "N"
         assert silence.is_silence is True
+
+
+class TestLyricLookup:
+    """``lyric_at``/``word_at`` read the lyrics layer the way ``chord_at`` reads chords.
+
+    The default document carries no lyrics, so most tests open with the
+    ``LYRICS`` fixture above (timed at the same edges as the chord events);
+    ``UNTIMED`` pins the never-active rule.
+    """
+
+    def test_no_lyrics_means_no_line(self, tmp_path: Path) -> None:
+        session, _player, _clock, _recorder = _session(tmp_path)
+        assert session.lyrics == ()
+        assert session.lyric_at(0.0) is None
+        assert session.word_at(0.0) is None
+
+    def test_the_lyrics_property_is_in_display_order(self, tmp_path: Path) -> None:
+        session = SongSession(
+            player=FakePlayer(),
+            analyze=lambda path, **_: _outcome_with_lyrics(Path(path)),
+        )
+        session.open(_wav(tmp_path))
+
+        # One line has no timestamps, so it sorts after the timed ones.
+        assert [line.text for line in session.lyrics] == ["hola mundo", "adios amor", "fin"]
+
+    def test_each_line_is_returned_over_its_interval(self, tmp_path: Path) -> None:
+        session = self._lyric_session(tmp_path)
+        assert session.lyric_at(0.0).text == "hola mundo"
+        assert session.lyric_at(0.999999).text == "hola mundo"
+        assert session.lyric_at(1.0) is None  # gap, 1.0..2.0
+        assert session.lyric_at(2.0).text == "adios amor"
+        assert session.lyric_at(2.999999).text == "adios amor"
+        assert session.lyric_at(3.0) is None
+
+    def test_a_word_is_returned_over_its_own_interval(self, tmp_path: Path) -> None:
+        session = self._lyric_session(tmp_path)
+        assert session.word_at(0.0).text == "hola"
+        assert session.word_at(0.5).text == "mundo"
+        assert session.word_at(0.999999).text == "mundo"
+        assert session.word_at(1.0) is None
+        assert session.word_at(2.5).text == "amor"
+
+    def test_an_open_ended_inactive_word_stops_at_the_next_word(self, tmp_path: Path) -> None:
+        session = self._lyric_session(tmp_path)
+        # "adios" spans 2.0..2.5; past that, "amor" takes over at 2.5.
+        assert session.word_at(2.4).text == "adios"
+        assert session.word_at(2.5).text == "amor"
+
+    def test_an_untimed_transcript_is_never_active(self, tmp_path: Path) -> None:
+        document = _outcome_with_lyrics(Path(_wav(tmp_path)), lyrics=[*LYRICS, *UNTIMED])
+        session = SongSession(player=FakePlayer(), analyze=lambda path, **_: document)
+        session.open(_wav(tmp_path))
+
+        assert [line.text for line in session.lyrics] == ["hola mundo", "adios amor", "fin"]
+        assert session.lyric_at(0.5).text == "hola mundo"
+        assert session.word_at(3.5) is None  # the untimed "fin" can never activate
+
+    def test_a_negative_position_is_rejected_like_chord_at(self, tmp_path: Path) -> None:
+        session = self._lyric_session(tmp_path)
+        with pytest.raises(InputError, match="negative"):
+            session.lyric_at(-0.5)
+        with pytest.raises(InputError, match="negative"):
+            session.word_at(-0.5)
+
+    def _lyric_session(self, tmp_path: Path) -> SongSession:
+        session = SongSession(
+            player=FakePlayer(),
+            analyze=lambda path, **_: _outcome_with_lyrics(Path(path)),
+        )
+        session.open(_wav(tmp_path))
+        return session
 
 
 class TestSynchronization:

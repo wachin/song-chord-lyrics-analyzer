@@ -19,13 +19,14 @@ ones, dimmed, and never becomes active.
 
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Callable
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QLabel, QTextBrowser, QVBoxLayout, QWidget
 
-from song_chord_lyrics_analyzer.app.lyrics_view import lyric_at, lyric_lines, word_at
-from song_chord_lyrics_analyzer.models.lyrics import LyricSegment, LyricSegmentKind
+from song_chord_lyrics_analyzer.app.lyrics_view import lyric_lines
+from song_chord_lyrics_analyzer.models.lyrics import LyricSegment, LyricSegmentKind, LyricWord
 
 __all__ = ["LyricsWidget"]
 
@@ -87,23 +88,42 @@ class LyricsWidget(QWidget):
         self._view.setVisible(bool(self._lines))
         self._render()
 
-    def set_playhead(self, position: float) -> None:
-        """Highlight the segment and the word sounding at ``position`` seconds.
+    def set_active(
+        self,
+        segment: LyricSegment | None = None,
+        word: LyricWord | None = None,
+    ) -> None:
+        """Highlight the caller's answer for the current playhead.
 
-        A negative position is clamped to the start, like the timeline does.
+        The widget decides nothing about the clock: which line and which word
+        are sounding is a session question (``SongSession.lyric_at`` and
+        ``SongSession.word_at``, which mirror ``chord_at`` exactly), so the
+        caller supplies the answers and the widget only draws them - the same
+        dependency direction as the chord label, which shows the frame's
+        ``chord_text`` without consulting a clock of its own. Calling it with
+        no answers clears the highlight (nothing is claimed at this instant).
+
+        Args:
+            segment: The active line, or ``None`` wherever no line is claimed.
+            word: The active word inside ``segment``, or ``None``.
         """
-        position = max(0.0, float(position))
-        segment = lyric_at(self._lines, position)
-        index = self._lines.index(segment) if segment is not None else None
-        word = word_at(segment, position) if segment is not None else None
-        if index != self._active or (word.text if word else None) != self._active_word:
+        index: int | None = None
+        if segment is not None:
+            with contextlib.suppress(ValueError):
+                index = self._lines.index(segment)
+        self._update_active(index, word if index is not None else None)
+
+    # -- rendering ---------------------------------------------------------
+
+    def _update_active(self, index: int | None, word: LyricWord | None) -> None:
+        """Adopt these answers, redrawing only when something actually changed."""
+        word_text = word.text if word is not None else None
+        if index != self._active or word_text != self._active_word:
             self._active = index
-            self._active_word = word.text if word is not None else None
+            self._active_word = word_text
             self._render()
         if index is not None:
             self._scroll_to(index)
-
-    # -- rendering ---------------------------------------------------------
 
     def _render(self) -> None:
         """Paint every line once; the active one is marked in the HTML."""

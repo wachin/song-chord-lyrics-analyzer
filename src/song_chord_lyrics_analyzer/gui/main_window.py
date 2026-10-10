@@ -354,14 +354,20 @@ class MainWindow(QMainWindow):
         """
         if not self._session.is_open:
             return None
-        frame = frame_from(self._session.snapshot())
+        snapshot = self._session.snapshot()
+        frame = frame_from(snapshot)
         self._frame = frame
         self._chord_label.setText(frame.chord_text)
         self._time_label.setText(frame.time_text)
         self._state_label.setText(frame.state.value)
         self._play_action.setText("Pause" if frame.state is PlaybackState.PLAYING else "Play")
         self._timeline.set_playhead(frame.position, frame.duration)
-        self._lyrics.set_playhead(frame.position)
+        # Same snapshot, same clock: the session answers which line and word
+        # sound at this playhead, the widget only draws the answer.
+        self._lyrics.set_active(
+            self._session.lyric_at(frame.position),
+            self._session.word_at(frame.position),
+        )
         return frame
 
     def _report(self, error: SongLabError) -> None:

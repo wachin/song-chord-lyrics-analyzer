@@ -119,6 +119,14 @@ class TestAnEmptyWindow:
 
         assert window.frame is None
 
+    def test_without_a_song_the_edit_actions_do_nothing(self, qt_app: object) -> None:
+        window = MainWindow()
+
+        assert window.edits is None
+        assert window.undo_edit() is False
+        assert window.redo_edit() is False
+        assert window.edit_chord_at(1.0) is False
+
     def test_the_transport_offers_the_actions_a_user_expects(self, qt_app: object) -> None:
         window = MainWindow()
 
@@ -335,6 +343,117 @@ class TestTheLyricsViewFollowsTheSameClock:
 
         assert window.lyrics.active_index is None
         assert window.lyrics.active_word is None
+
+
+class TestEditingTheChordLayer:
+    """Phase G: correct a chord from the timeline, undo/redo, engine intact.
+
+    The edit tape lives in the window over the document the session opened;
+    the dialog is mocked, the commands are real, and the base layer (what the
+    fake analysis produced) must survive every edit untouched.
+    """
+
+    @staticmethod
+    def _labels(window: MainWindow) -> list[tuple[str, float, float]]:
+        return [(band.label, band.start, band.end) for band in window.timeline.bands]
+
+    def test_an_edit_dialog_pushes_a_label_command(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        asked: dict[str, str] = {}
+
+        def _dialog(*args: object, **kwargs: object) -> tuple[str, bool]:
+            asked["text"] = kwargs.get("text", "")
+            return "Am", True
+
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getText", _dialog)
+
+        assert window.edit_chord_at(1.5) is True
+        assert asked["text"] == "G"
+        assert self._labels(window) == [
+            ("C", 0.0, 1.0),
+            ("Am", 1.0, 2.0),
+            ("N", 2.0, 3.0),
+            ("F", 3.0, 4.0),
+        ]
+
+    def test_the_engines_layer_survives_every_edit(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getText", lambda *a, **k: ("Am", True))
+        window.edit_chord_at(1.5)
+
+        base_labels = [event.to_label() for event in window.edits.base]
+        assert base_labels == ["C", "G", "N", "F"]
+        assert [event.source for event in window.edits.base] == ["fake-chords"] * 4
+
+    def test_a_cancelled_dialog_edits_nothing(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getText", lambda *a, **k: ("Am", False))
+
+        assert window.edit_chord_at(1.5) is False
+        assert [band.label for band in window.timeline.bands] == ["C", "G", "N", "F"]
+        assert window.undo_edit() is False
+
+    def test_an_invalid_label_is_reported_and_not_applied(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        warned = _warned(monkeypatch)
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getText", lambda *a, **k: ("banana", True))
+
+        assert window.edit_chord_at(1.5) is False
+        assert warned and "quality" in warned[0]
+        assert [band.label for band in window.timeline.bands] == ["C", "G", "N", "F"]
+
+    def test_a_position_without_a_chord_edits_nothing(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getText", lambda *a, **k: ("Am", True))
+        # Past the last event's end there is nothing to edit - and, crucially,
+        # no dialog would open (that is why this asserts before any mock).
+        assert window.edit_chord_at(DURATION + 1.0) is False
+        assert window.edit_chord_at(1.0) is True  # the boundary belongs to G
+
+    def test_undo_then_redo_round_trip(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The dialog answers per call: first G -> Am, then F -> Em.
+        answers = iter([("Am", True), ("Em", True)])
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getText", lambda *a, **k: next(answers))
+        window.edit_chord_at(1.5)
+        window.edit_chord_at(3.5)
+
+        window.undo_edit()
+        assert [band.label for band in window.timeline.bands] == ["C", "Am", "N", "F"]
+        window.undo_edit()
+        assert [band.label for band in window.timeline.bands] == ["C", "G", "N", "F"]
+
+        window.redo_edit()
+        assert [band.label for band in window.timeline.bands] == ["C", "Am", "N", "F"]
+        window.redo_edit()
+        assert [band.label for band in window.timeline.bands] == ["C", "Am", "N", "Em"]
+
+    def test_a_push_after_undo_discards_the_redo_tape(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        answers = iter([("Am", True), ("A7", True)])
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getText", lambda *a, **k: next(answers))
+        window.edit_chord_at(1.5)
+        window.undo_edit()
+        window.edit_chord_at(3.5)
+
+        assert window.redo_edit() is False
+        assert [band.label for band in window.timeline.bands] == ["C", "G", "N", "A7"]
+
+    def test_the_big_label_shows_the_edited_chord(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getText", lambda *a, **k: ("Am", True))
+        window.seek(1.5)  # inside "G"
+        window.edit_chord_at(1.5)  # G -> Am under the playhead
+
+        assert window.chord_label.text() == "Am"
 
 
 class TestSeeking:

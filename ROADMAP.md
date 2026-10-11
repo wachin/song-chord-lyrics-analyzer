@@ -689,18 +689,33 @@ Lyrics shown without timestamps; two unsynchronized position clocks.
 **Objective:** the user can fix what the engines got wrong, without losing the
 original analysis.
 
-**Current status:** `[ ]`
+**Current status:** `[~]` — the chord-editing core landed 2026-10-10
+(`app/editing.py`: command-pattern edits over an immutable engine base,
+`SetChordLabel`/`SplitChord`/`MergeChords`/`TrimChord` + a `CommandStack` undo/
+redo tape; the window edits the chord under the clicked position and undoes/
+redoes with the standard shortcuts). Remaining: lyric editing, persistence of
+the edited document.
 
 ### Tasks
 
-- [ ] Editable document layer: user edits are a separate overlay over the
-  engine output (raw engine results are never overwritten — provenance stays)
-- [ ] Chord editing: change label, split/merge/trim segments
+- [x] Editable document layer: user edits are a separate overlay over the
+  engine output (raw engine results are never overwritten — provenance stays).
+  `CommandStack.base` returns the engine layer untouched after any edit;
+  user-produced events carry `source="user"`/`"user-merge"`
+- [~] Chord editing: change label, split/merge/trim segments — the four
+  commands exist and are tested; only *change label* is exposed in the GUI so
+  far (timeline context menu + dialog)
 - [ ] Lyric editing: correct words and timings
-- [ ] Undo/redo command stack
+- [x] Undo/redo command stack (`CommandStack`: push/undo/redo, redo tape
+  discarded on a new push, a failed push leaves the tape as it was)
 - [ ] Persistence of the edited document (canonical JSON, schema bump if needed)
-- [ ] GUI integration (edit from the timeline)
-- [ ] Tests: command-level undo/redo, overlay round-trip, schema stability
+- [x] GUI integration (edit from the timeline): the timeline's context menu
+  offers "Edit chord here..."; Undo/Redo on `Ctrl+Z`/`Ctrl+Shift+Z`; the chord
+  label and the strip redraw from the effective layer
+- [x] Tests: command-level undo/redo, overlay round-trip —
+  `tests/unit/test_editing.py` (33 tests, Qt-free) and the GUI flow in
+  `tests/unit/test_gui_main_window.py::TestEditingTheChordLayer` (9 tests,
+  offscreen; dialog mocked). Schema stability is pending with persistence
 
 ### Acceptance criteria
 

@@ -23,16 +23,19 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Mapping
+from dataclasses import replace
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import QPoint, Qt, QTimer
 from PyQt6.QtGui import QAction, QCloseEvent, QKeySequence, QResizeEvent
 from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QSplitter,
     QVBoxLayout,
@@ -47,6 +50,7 @@ from song_chord_lyrics_analyzer.app import (
     frame_from,
     summarize,
 )
+from song_chord_lyrics_analyzer.app.editing import CommandStack, SetChordLabel
 from song_chord_lyrics_analyzer.audio.playback import PlaybackState
 from song_chord_lyrics_analyzer.gui.analysis_panel import AnalysisPanel
 from song_chord_lyrics_analyzer.gui.lyrics_view import LyricsWidget
@@ -106,6 +110,7 @@ class MainWindow(QMainWindow):
         self._frame: DisplayFrame | None = None
         self._bucket_count = 0
         self._ready = False
+        self._edits: CommandStack | None = None
 
         self.setWindowTitle("Song Chord Lyrics Analyzer")
         self.resize(960, 560)
@@ -181,6 +186,16 @@ class MainWindow(QMainWindow):
         self._forward_action.setShortcut(QKeySequence("Right"))
         self._forward_action.triggered.connect(lambda: self.seek_by(SEEK_STEP))
 
+        # Phase G: edit the chord under a clicked band; Ctrl+Z/Ctrl+Shift+Z
+        # undo and redo the edits the same way every editor does.
+        self._undo_action = QAction("Undo", self)
+        self._undo_action.setShortcut(QKeySequence.StandardKey.Undo)
+        self._undo_action.triggered.connect(self.undo_edit)
+
+        self._redo_action = QAction("Redo", self)
+        self._redo_action.setShortcut(QKeySequence.StandardKey.Redo)
+        self._redo_action.triggered.connect(self.redo_edit)
+
         toolbar = self.addToolBar("Transport")
         assert toolbar is not None  # always created by QMainWindow
         toolbar.setMovable(False)
@@ -215,6 +230,8 @@ class MainWindow(QMainWindow):
 
         self._timeline = TimelineWidget()
         self._timeline.seek_requested.connect(self.seek)
+        self._timeline.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self._timeline.customContextMenuRequested.connect(self._show_edit_menu)
         self._lyrics = LyricsWidget()
         self._panel = AnalysisPanel()
 
@@ -261,6 +278,8 @@ class MainWindow(QMainWindow):
                 engines=self._engines or None,
                 input_hash=self._input_hash,
             )
+            # A fresh song starts with a fresh edit tape over its engine layer.
+            self._edits = CommandStack(document.chords if document is not None else [])
             self._populate_timeline()
             self._lyrics.set_document(tuple(document.lyrics) if document is not None else ())
             self._panel.set_rows(summarize(document, steps=self._session.steps))
@@ -269,20 +288,24 @@ class MainWindow(QMainWindow):
             return False
         finally:
             QApplication.restoreOverrideCursor()
+        self._update_edit_actions()
         self.refresh()
         self._timer.start()
         return True
 
     def _populate_timeline(self) -> None:
-        """Draw the waveform and the chord strip of the open song."""
-        document = self._session.document
+        """Draw the waveform and the chord strip of the open song.
+
+        The chord strip draws the *effective* layer (engine + the user's
+        edits), never the document's raw list, so every edit is on screen the
+        moment its command is pushed.
+        """
         duration = self._session.duration()
         width = max(1, self._timeline.width())
         self._bucket_count = width
         self._timeline.set_peaks(self._session.waveform_peaks(buckets=width))
-        self._timeline.set_bands(
-            chord_bands(document.chords if document else [], duration=duration)
-        )
+        chords = self._edits.effective if self._edits is not None else []
+        self._timeline.set_bands(chord_bands(chords, duration=duration))
         self._timeline.set_duration(duration)
 
     def resizeEvent(self, event: QResizeEvent | None) -> None:
@@ -341,6 +364,90 @@ class MainWindow(QMainWindow):
             return
         self.seek(self._frame.position + seconds)
 
+    # -- editing (Phase G) -------------------------------------------------
+
+    @property
+    def edits(self) -> CommandStack | None:
+        """The edit tape of the open song, or ``None`` before the first open."""
+        return self._edits
+
+    def edit_chord_at(self, position: float) -> bool:
+        """Ask for a new label for the chord covering ``position`` seconds.
+
+        The command is pushed on the edit tape; the engine's output is
+        untouched and the strip is redrawn from the effective layer. No chord
+        there, no song open, or a cancelled dialog is a no-op.
+
+        Args:
+            position: The playhead position whose chord is edited, in seconds.
+
+        Returns:
+            ``True`` when the edit was applied.
+        """
+        if self._edits is None:
+            return False
+        event = self._edits.effective_chord_at(position)
+        if event is None:
+            return False
+        label, accepted = QInputDialog.getText(
+            self,
+            "Edit chord",
+            f"New label for the chord at {event.start:.2f} s (now {event.to_label()}):",
+            text=event.label if event.label != "?" else "",
+        )
+        if not accepted:
+            return False
+        try:
+            self._edits.push(SetChordLabel(event.start, label))
+        except SongLabError as error:
+            self._report(error)
+            return False
+        self._populate_timeline()
+        self._update_edit_actions()
+        self.refresh()
+        return True
+
+    def _show_edit_menu(self, pos: QPoint) -> None:
+        """The timeline's context menu: edit the chord, undo, redo."""
+        menu = QMenu(self)
+        edit_here = menu.addAction("Edit chord here...")
+        if edit_here is None or self._edits is None:  # pragma: no cover - defensive
+            return
+        menu.addSeparator()
+        assert self._undo_action is not None and self._redo_action is not None
+        menu.addAction(self._undo_action)
+        menu.addAction(self._redo_action)
+        chords_live = self._edits.effective_chord_at(self._timeline.seconds_at(pos.x())) is not None
+        edit_here.setEnabled(chords_live)
+        chosen = menu.exec(self._timeline.mapToGlobal(pos))
+        if chosen == edit_here and chords_live:
+            self.edit_chord_at(self._timeline.seconds_at(pos.x()))
+
+    def undo_edit(self) -> bool:
+        """Take the last edit back; ``False`` when there is nothing to undo."""
+        if self._edits is None or self._edits.undo() is None:
+            return False
+        self._populate_timeline()
+        self._update_edit_actions()
+        self.refresh()
+        return True
+
+    def redo_edit(self) -> bool:
+        """Reapply the last undone edit; ``False`` when there is nothing to redo."""
+        if self._edits is None or self._edits.redo() is None:
+            return False
+        self._populate_timeline()
+        self._update_edit_actions()
+        self.refresh()
+        return True
+
+    def _update_edit_actions(self) -> None:
+        """Enable Undo/Redo only when the tape can serve them."""
+        undo, redo = self._undo_action, self._redo_action
+        assert undo is not None and redo is not None  # built once in _build_actions
+        undo.setEnabled(self._edits is not None and self._edits.can_undo)
+        redo.setEnabled(self._edits is not None and self._edits.can_redo)
+
     # -- the one refresh ---------------------------------------------------
 
     def refresh(self) -> DisplayFrame | None:
@@ -356,6 +463,12 @@ class MainWindow(QMainWindow):
             return None
         snapshot = self._session.snapshot()
         frame = frame_from(snapshot)
+        # The label reads the *effective* chord layer: what the user edited is
+        # what the label shows, in the same clock the snapshot froze.
+        if self._edits is not None:
+            edited = self._edits.effective_chord_at(frame.position)
+            if edited is not None or snapshot.chord is not None:
+                frame = replace(frame, chord=edited)
         self._frame = frame
         self._chord_label.setText(frame.chord_text)
         self._time_label.setText(frame.time_text)

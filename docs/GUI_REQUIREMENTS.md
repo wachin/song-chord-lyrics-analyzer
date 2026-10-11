@@ -73,8 +73,12 @@ CLI, the engine or the session.
    timestamps exist. Presenters: `app/lyrics_view.py` (`lyric_lines`,
    `lyric_at`, `word_at`); widget: `gui/lyrics_view.py`; bind: the window's
    `open_file`/`refresh`.
-2. **Chord/lyric editing** — click a band, type a label: the session's undo/redo
-   (command pattern in `app/`) plus a consistent snapshot + persist cycle.
+2. **Chord/lyric editing** — delivered for chords 2026-10-10: `app/editing.py`
+   holds the command tape (`SetChordLabel`, `SplitChord`, `MergeChords`,
+   `TrimChord`, `CommandStack`) over an immutable engine base; the timeline's
+   context menu edits the chord under the click, `Ctrl+Z`/`Ctrl+Shift+Z` undo
+   and redo, and the chord label + strip redraw from the effective layer.
+   Lyric editing and edited-document persistence are still open.
 3. **Transpose** — a chord-level transpose whose window keeps every label in
    `CHORD_QUALITY_SUFFIX` form.
 4. **Chord simplification** — drop slash/extension noise, keep a quality legend.

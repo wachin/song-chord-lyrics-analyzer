@@ -24,6 +24,7 @@ lists, and the GUI pushes commands exactly the way a CLI would.
 
 from __future__ import annotations
 
+import bisect
 import re
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
@@ -38,7 +39,9 @@ from song_chord_lyrics_analyzer.utils.errors import InputError
 
 __all__ = [
     "CommandStack",
+    "DeleteChord",
     "EditCommand",
+    "InsertChord",
     "MERGE_SOURCE",
     "USER_SOURCE",
     "MergeChords",
@@ -124,6 +127,22 @@ def _as_kwargs(event: ChordEvent) -> dict[str, object]:
         "source": event.source,
         "metadata": dict(event.metadata),
     }
+
+
+@dataclass(frozen=True)
+class DeleteChord:
+    """Remove one chord from the effective layer, addressed by its start.
+
+    Deleting the wrong event is easy to undo, so the command is deliberately
+    conservative: no auto-merge of the gap, no relabelling - the neighbours
+    keep everything they had and an uncovered span behaves like any other gap.
+    """
+
+    start: float
+
+    def apply(self, events: Sequence[ChordEvent]) -> list[ChordEvent]:
+        index = _find(events, self.start)
+        return [*events[:index], *events[index + 1 :]]
 
 
 def _merge_version(first: ChordEvent, second: ChordEvent) -> ChordEvent:
@@ -309,6 +328,47 @@ class TrimChord:
         return [*events[:index], changed, *events[index + 1 :]]
 
 
+@dataclass(frozen=True)
+class InsertChord:
+    """Add a chord of the user's choosing at a time the layer does not cover.
+
+    The evidence comes from the same parser as :class:`SetChordLabel`, so the
+    user types ``"Am"`` or ``"N"`` and gets the same canonical event an edit
+    produces — ``source="user"``, no engine fields carried over. The insert
+    point must be uncovered by every event (not merely free between two) so
+    an insertion can never silently overlap an engine's guess.
+    """
+
+    at: float
+    label: str
+    end: float | None = None
+
+    def __post_init__(self) -> None:
+        if self.end is not None and self.end <= self.at:
+            raise InputError(f"the inserted chord must stay non-empty: {self.at!r}..{self.end!r}.")
+
+    def apply(self, events: Sequence[ChordEvent]) -> list[ChordEvent]:
+        event = _inserted(events, self.at, self.label, self.end)
+        index = bisect.bisect_left([e.start for e in events], self.at)
+        return [*events[:index], event, *events[index:]]
+
+
+def _inserted(events: Sequence[ChordEvent], at: float, label: str, end: float | None) -> ChordEvent:
+    """Build the fresh user event for an insertion, validating coverage."""
+    evidence = _parse_label(label)
+    inserted = ChordEvent(start=at, end=end, **evidence)  # type: ignore[arg-type]
+    inserted.source = USER_SOURCE
+    inserted.label = label.strip() if evidence["quality"] is ChordQuality.OTHER else inserted.label
+    for event in events:
+        if event.end is not None and event.start <= at < event.end:
+            raise InputError(
+                f"the time {at!r} is already covered by the chord "
+                f"{event.start!r}..{event.end!r}; trim or split it first.",
+                hint="Insert only into uncovered time, scoped by the split or trim.",
+            )
+    return inserted
+
+
 def effective_chords(
     base: Iterable[ChordEvent],
     commands: Iterable[EditCommand],
@@ -383,6 +443,11 @@ class CommandStack:
     @property
     def can_redo(self) -> bool:
         return bool(self._redo)
+
+    @property
+    def applied(self) -> tuple[EditCommand, ...]:
+        """The applied commands, oldest first - what persistence serialises."""
+        return tuple(self._applied)
 
     def __len__(self) -> int:
         """How many commands are applied (the depth of the undo tape)."""

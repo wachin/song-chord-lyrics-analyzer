@@ -15,6 +15,8 @@ from song_chord_lyrics_analyzer.app.editing import (
     MERGE_SOURCE,
     USER_SOURCE,
     CommandStack,
+    DeleteChord,
+    InsertChord,
     MergeChords,
     SetChordLabel,
     SplitChord,
@@ -141,6 +143,85 @@ class TestMergeChords:
     def test_an_unknown_second_start_is_rejected(self) -> None:
         with pytest.raises(InputError, match="starts at"):
             MergeChords(0.0, 5.0).apply(BASE)
+
+
+class TestDeleteChord:
+    def test_the_chord_is_removed_and_the_neighbours_survive(self) -> None:
+        edited = DeleteChord(1.0).apply(BASE)
+
+        assert len(edited) == len(BASE) - 1
+        assert _sources(edited) == ["fake", "fake", "fake"]
+        assert [e.start for e in edited] == [0.0, 2.0, 3.0]
+
+    def test_deleting_silence_works_like_deleting_a_chord(self) -> None:
+        edited = DeleteChord(2.0).apply(BASE)
+        assert [e.start for e in edited] == [0.0, 1.0, 3.0]
+
+    def test_an_unknown_start_is_rejected(self) -> None:
+        with pytest.raises(InputError, match="starts at"):
+            DeleteChord(9.0).apply(BASE)
+
+    def test_the_base_is_not_mutated(self) -> None:
+        original = _base_copy()
+        DeleteChord(1.0).apply(BASE)
+        assert len(BASE) == len(original)
+
+
+class TestInsertChord:
+    def test_a_chord_goes_into_uncovered_time(self) -> None:
+        edited = InsertChord(4.0, "Am", end=5.0).apply(BASE)
+
+        assert len(edited) == len(BASE) + 1
+        inserted = edited[-1]
+        assert inserted.start == 4.0 and inserted.end == 5.0
+        assert inserted.root == "A" and inserted.quality is ChordQuality.MINOR
+        assert inserted.source == USER_SOURCE
+        assert inserted.label == "Am"
+
+    def test_an_insertion_may_be_open_ended(self) -> None:
+        edited = InsertChord(4.0, "N").apply(BASE)
+        assert edited[-1].start == 4.0 and edited[-1].end is None
+        assert edited[-1].is_silence
+
+    def test_inserting_at_zero_goes_in_front_of_everything(self) -> None:
+        # BASE starts at 1.0 here, so 0.0 is uncovered time before the first.
+        edited = InsertChord(0.0, "G7", end=1.0).apply(BASE[1:])
+        assert edited[0].start == 0.0 and edited[0].end == 1.0
+        assert edited[0].quality is ChordQuality.DOMINANT7
+        assert len(edited) == len(BASE)  # three base events + one insert
+
+    def test_inserting_into_covered_time_is_rejected(self) -> None:
+        with pytest.raises(InputError, match="covered"):
+            InsertChord(3.999, "Am").apply(BASE)
+
+    def test_an_empty_chord_is_rejected(self) -> None:
+        with pytest.raises(InputError, match="non-empty"):
+            InsertChord(3.5, "Am", end=3.5).apply(BASE)
+
+    def test_an_unknown_label_is_rejected(self) -> None:
+        with pytest.raises(InputError, match="root note"):
+            InsertChord(4.0, "Xx").apply(BASE)
+
+
+class TestTheNewCommandsFoldAndUndo:
+    def test_delete_then_insert_folds_in_order(self) -> None:
+        edited = effective_chords(
+            BASE,
+            [DeleteChord(1.0), InsertChord(1.0, "Em", end=2.0)],
+        )
+        labels = [e.label for e in edited]
+        assert labels == ["C", "Em", "N", "F"]
+        assert _sources(edited)[1] == USER_SOURCE
+
+    def test_undo_removes_the_deletion_ping_pong_exact(self) -> None:
+        stack = CommandStack(BASE)
+        stack.push(DeleteChord(1.0))
+        # Deleting G leaves [1.0, 2.0) uncovered; insert there, not into C.
+        stack.push(InsertChord(1.0, "Bm", end=2.0))
+        stack.undo()
+        stack.undo()
+        assert [e.label for e in stack.effective] == [e.label for e in BASE]
+        assert len(stack.effective) == len(BASE)
 
 
 class TestTrimChord:

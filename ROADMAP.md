@@ -691,10 +691,15 @@ original analysis.
 
 **Current status:** `[~]` — the chord-editing core landed 2026-10-10
 (`app/editing.py`: command-pattern edits over an immutable engine base,
-`SetChordLabel`/`SplitChord`/`MergeChords`/`TrimChord` + a `CommandStack` undo/
-redo tape; the window edits the chord under the clicked position and undoes/
-redoes with the standard shortcuts). Remaining: lyric editing, persistence of
-the edited document.
+`SetChordLabel`/`SplitChord`/`MergeChords`/`TrimChord`/`DeleteChord`/
+`InsertChord` + a `CommandStack` undo/redo tape; the window edits the chord
+under the clicked position and undoes/redoes with the standard shortcuts)
+and the edited layer persists 2026-10-11 (`app/persistence.py`: a sidecar
+`song.songlab.json` storing the engine base + the ordered commands, replayed
+through `rebuild_stack()` on load with the same validation as a live push.
+The command vocabulary is frozen so the schema should not need another bump
+when delete/insert reach the GUI). Remaining: lyric editing; GUI exposure of
+delete/insert/split/merge/trim; a Save action wired to the sidecar.
 
 ### Tasks
 
@@ -702,20 +707,27 @@ the edited document.
   engine output (raw engine results are never overwritten — provenance stays).
   `CommandStack.base` returns the engine layer untouched after any edit;
   user-produced events carry `source="user"`/`"user-merge"`
-- [~] Chord editing: change label, split/merge/trim segments — the four
-  commands exist and are tested; only *change label* is exposed in the GUI so
-  far (timeline context menu + dialog)
+- [~] Chord editing: change label, split/merge/trim/delete/insert — six
+  commands exist and are tested (vocabulary frozen 2026-10-11); only *change
+  label* is exposed in the GUI so far (timeline context menu + dialog)
 - [ ] Lyric editing: correct words and timings
 - [x] Undo/redo command stack (`CommandStack`: push/undo/redo, redo tape
   discarded on a new push, a failed push leaves the tape as it was)
-- [ ] Persistence of the edited document (canonical JSON, schema bump if needed)
+- [x] Persistence of the edited document (`app/persistence.py`, 2026-10-11:
+  `save_edits()`/`load_edits()`/`rebuild_stack()` over a sibling
+  `song.songlab.json` that stores the engine chords + the ordered commands in
+  canonical JSON; the engine layer is recoverable from the file untouched, a
+  stale command fails loudly on replay, the edits format has its own
+  `edits_version: "1"`. GUI Save action still open)
 - [x] GUI integration (edit from the timeline): the timeline's context menu
   offers "Edit chord here..."; Undo/Redo on `Ctrl+Z`/`Ctrl+Shift+Z`; the chord
   label and the strip redraw from the effective layer
-- [x] Tests: command-level undo/redo, overlay round-trip —
-  `tests/unit/test_editing.py` (33 tests, Qt-free) and the GUI flow in
-  `tests/unit/test_gui_main_window.py::TestEditingTheChordLayer` (9 tests,
-  offscreen; dialog mocked). Schema stability is pending with persistence
+- [x] Tests: command-level undo/redo, overlay round-trip, persistence —
+  `tests/unit/test_editing.py` (45 tests, Qt-free),
+  `tests/unit/test_persistence.py` (14 tests: round-trip, engine-layer
+  recoverability, provenance, loud stale/corrupt rejection), and the GUI flow
+  in `tests/unit/test_gui_main_window.py::TestEditingTheChordLayer` (9 tests,
+  offscreen; dialog mocked)
 
 ### Acceptance criteria
 

@@ -51,6 +51,14 @@ from song_chord_lyrics_analyzer.app import (
     summarize,
 )
 from song_chord_lyrics_analyzer.app.editing import CommandStack, SetChordLabel
+from song_chord_lyrics_analyzer.app.persistence import (
+    edits_sidecar_path,
+    load_edits,
+    rebuild_stack,
+)
+from song_chord_lyrics_analyzer.app.persistence import (
+    save_edits as save_edits_document,
+)
 from song_chord_lyrics_analyzer.audio.playback import PlaybackState
 from song_chord_lyrics_analyzer.gui.analysis_panel import AnalysisPanel
 from song_chord_lyrics_analyzer.gui.lyrics_view import LyricsWidget
@@ -186,6 +194,12 @@ class MainWindow(QMainWindow):
         self._forward_action.setShortcut(QKeySequence("Right"))
         self._forward_action.triggered.connect(lambda: self.seek_by(SEEK_STEP))
 
+        # Ctrl+S persists the edit tape to the sidecar next to the audio, so
+        # reopening the song (or the machine) finds the corrections again.
+        self._save_action = QAction("Save Edits", self)
+        self._save_action.setShortcut(QKeySequence.StandardKey.Save)
+        self._save_action.triggered.connect(self.save_edits_sidecar)
+
         # Phase G: edit the chord under a clicked band; Ctrl+Z/Ctrl+Shift+Z
         # undo and redo the edits the same way every editor does.
         self._undo_action = QAction("Undo", self)
@@ -201,6 +215,7 @@ class MainWindow(QMainWindow):
         toolbar.setMovable(False)
         for action in (
             self._open_action,
+            self._save_action,
             self._play_action,
             self._stop_action,
             self._back_action,
@@ -278,8 +293,10 @@ class MainWindow(QMainWindow):
                 engines=self._engines or None,
                 input_hash=self._input_hash,
             )
-            # A fresh song starts with a fresh edit tape over its engine layer.
+            # A fresh song starts with a fresh edit tape over its engine layer,
+            # then any sidecar saved for this file replays over that base.
             self._edits = CommandStack(document.chords if document is not None else [])
+            self._restore_saved_edits(Path(path))
             self._populate_timeline()
             self._lyrics.set_document(tuple(document.lyrics) if document is not None else ())
             self._panel.set_rows(summarize(document, steps=self._session.steps))
@@ -442,11 +459,60 @@ class MainWindow(QMainWindow):
         return True
 
     def _update_edit_actions(self) -> None:
-        """Enable Undo/Redo only when the tape can serve them."""
-        undo, redo = self._undo_action, self._redo_action
-        assert undo is not None and redo is not None  # built once in _build_actions
+        """Enable Undo/Redo/Save only when the tape can serve them."""
+        undo, redo, save = self._undo_action, self._redo_action, self._save_action
+        assert undo is not None and redo is not None and save is not None
         undo.setEnabled(self._edits is not None and self._edits.can_undo)
         redo.setEnabled(self._edits is not None and self._edits.can_redo)
+        save.setEnabled(self._edits is not None and len(self._edits) > 0)
+
+    # -- persistence (Phase G) --------------------------------------------
+
+    def save_edits_sidecar(self) -> bool:
+        """Write the edit tape to the song's sidecar; ``False`` when nothing to save.
+
+        The sidecar is the sibling ``song.songlab.json``: the engine layer plus
+        the commands the user pushed. A failed save is reported, never silent.
+
+        Returns:
+            ``True`` when the edits were written; ``False`` when there is no
+            song, no edits, or the write failed (already reported).
+        """
+        if self._edits is None or len(self._edits) == 0 or self._session.path is None:
+            return False
+        document = self._session.document
+        provenance = document.provenance if document is not None else None
+        try:
+            target = save_edits_document(
+                self._edits,
+                edits_sidecar_path(self._session.path),
+                input_path=str(self._session.path),
+                input_hash=provenance.input_hash if provenance is not None else None,
+            )
+        except SongLabError as error:
+            self._report(error)
+            return False
+        status_bar = self.statusBar()
+        assert status_bar is not None  # QMainWindow always creates one on demand
+        status_bar.showMessage(f"Edits saved to {target.name}", 5000)
+        return True
+
+    def _restore_saved_edits(self, path: Path) -> None:
+        """Replay the sidecar over the freshly analysed engine layer, if any.
+
+        No sidecar is the normal case and stays silent. A sidecar that no
+        longer replays (stale, corrupt, a different version) is reported and
+        the pure engine layer is kept - an honest failure, never a silently
+        dropped edit and never a broken window.
+        """
+        sidecar = edits_sidecar_path(path)
+        if not sidecar.is_file() or self._edits is None:
+            return
+        try:
+            self._edits = rebuild_stack(load_edits(sidecar))
+        except SongLabError as error:
+            self._report(error)
+            self._edits = CommandStack(self._edits.base)
 
     # -- the one refresh ---------------------------------------------------
 

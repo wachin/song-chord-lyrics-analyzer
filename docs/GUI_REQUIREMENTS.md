@@ -82,8 +82,11 @@ CLI, the engine or the session.
    `app/persistence.py` saves/reloads the edits as a sibling
    `song.songlab.json` (engine chords + ordered commands, own
    `edits_version: "1"`); the engine layer stays recoverable from the file and
-   a stale command fails loudly on replay. Still open: lyric editing, a Save
-   action in the window, GUI exposure of delete/insert/split/merge/trim.
+   a stale command fails loudly on replay. Wired into the window the same
+   day: `Ctrl+S` / "Save Edits" writes the sidecar, `open_file` replays it
+   automatically, and a corrupt or stale sidecar is reported with the engine
+   layer kept. Still open: lyric editing, GUI exposure of
+   delete/insert/split/merge/trim.
 3. **Transpose** — a chord-level transpose whose window keeps every label in
    `CHORD_QUALITY_SUFFIX` form.
 4. **Chord simplification** — drop slash/extension noise, keep a quality legend.

@@ -696,10 +696,11 @@ original analysis.
 under the clicked position and undoes/redoes with the standard shortcuts)
 and the edited layer persists 2026-10-11 (`app/persistence.py`: a sidecar
 `song.songlab.json` storing the engine base + the ordered commands, replayed
-through `rebuild_stack()` on load with the same validation as a live push.
-The command vocabulary is frozen so the schema should not need another bump
-when delete/insert reach the GUI). Remaining: lyric editing; GUI exposure of
-delete/insert/split/merge/trim; a Save action wired to the sidecar.
+through `rebuild_stack()` on load with the same validation as a live push;
+wired to the window as `Ctrl+S` + an auto-replay on `open_file`; a corrupt or
+stale sidecar is reported and the engine layer kept. The command vocabulary is
+frozen so the schema should not need another bump when delete/insert reach the
+GUI). Remaining: lyric editing; GUI exposure of delete/insert/split/merge/trim.
 
 ### Tasks
 
@@ -718,7 +719,9 @@ delete/insert/split/merge/trim; a Save action wired to the sidecar.
   `song.songlab.json` that stores the engine chords + the ordered commands in
   canonical JSON; the engine layer is recoverable from the file untouched, a
   stale command fails loudly on replay, the edits format has its own
-  `edits_version: "1"`. GUI Save action still open)
+  `edits_version: "1"`. Wired into the window the same day: `Ctrl+S` /
+  "Save Edits" writes the sidecar, `open_file` replays it automatically, and
+  a corrupt or stale sidecar is reported with the engine layer kept)
 - [x] GUI integration (edit from the timeline): the timeline's context menu
   offers "Edit chord here..."; Undo/Redo on `Ctrl+Z`/`Ctrl+Shift+Z`; the chord
   label and the strip redraw from the effective layer
@@ -726,8 +729,9 @@ delete/insert/split/merge/trim; a Save action wired to the sidecar.
   `tests/unit/test_editing.py` (45 tests, Qt-free),
   `tests/unit/test_persistence.py` (14 tests: round-trip, engine-layer
   recoverability, provenance, loud stale/corrupt rejection), and the GUI flow
-  in `tests/unit/test_gui_main_window.py::TestEditingTheChordLayer` (9 tests,
-  offscreen; dialog mocked)
+  in `tests/unit/test_gui_main_window.py::TestEditingTheChordLayer` (9 tests)
+  plus `TestPersistingTheEdits` (7 tests: save, reopen-replays, undo after
+  reopen, corrupt/stale sidecar fallback, offscreen; dialogs mocked)
 
 ### Acceptance criteria
 

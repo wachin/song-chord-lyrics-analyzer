@@ -16,6 +16,7 @@ matrix Qt-free.
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 
 import pytest
@@ -126,11 +127,19 @@ class TestAnEmptyWindow:
         assert window.undo_edit() is False
         assert window.redo_edit() is False
         assert window.edit_chord_at(1.0) is False
+        assert window.save_edits_sidecar() is False
 
     def test_the_transport_offers_the_actions_a_user_expects(self, qt_app: object) -> None:
         window = MainWindow()
 
-        assert _toolbar_texts(window) == ["Open...", "Play", "Stop", "Back", "Forward"]
+        assert _toolbar_texts(window) == [
+            "Open...",
+            "Save Edits",
+            "Play",
+            "Stop",
+            "Back",
+            "Forward",
+        ]
 
 
 class TestOpeningASong:
@@ -245,13 +254,14 @@ class TestTheChordFollowsThePlayhead:
         assert window.state_label.text() == "stopped"
 
     def test_the_play_button_reports_what_it_will_do_next(self, window: MainWindow) -> None:
-        assert _toolbar_texts(window)[1] == "Play"
+        # Position 2: after Open... and Save Edits.
+        assert _toolbar_texts(window)[2] == "Play"
 
         window.toggle_play()
-        assert _toolbar_texts(window)[1] == "Pause"
+        assert _toolbar_texts(window)[2] == "Pause"
 
         window.toggle_play()
-        assert _toolbar_texts(window)[1] == "Play"
+        assert _toolbar_texts(window)[2] == "Play"
 
     def test_a_missing_audio_device_is_reported_not_hidden(
         self, qt_app: object, wav: Path, monkeypatch: pytest.MonkeyPatch
@@ -454,6 +464,129 @@ class TestEditingTheChordLayer:
         window.edit_chord_at(1.5)  # G -> Am under the playhead
 
         assert window.chord_label.text() == "Am"
+
+
+class TestPersistingTheEdits:
+    """Phase G closure: Ctrl+S writes the sidecar; reopening replays it.
+
+    The flow exercises the real files in ``tmp_path``: edit, save next to the
+    audio, reopen with a fresh session, and the corrected layer - not the
+    engine's guess - is on the timeline again, with the engine layer still
+    recoverable from the sidecar.
+    """
+
+    @staticmethod
+    def _labels(window: MainWindow) -> list[str]:
+        return [band.label for band in window.timeline.bands]
+
+    @staticmethod
+    def _save(window: MainWindow, monkeypatch: pytest.MonkeyPatch, label: str) -> Path:
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getText", lambda *a, **k: (label, True))
+        assert window.edit_chord_at(1.5) is True  # G -> label
+        assert window.save_edits_sidecar() is True
+        sidecar = window.session.path
+        assert sidecar is not None
+        return sidecar.with_suffix(".songlab.json")
+
+    def _reopen(self, qt_app: object, wav: Path) -> MainWindow:
+        session, _player, _clock = opened_session(wav)
+        fresh = MainWindow(session=session)
+        fresh.resize(900, 520)
+        assert fresh.open_file(wav) is True
+        return fresh
+
+    def test_save_writes_the_sidecar_next_to_the_audio(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        sidecar = self._save(window, monkeypatch, "Am")
+
+        assert sidecar.is_file()
+        assert sidecar.parent == window.session.path.parent
+
+    def test_reopening_replays_the_saved_edits(
+        self,
+        qt_app: object,
+        wav: Path,
+        window: MainWindow,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        self._save(window, monkeypatch, "Am")
+
+        fresh = self._reopen(qt_app, wav)
+        assert self._labels(fresh) == ["C", "Am", "N", "F"]
+        assert fresh.edits is not None
+        assert len(fresh.edits) == 1  # the tape replays, not the effective layer
+
+    def test_the_engine_layer_is_recoverable_after_reopening(
+        self,
+        qt_app: object,
+        wav: Path,
+        window: MainWindow,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        self._save(window, monkeypatch, "Am")
+
+        fresh = self._reopen(qt_app, wav)
+        assert fresh.edits is not None
+        assert [event.label for event in fresh.edits.base] == ["C", "G", "N", "F"]
+        fresh.undo_edit()
+        assert self._labels(fresh) == ["C", "G", "N", "F"]  # engine answers again
+
+    def test_a_second_edit_after_reopen_saves_again(
+        self,
+        qt_app: object,
+        wav: Path,
+        window: MainWindow,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        self._save(window, monkeypatch, "Am")
+        fresh = self._reopen(qt_app, wav)
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getText", lambda *a, **k: ("A#7", True))
+        assert fresh.edit_chord_at(3.5) is True
+        assert fresh.save_edits_sidecar() is True
+
+        third = self._reopen(qt_app, wav)
+        assert self._labels(third) == ["C", "Am", "N", "A#7"]
+
+    def test_saving_with_no_edits_does_nothing(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        assert window.save_edits_sidecar() is False
+        assert not window.session.path.with_suffix(".songlab.json").exists()
+
+    def test_a_corrupt_sidecar_is_reported_and_the_engine_layer_kept(
+        self,
+        qt_app: object,
+        wav: Path,
+        window: MainWindow,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        sidecar = self._save(window, monkeypatch, "Am")
+        sidecar.write_text("{{{not json", encoding="utf-8")
+        warned = _warned(monkeypatch)
+
+        fresh = self._reopen(qt_app, wav)
+        assert self._labels(fresh) == ["C", "G", "N", "F"]  # engine layer survives
+        assert warned and "JSON" in warned[0]
+
+    def test_a_stale_sidecar_is_reported_and_the_engine_layer_kept(
+        self,
+        qt_app: object,
+        wav: Path,
+        window: MainWindow,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        sidecar = self._save(window, monkeypatch, "Am")
+        payload = json.loads(sidecar.read_text(encoding="utf-8"))
+        payload["document"]["commands"][0]["start"] = 99.0  # address nothing
+        sidecar.write_text(json.dumps(payload), encoding="utf-8")
+        warned = _warned(monkeypatch)
+
+        fresh = self._reopen(qt_app, wav)
+        assert self._labels(fresh) == ["C", "G", "N", "F"]
+        assert fresh.edits is not None
+        assert len(fresh.edits) == 0  # the tape was reset, not silently partial
+        assert warned
 
 
 class TestSeeking:

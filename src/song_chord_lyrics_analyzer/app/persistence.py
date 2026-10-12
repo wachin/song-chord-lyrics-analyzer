@@ -1,15 +1,15 @@
-"""Persistence of the edited chord layer (roadmap Phase G).
+"""Persistence of the edited chord and lyric layers (roadmap Phase G).
 
 The roadmap's promise is *save, reload, and the engine's original output is
 still recoverable*. The shape that keeps it is a **sidecar document** storing
 the two things the :class:`~app.editing.CommandStack` is made of - the engine
-base chord layer and the ordered list of edit commands. Reload folds the
-commands over the base exactly as they were applied, so:
+base layers (chords and lyrics) and the ordered list of edit commands. Reload
+folds the commands over the bases exactly as they were applied, so:
 
 * the engine output is recoverable on its own (it is in the file, untouched);
-* the effective layer after reload matches what the user saved, bit for bit,
-  because floats round-trip exactly in JSON and commands address base events
-  by their own start times;
+* the effective layers after reload match what the user saved, bit for bit,
+  because floats round-trip exactly in JSON and commands address their layer
+  in the same order on both passes;
 * a stale command (a base that changed since saving) fails loudly with
   :class:`~utils.errors.InputError` and leaves the pure engine layer in place
   instead of silently dropping an edit.
@@ -34,13 +34,18 @@ from typing import Any
 from song_chord_lyrics_analyzer.app.editing import (
     CommandStack,
     DeleteChord,
+    DeleteLyric,
     EditCommand,
     InsertChord,
+    InsertLyric,
     MergeChords,
     SetChordLabel,
+    SetLyricText,
+    SetLyricTiming,
     SplitChord,
     TrimChord,
 )
+from song_chord_lyrics_analyzer.models.lyrics import LyricSegment
 from song_chord_lyrics_analyzer.models.music import ChordEvent
 from song_chord_lyrics_analyzer.schema.codec import (
     SCHEMA_VERSION,
@@ -63,6 +68,12 @@ __all__ = [
 _logger = get_logger("app.persistence")
 
 #: Version of the edits-sidcar format. Bump on breaking changes to it.
+#:
+#: The lyric layer (2026-10-12) is additive and does **not** bump it: a
+#: sidecar written before lyric editing simply has no "lyrics" key and loads
+#: with an empty lyric base, while a build that predates the lyric commands
+#: rejects a sidecar containing one loudly ("Unknown edit command kind")
+#: rather than dropping it - no reader ever folds a document it cannot replay.
 EDITS_SCHEMA_VERSION = "1"
 
 #: How each command names itself inside the JSON document. The mapping is the
@@ -75,6 +86,10 @@ _COMMAND_TAGS: dict[str, type] = {
     "trim": TrimChord,
     "delete": DeleteChord,
     "insert": InsertChord,
+    "set-lyric-text": SetLyricText,
+    "set-lyric-timing": SetLyricTiming,
+    "delete-lyric": DeleteLyric,
+    "insert-lyric": InsertLyric,
 }
 _COMMAND_FIELDS: dict[type, tuple[str, ...]] = {
     SetChordLabel: ("start", "label"),
@@ -83,15 +98,30 @@ _COMMAND_FIELDS: dict[type, tuple[str, ...]] = {
     TrimChord: ("start", "new_start", "new_end"),
     DeleteChord: ("start",),
     InsertChord: ("at", "label", "end"),
+    SetLyricText: ("index", "text"),
+    SetLyricTiming: ("index", "new_start", "new_end"),
+    DeleteLyric: ("index",),
+    InsertLyric: ("text", "start", "end"),
 }
+
+#: Field names that hold text rather than a number - unambiguous across the
+#: whole vocabulary, so a new command joining the schema only extends this
+#: table's words, never the decoding logic.
+_TEXT_FIELDS = frozenset({"label", "text"})
+
+#: Field names that hold a whole number (lyric lines are addressed by their
+#: display index, not by time).
+_INT_FIELDS = frozenset({"index"})
 
 
 @dataclass
 class EditsDocument:
-    """The decoded sidecar: the engine layer and the corrections over it.
+    """The decoded sidecar: the engine layers and the corrections over them.
 
     Attributes:
         chords: The engine's chord output, unmodified by anything the user did.
+        lyrics: The engine's lyric output, likewise - empty in a sidecar
+            written before lyric editing, which is still a valid document.
         commands: The applied edit commands, in the order they were pushed.
         input_path: The analysed audio file, as a string for portability.
         input_hash: The audio digest the sidecar belongs to, when known - the
@@ -100,6 +130,7 @@ class EditsDocument:
     """
 
     chords: list[ChordEvent] = field(default_factory=list)
+    lyrics: list[LyricSegment] = field(default_factory=list)
     commands: list[EditCommand] = field(default_factory=list)
     input_path: str | None = None
     input_hash: str | None = None
@@ -155,12 +186,25 @@ def _command_from_json(data: Any) -> EditCommand:
     values: dict[str, Any] = {}
     for name in names:
         value = data[name]
-        if name == "label":
+        if name in _TEXT_FIELDS:
             if not isinstance(value, str):
-                raise SchemaError(f"The 'label' of an edit must be text, got {value!r}.")
+                raise SchemaError(f"The {name!r} of an edit must be text, got {value!r}.")
             values[name] = value
+        elif name in _INT_FIELDS:
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise SchemaError(f"The {name!r} of an edit must be a whole number, got {value!r}.")
+            values[name] = value
+        elif value is None:
+            values[name] = None
+        elif isinstance(value, bool):
+            raise SchemaError(f"The {name!r} of an edit must be a number, got {value!r}.")
         else:
-            values[name] = None if value is None else float(value)
+            try:
+                values[name] = float(value)
+            except (TypeError, ValueError) as exc:
+                raise SchemaError(
+                    f"The {name!r} of an edit must be a number, got {value!r}."
+                ) from exc
     return command_type(**values)
 
 
@@ -185,6 +229,7 @@ def save_edits(
         "input_path": input_path,
         "input_hash": input_hash,
         "chords": [encode(event) for event in stack.base],
+        "lyrics": [encode(line) for line in stack.base_lyrics],
         "commands": [_command_to_json(command) for command in stack.applied],
     }
     target = Path(path)
@@ -239,16 +284,23 @@ def load_edits(path: str | Path) -> EditsDocument:
     commands_raw = document.get("commands")
     if not isinstance(chords_raw, list) or not isinstance(commands_raw, list):
         raise SchemaError(f"{source.name} needs a 'chords' list and a 'commands' list.")
+    lyrics_raw = document.get("lyrics")
+    if lyrics_raw is None:
+        lyrics_raw = []  # a sidecar written before lyric editing has no lyric layer
+    elif not isinstance(lyrics_raw, list):
+        raise SchemaError(f"{source.name} needs a 'lyrics' list.")
     decoded = EditsDocument(
         chords=[decode(ChordEvent, item) for item in chords_raw],
+        lyrics=[decode(LyricSegment, item) for item in lyrics_raw],
         commands=[_command_from_json(item) for item in commands_raw],
         input_path=document.get("input_path"),
         input_hash=document.get("input_hash"),
         application_version=None,
     )
     _logger.info(
-        "loaded %d chord(s) and %d edit(s) from %s",
+        "loaded %d chord(s), %d lyric line(s) and %d edit(s) from %s",
         len(decoded.chords),
+        len(decoded.lyrics),
         len(decoded.commands),
         source,
     )
@@ -262,15 +314,16 @@ def rebuild_stack(
 ) -> CommandStack:
     """A live :class:`CommandStack` replaying a saved document.
 
-    Every command is re-applied over the base through ``push``, so the same
-    validation that guarded the session guards the replay: a stale or corrupted
-    command raises :class:`~utils.errors.InputError` and the returned stack
-    stays with the commands applied so far - never a silently effective layer.
+    Every command is re-applied over its own base through ``push``, so the
+    same validation that guarded the session guards the replay: a stale or
+    corrupted command raises :class:`~utils.errors.InputError` and the
+    returned stack stays with the commands applied so far - never a silently
+    effective layer.
 
     Raises:
-        InputError: A command no longer addresses its event.
+        InputError: A command no longer addresses its event or line.
     """
-    stack = CommandStack(document.chords, on_change=on_change)
+    stack = CommandStack(document.chords, lyrics=document.lyrics, on_change=on_change)
     for command in document.commands:
         stack.push(command)
     return stack

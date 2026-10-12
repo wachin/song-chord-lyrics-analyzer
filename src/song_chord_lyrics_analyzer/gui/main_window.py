@@ -27,7 +27,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from PyQt6.QtCore import QPoint, Qt, QTimer
-from PyQt6.QtGui import QAction, QCloseEvent, QKeySequence, QResizeEvent
+from PyQt6.QtGui import QAction, QCloseEvent, QCursor, QKeySequence, QResizeEvent
 from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -48,15 +48,21 @@ from song_chord_lyrics_analyzer.app import (
     SongSession,
     chord_bands,
     frame_from,
+    lyric_at,
     summarize,
+    word_at,
 )
 from song_chord_lyrics_analyzer.app.editing import (
     CommandStack,
     DeleteChord,
+    DeleteLyric,
     EditCommand,
     InsertChord,
+    InsertLyric,
     MergeChords,
     SetChordLabel,
+    SetLyricText,
+    SetLyricTiming,
     SplitChord,
     TrimChord,
 )
@@ -260,6 +266,7 @@ class MainWindow(QMainWindow):
         self._timeline.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._timeline.customContextMenuRequested.connect(self._show_edit_menu)
         self._lyrics = LyricsWidget()
+        self._lyrics.line_menu_requested.connect(self._show_lyric_menu)
         self._panel = AnalysisPanel()
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -307,13 +314,16 @@ class MainWindow(QMainWindow):
             )
             # A fresh song starts with a fresh edit tape over its engine layer,
             # then any sidecar saved for this file replays over that base.
-            self._edits = CommandStack(document.chords if document is not None else [])
+            self._edits = CommandStack(
+                document.chords if document is not None else [],
+                lyrics=document.lyrics if document is not None else [],
+            )
             self._restore_saved_edits(Path(path))
             # Restored commands came from disk: they count as saved.
             assert self._edits is not None
             self._saved_applied = self._edits.applied
             self._populate_timeline()
-            self._lyrics.set_document(tuple(document.lyrics) if document is not None else ())
+            self._populate_lyrics()
             self._panel.set_rows(summarize(document, steps=self._session.steps))
         except SongLabError as error:
             self._report(error)
@@ -339,6 +349,16 @@ class MainWindow(QMainWindow):
         chords = self._edits.effective if self._edits is not None else []
         self._timeline.set_bands(chord_bands(chords, duration=duration))
         self._timeline.set_duration(duration)
+
+    def _populate_lyrics(self) -> None:
+        """Draw the *effective* lyric layer (engine + the user's edits).
+
+        Same rule as the chord strip: the view shows what the tape produced,
+        never the document's raw list, so a lyric edit is on screen the moment
+        its command is pushed.
+        """
+        lines = self._edits.effective_lyrics if self._edits is not None else []
+        self._lyrics.set_document(lines)
 
     def resizeEvent(self, event: QResizeEvent | None) -> None:
         """Redraw the waveform at the new width; peaks are cached per width."""
@@ -434,9 +454,7 @@ class MainWindow(QMainWindow):
         except SongLabError as error:
             self._report(error)
             return False
-        self._populate_timeline()
-        self._update_edit_actions()
-        self.refresh()
+        self._after_edit()
         return True
 
     def edit_menu_entries(self, position: float) -> tuple[tuple[str, str, bool], ...]:
@@ -522,9 +540,7 @@ class MainWindow(QMainWindow):
         except SongLabError as error:
             self._report(error)
             return False
-        self._populate_timeline()
-        self._update_edit_actions()
-        self.refresh()
+        self._after_edit()
         return True
 
     def _show_edit_menu(self, pos: QPoint) -> None:
@@ -549,23 +565,160 @@ class MainWindow(QMainWindow):
             if picked is not None:
                 self.apply_edit_choice(picked, position)
 
+    # -- lyric editing (Phase G) -------------------------------------------
+
+    def lyric_menu_entries(self, index: int) -> tuple[tuple[str, str, bool], ...]:
+        """The lyrics view's context menu as ``(label, choice, enabled)`` rows.
+
+        One row per lyric command, addressed by the display index of the line
+        under the click - the same index the commands resolve against. "Set
+        end" is off until the line has a start to end against, the order the
+        commands themselves enforce. Tests read this tuple to assert the
+        enable states a user would see, without ever opening a menu.
+        """
+        if self._edits is None:
+            return ()
+        lines = self._edits.effective_lyrics
+        if not 0 <= index < len(lines):
+            return ()
+        line = lines[index]
+        return (
+            ("Edit text...", "text", True),
+            ("Set start...", "set-start", True),
+            ("Set end...", "set-end", line.start is not None),
+            ("Insert line...", "insert", True),
+            ("Delete line", "delete", True),
+        )
+
+    def apply_lyric_choice(self, choice: str, index: int) -> bool:
+        """Perform one lyrics-menu command on line ``index``; ``False`` if none.
+
+        "text", "set-start" and "set-end" ask for the value first (a cancelled
+        dialog changes nothing); "insert" appends a line the user can then
+        time; "delete" pushes straight away. A rejected command is reported
+        like every other edit failure and leaves the tape untouched.
+
+        Args:
+            choice: One of the choice keys in :meth:`lyric_menu_entries`.
+            index: The display index of the line under the click.
+
+        Returns:
+            ``True`` when an edit was applied (or the dialog accepted).
+        """
+        if self._edits is None:
+            return False
+        lines = self._edits.effective_lyrics
+        if not 0 <= index < len(lines):
+            return False
+        line = lines[index]
+        try:
+            if choice == "text":
+                text, accepted = QInputDialog.getText(
+                    self,
+                    "Edit lyric line",
+                    f"Line {index + 1} of {len(lines)}:",
+                    text=line.text,
+                )
+                if not accepted:
+                    return False
+                command: EditCommand = SetLyricText(index, text)
+            elif choice == "set-start":
+                value, accepted = QInputDialog.getDouble(
+                    self,
+                    "Set line start",
+                    "Start (seconds):",
+                    value=0.0 if line.start is None else line.start,
+                    min=0.0,
+                    max=1e9,
+                    decimals=3,
+                )
+                if not accepted:
+                    return False
+                command = SetLyricTiming(index, new_start=value)
+            elif choice == "set-end" and line.start is not None:
+                value, accepted = QInputDialog.getDouble(
+                    self,
+                    "Set line end",
+                    "End (seconds):",
+                    value=(line.start + 1.0) if line.end is None else line.end,
+                    min=0.0,
+                    max=1e9,
+                    decimals=3,
+                )
+                if not accepted:
+                    return False
+                command = SetLyricTiming(index, new_end=value)
+            elif choice == "insert":
+                text, accepted = QInputDialog.getText(self, "Insert lyric line", "Line text:")
+                if not accepted:
+                    return False
+                command = InsertLyric(text)
+            elif choice == "delete":
+                command = DeleteLyric(index)
+            else:
+                return False
+        except SongLabError as error:
+            self._report(error)
+            return False
+        try:
+            self._edits.push(command)
+        except SongLabError as error:
+            self._report(error)
+            return False
+        self._after_edit()
+        return True
+
+    def _show_lyric_menu(self, index: int) -> None:
+        """The lyrics view's context menu: the line commands, undo, redo.
+
+        The index arrives from the widget (the line under the pointer) and the
+        menu opens where the pointer is - which for a context menu is where
+        the user is already looking.
+        """
+        if self._edits is None:
+            return
+        menu = QMenu(self)
+        choices: dict[QAction, str] = {}
+        for label, key, enabled in self.lyric_menu_entries(index):
+            action = menu.addAction(label)
+            if action is not None:
+                action.setEnabled(enabled)
+                choices[action] = key
+        menu.addSeparator()
+        assert self._undo_action is not None and self._redo_action is not None
+        menu.addAction(self._undo_action)
+        menu.addAction(self._redo_action)
+        chosen = menu.exec(QCursor.pos())
+        if chosen is not None:
+            picked = choices.get(chosen)
+            if picked is not None:
+                self.apply_lyric_choice(picked, index)
+
     def undo_edit(self) -> bool:
         """Take the last edit back; ``False`` when there is nothing to undo."""
         if self._edits is None or self._edits.undo() is None:
             return False
-        self._populate_timeline()
-        self._update_edit_actions()
-        self.refresh()
+        self._after_edit()
         return True
 
     def redo_edit(self) -> bool:
         """Reapply the last undone edit; ``False`` when there is nothing to redo."""
         if self._edits is None or self._edits.redo() is None:
             return False
+        self._after_edit()
+        return True
+
+    def _after_edit(self) -> None:
+        """Redraw both layers and the edit actions after any tape change.
+
+        Chord and lyric commands share one tape, so undo/redo may have moved
+        either layer - both are repopulated unconditionally rather than
+        guessing which one moved.
+        """
         self._populate_timeline()
+        self._populate_lyrics()
         self._update_edit_actions()
         self.refresh()
-        return True
 
     def _update_edit_actions(self) -> None:
         """Enable Undo/Redo/Save only when the tape can serve them."""
@@ -623,7 +776,7 @@ class MainWindow(QMainWindow):
             self._edits = rebuild_stack(load_edits(sidecar))
         except SongLabError as error:
             self._report(error)
-            self._edits = CommandStack(self._edits.base)
+            self._edits = CommandStack(self._edits.base, lyrics=self._edits.base_lyrics)
 
     # -- the one refresh ---------------------------------------------------
 
@@ -652,12 +805,12 @@ class MainWindow(QMainWindow):
         self._state_label.setText(frame.state.value)
         self._play_action.setText("Pause" if frame.state is PlaybackState.PLAYING else "Play")
         self._timeline.set_playhead(frame.position, frame.duration)
-        # Same snapshot, same clock: the session answers which line and word
-        # sound at this playhead, the widget only draws the answer.
-        self._lyrics.set_active(
-            self._session.lyric_at(frame.position),
-            self._session.word_at(frame.position),
-        )
+        # Same snapshot, same clock - and the *effective* lyric layer, like the
+        # chord label: after an edit the view shows what the user made, and the
+        # same presenters the session uses answer which line and word sound now.
+        lines = self._edits.effective_lyrics if self._edits is not None else self._session.lyrics
+        segment = lyric_at(lines, frame.position)
+        self._lyrics.set_active(segment, word_at(segment, frame.position))
         return frame
 
     def _report(self, error: SongLabError) -> None:

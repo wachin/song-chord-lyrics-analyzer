@@ -388,9 +388,10 @@ then the signed commit goes out.
 
 **What remains open (and what is not the next task):**
 
-* The `[F]` GUI list in `docs/GUI_REQUIREMENTS.md` — lyrics view, chord/
-  lyric editing with undo/redo, transpose, chord simplification, export
-  dialogs, confidence/engine panels, translations. Each item is small enough to
+* The `[F]` GUI list in `docs/GUI_REQUIREMENTS.md` — transpose, chord
+  simplification, export dialogs, confidence/engine panels, translations
+  (landed already: the lyrics view 2026-10-09, chord and lyric editing with
+  undo/redo and persistence 2026-10-10..12). Each item is small enough to
   land on its own and every one of them needs an `app/` presenter with
   offscreen tests.
 * **Confidence per chord + the JSON contract** — the `lyrics` step carries

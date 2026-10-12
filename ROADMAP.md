@@ -689,7 +689,7 @@ Lyrics shown without timestamps; two unsynchronized position clocks.
 **Objective:** the user can fix what the engines got wrong, without losing the
 original analysis.
 
-**Current status:** `[~]` — the chord-editing core landed 2026-10-10
+**Current status:** `[x]` — the chord-editing core landed 2026-10-10
 (`app/editing.py`: command-pattern edits over an immutable engine base,
 `SetChordLabel`/`SplitChord`/`MergeChords`/`TrimChord`/`DeleteChord`/
 `InsertChord` + a `CommandStack` undo/redo tape; the window edits the chord
@@ -698,13 +698,27 @@ and the edited layer persists 2026-10-11 (`app/persistence.py`: a sidecar
 `song.songlab.json` storing the engine base + the ordered commands, replayed
 through `rebuild_stack()` on load with the same validation as a live push;
 wired to the window as `Ctrl+S` + an auto-replay on `open_file`; a corrupt or
-stale sidecar is reported and the engine layer kept. The command vocabulary is
-frozen so the schema should not need another bump when delete/insert reach the
-GUI). Remaining: lyric editing. The timeline context menu now offers all six
-chord commands (edit/split/trim-start/trim-end/merge/delete/insert, each
-addressing the chord under the click) and closing with unsaved edits offers
-Save/Cancel/Discard - the answer is exact, since the tape is compared with the
-last save, so undoing back to the saved state closes silently.
+stale sidecar is reported and the engine layer kept). Lyric editing landed
+2026-10-12 and closes the phase: four commands (`SetLyricText` /
+`SetLyricTiming` / `DeleteLyric` / `InsertLyric`) over an immutable lyric
+base, riding the **same** undo tape as the chords, so one `Ctrl+Z` walks back
+through both layers in the order they were made. Lines are addressed by
+their *display index* - a line may carry no timestamp at all - and
+`effective_lyrics()` re-establishes display order after every command, so an
+index always resolves against exactly the list it was validated against,
+live and when a saved tape replays. The sidecar stores the engine lyric base
+beside the chords (`edits_version` stays `"1"`: a pre-lyric sidecar loads
+with an empty lyric layer, and a build that predates the commands rejects a
+sidecar containing one loudly instead of dropping it). The timeline context
+menu now offers all six chord commands (edit/split/trim-start/trim-end/
+merge/delete/insert, each addressing the chord under the click) and the
+lyrics view's context menu the five lyric ones (edit text/set start/set
+end/insert line/delete line, addressed by the line under the click, with
+enable states from the effective layer - "set end" waits for a start);
+closing with unsaved edits offers Save/Cancel/Discard - the answer is exact,
+since the tape is compared with the last save, so undoing back to the saved
+state closes silently, and a lyric edit counts as unsaved like any chord
+edit.
 
 ### Tasks
 
@@ -716,7 +730,14 @@ last save, so undoing back to the saved state closes silently.
   commands exist and are tested (vocabulary frozen 2026-10-11); all six are
   in the timeline context menu (2026-10-11), each addressed by the chord
   under the click, with enable states computed from the effective layer
-- [ ] Lyric editing: correct words and timings
+- [x] Lyric editing: correct words and timings (`SetLyricText` replaces a
+  line's words, `SetLyricTiming` moves a boundary or gives an untimed line a
+  start, `DeleteLyric`/`InsertLyric` cover the structural fixes; the engine's
+  word timestamps ride along as evidence and the engine layer itself is never
+  touched. Lines are addressed by display index; the view's context menu
+  offers every command. Per-word (re)editing is deliberately *not* in this
+  vocabulary - it needs word addressing and would extend the schema, so it is
+  a later, separate decision)
 - [x] Undo/redo command stack (`CommandStack`: push/undo/redo, redo tape
   discarded on a new push, a failed push leaves the tape as it was)
 - [x] Persistence of the edited document (`app/persistence.py`, 2026-10-11:
@@ -731,14 +752,17 @@ last save, so undoing back to the saved state closes silently.
   offers "Edit chord here..."; Undo/Redo on `Ctrl+Z`/`Ctrl+Shift+Z`; the chord
   label and the strip redraw from the effective layer
 - [x] Tests: command-level undo/redo, overlay round-trip, persistence —
-  `tests/unit/test_editing.py` (45 tests, Qt-free),
-  `tests/unit/test_persistence.py` (14 tests: round-trip, engine-layer
-  recoverability, provenance, loud stale/corrupt rejection), and the GUI flow
-  in `tests/unit/test_gui_main_window.py::TestEditingTheChordLayer` (9 tests),
-  `TestPersistingTheEdits` (7 tests: save, reopen-replays, undo after reopen,
-  corrupt/stale sidecar fallback) and `TestTheChordCommandsMenu` /
-  `TestClosingWithUnsavedEdits` (18 tests: the menu's enable states, every
-  command, the Save/Cancel/Discard prompt; offscreen, dialogs mocked)
+  `tests/unit/test_editing.py` (82 tests, Qt-free: the chord vocabulary, the
+  lyric vocabulary, the fold and the one-tape-both-layers behaviour),
+  `tests/unit/test_persistence.py` (25 tests: round-trip of both layers,
+  engine-layer recoverability, provenance, loud stale/corrupt rejection,
+  pre-lyric sidecar compatibility), and the GUI flow in
+  `tests/unit/test_gui_main_window.py::TestEditingTheChordLayer`,
+  `TestPersistingTheEdits` and `TestEditingTheLyricsLayer` (14 tests: menu
+  enable states, every lyric command, the mixed-layer undo order, the
+  delete-refill gap flow, save/reopen of lyric edits, the widget-to-menu
+  chain; offscreen, dialogs mocked) plus `tests/unit/test_gui_lyrics_view.py::TestTheRightClickNamesTheLine`
+  (3 tests: the right-click to display-index mapping)
 
 ### Acceptance criteria
 

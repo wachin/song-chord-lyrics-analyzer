@@ -128,6 +128,8 @@ class TestAnEmptyWindow:
         assert window.redo_edit() is False
         assert window.edit_chord_at(1.0) is False
         assert window.save_edits_sidecar() is False
+        assert window.lyric_menu_entries(0) == ()
+        assert window.apply_lyric_choice("text", 0) is False
 
     def test_the_transport_offers_the_actions_a_user_expects(self, qt_app: object) -> None:
         window = MainWindow()
@@ -464,6 +466,285 @@ class TestEditingTheChordLayer:
         window.edit_chord_at(1.5)  # G -> Am under the playhead
 
         assert window.chord_label.text() == "Am"
+
+
+class TestEditingTheLyricsLayer:
+    """Phase G for lyrics: correct a line from the view, undo/redo, engine intact.
+
+    The lyric commands ride the same tape as the chords, so the tests drive
+    them through the same seams (``lyric_menu_entries`` for the enable states,
+    ``apply_lyric_choice`` for the command), mock the dialogs the way the
+    chord tests do, and always check that the fake document's lines survive
+    untouched in ``edits.base_lyrics``.
+    """
+
+    @staticmethod
+    def _texts(window: MainWindow) -> list[str]:
+        return [line.text for line in window.lyrics.lines]
+
+    @staticmethod
+    def _spans(window: MainWindow) -> list[tuple[float | None, float | None]]:
+        return [(line.start, line.end) for line in window.lyrics.lines]
+
+    @staticmethod
+    def _enabled(window: MainWindow, index: int) -> dict[str, bool]:
+        return {key: on for _label, key, on in window.lyric_menu_entries(index)}
+
+    @staticmethod
+    def _reopen(qt_app: object, wav: Path) -> MainWindow:
+        session, _player, _clock = opened_session(wav)
+        fresh = MainWindow(session=session)
+        fresh.resize(900, 520)
+        assert fresh.open_file(wav) is True
+        return fresh
+
+    def test_the_menu_states_follow_the_line_under_the_click(self, window: MainWindow) -> None:
+        assert self._enabled(window, 0) == {
+            "text": True,
+            "set-start": True,
+            "set-end": True,
+            "insert": True,
+            "delete": True,
+        }
+
+    def test_a_line_outside_the_document_offers_no_menu(self, window: MainWindow) -> None:
+        assert window.lyric_menu_entries(2) == ()  # only two lines
+        assert window.lyric_menu_entries(-1) == ()
+        assert window.apply_lyric_choice("delete", 2) is False
+
+    def test_editing_the_text_pushes_a_command_and_redraws(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        asked: dict[str, str] = {}
+
+        def _dialog(*args: object, **kwargs: object) -> tuple[str, bool]:
+            asked["text"] = kwargs.get("text", "")
+            return "hola tierra", True
+
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getText", _dialog)
+
+        assert window.apply_lyric_choice("text", 0) is True
+        assert asked["text"] == "hola mundo"  # offered the line's current words
+        assert self._texts(window) == ["hola tierra", "adios amor"]
+        assert window.undo_edit() is True
+        assert self._texts(window) == ["hola mundo", "adios amor"]
+
+    def test_the_engine_lines_survive_every_lyric_edit(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            QtWidgets.QInputDialog, "getText", lambda *a, **k: ("hola tierra", True)
+        )
+        window.apply_lyric_choice("text", 0)
+        assert window.apply_lyric_choice("delete", 1) is True
+
+        assert window.edits is not None
+        assert [line.text for line in window.edits.base_lyrics] == ["hola mundo", "adios amor"]
+        assert [line.source for line in window.edits.base_lyrics] == ["fake-lyrics"] * 2
+
+    def test_a_cancelled_dialog_edits_nothing(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getText", lambda *a, **k: ("", False))
+
+        assert window.apply_lyric_choice("text", 0) is False
+        assert self._texts(window) == ["hola mundo", "adios amor"]
+        assert window.undo_edit() is False
+
+    def test_an_empty_line_is_reported_and_not_applied(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        warned = _warned(monkeypatch)
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getText", lambda *a, **k: ("   ", True))
+
+        assert window.apply_lyric_choice("text", 0) is False
+        assert warned and "empty" in warned[0]
+        assert self._texts(window) == ["hola mundo", "adios amor"]
+
+    def test_an_impossible_timing_is_reported_and_not_applied(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        warned = _warned(monkeypatch)
+        # "adios amor" spans 2.0..3.0; an end of 1.0 would end it before it starts.
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getDouble", lambda *a, **k: (1.0, True))
+
+        assert window.apply_lyric_choice("set-end", 1) is False
+        assert warned and "non-empty" in warned[0]
+        assert self._spans(window) == [(0.0, 1.0), (2.0, 3.0)]
+
+    def test_an_untimed_insert_is_offered_no_end_until_it_has_a_start(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getText", lambda *a, **k: ("nueva", True))
+        assert window.apply_lyric_choice("insert", 1) is True
+
+        # Untimed: drawn after the timed lines, dimmed, end not offerable yet.
+        assert self._texts(window) == ["hola mundo", "adios amor", "nueva"]
+        assert window.lyrics.lines[-1].start is None
+        assert self._enabled(window, 2)["set-end"] is False
+
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getDouble", lambda *a, **k: (1.5, True))
+        assert window.apply_lyric_choice("set-start", 2) is True
+
+        # 1.5 s lands between the two timed lines, so the new line moved with it.
+        assert self._spans(window) == [(0.0, 1.0), (1.5, None), (2.0, 3.0)]
+        assert self._enabled(window, 1)["set-end"] is True
+
+    def test_one_tape_undoes_chords_and_lyrics_in_order(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # One dialog mock serves both layers: the chord edit asks first.
+        answers = iter([("Am", True), ("hola tierra", True)])
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getText", lambda *a, **k: next(answers))
+        window.edit_chord_at(1.5)  # chord G -> Am
+        assert window.apply_lyric_choice("text", 0) is True  # line hola mundo -> hola tierra
+
+        window.undo_edit()  # the lyric edit goes first (LIFO)
+        assert self._texts(window) == ["hola mundo", "adios amor"]
+        assert [band.label for band in window.timeline.bands] == ["C", "Am", "N", "F"]
+
+        window.undo_edit()  # then the chord edit
+        assert [band.label for band in window.timeline.bands] == ["C", "G", "N", "F"]
+        assert self._texts(window) == ["hola mundo", "adios amor"]
+
+        assert window.redo_edit() is True and window.redo_edit() is True
+        assert [band.label for band in window.timeline.bands] == ["C", "Am", "N", "F"]
+        assert self._texts(window) == ["hola tierra", "adios amor"]
+
+    def test_deleting_and_refilling_a_line_restores_it_as_the_users(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The chord flow's twin: delete a line, put its words back, retime it.
+        assert window.apply_lyric_choice("delete", 1) is True
+        assert self._texts(window) == ["hola mundo"]
+
+        # Right-click the surviving line to insert after it (the menu only
+        # ever opens on a line that exists - the stale index is refused).
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getText", lambda *a, **k: ("adios amor", True))
+        assert window.apply_lyric_choice("insert", 0) is True
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getDouble", lambda *a, **k: (2.0, True))
+        assert window.apply_lyric_choice("set-start", 1) is True
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getDouble", lambda *a, **k: (3.0, True))
+        assert window.apply_lyric_choice("set-end", 1) is True
+
+        assert [(line.text, line.start, line.end) for line in window.lyrics.lines] == [
+            ("hola mundo", 0.0, 1.0),
+            ("adios amor", 2.0, 3.0),
+        ]
+        assert window.edits is not None
+        assert window.edits.effective_lyrics[1].source == "user"
+        assert window.edits.base_lyrics[1].source == "fake-lyrics"  # engine kept
+
+        for _step in range(4):  # delete, insert, start, end - one tape
+            assert window.undo_edit() is True
+        assert self._texts(window) == ["hola mundo", "adios amor"]
+        assert [line.source for line in window.lyrics.lines] == ["fake-lyrics"] * 2
+
+    def test_editing_the_active_line_keeps_the_highlight_in_step(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        window.seek(0.5)  # inside "hola mundo", word "mundo"
+        assert window.lyrics.active_index == 0
+        assert window.lyrics.active_word == "mundo"
+
+        monkeypatch.setattr(
+            QtWidgets.QInputDialog, "getText", lambda *a, **k: ("hola tierra", True)
+        )
+        assert window.apply_lyric_choice("text", 0) is True
+
+        # The highlight searches the same effective layer the view draws, so
+        # an edit can never make the active line disappear from its own list.
+        assert self._texts(window)[0] == "hola tierra"
+        assert window.lyrics.active_index == 0
+        assert window.lyrics.active_word == "mundo"  # engine word timings kept
+
+        window.seek(2.6)
+        assert window.lyrics.active_index == 1  # the edited document, still one clock
+
+    def test_the_widgets_right_click_reaches_the_window_menu(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The whole chain a user triggers: right-click -> menu -> command.
+
+        ``QMenu.exec`` would block offscreen, so the popup is stubbed with the
+        one action the pointer would pick - everything else (the widget's
+        index mapping, the signal, the window's menu rows, the dialog, the
+        command) is the real code.
+        """
+        monkeypatch.setattr(
+            QtWidgets.QInputDialog, "getText", lambda *a, **k: ("hola tierra", True)
+        )
+        labels: dict[str, list[str]] = {}
+
+        def _exec(self: QtWidgets.QMenu, *args: object, **kwargs: object) -> QtGui.QAction | None:
+            labels["shown"] = [action.text() for action in self.actions()]
+            return next(
+                (action for action in self.actions() if action.text() == "Edit text..."), None
+            )
+
+        monkeypatch.setattr(QtWidgets.QMenu, "exec", _exec)
+        browser = window.lyrics.findChild(QtWidgets.QTextBrowser)
+        assert browser is not None
+        cursor = QtGui.QTextCursor(browser.document().findBlockByNumber(0))
+
+        browser.customContextMenuRequested.emit(browser.cursorRect(cursor).center())
+
+        assert labels["shown"][:5] == [
+            "Edit text...",
+            "Set start...",
+            "Set end...",
+            "Insert line...",
+            "Delete line",
+        ]
+        assert "Undo" in labels["shown"] and "Redo" in labels["shown"]
+        assert self._texts(window) == ["hola tierra", "adios amor"]  # the choice applied
+
+    def test_a_lyric_edit_counts_as_unsaved_and_saves_to_the_sidecar(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        wav = window.session.path
+        assert wav is not None
+        monkeypatch.setattr(
+            QtWidgets.QInputDialog, "getText", lambda *a, **k: ("hola tierra", True)
+        )
+        assert window.apply_lyric_choice("text", 0) is True
+        asked: list[str] = []
+
+        def _record(*args: object, **kwargs: object) -> object:
+            asked.append("asked")
+            return QtWidgets.QMessageBox.StandardButton.Save
+
+        monkeypatch.setattr(QtWidgets.QMessageBox, "question", _record)
+        window.closeEvent(QtGui.QCloseEvent())
+
+        assert asked  # the lyric tape differed from the last save
+        sidecar = wav.with_suffix(".songlab.json")
+        assert sidecar.is_file()
+        payload = json.loads(sidecar.read_text(encoding="utf-8"))
+        assert payload["document"]["commands"][0]["kind"] == "set-lyric-text"
+        assert payload["document"]["lyrics"][0]["source"] == "fake-lyrics"
+
+    def test_reopening_replays_the_lyric_edits(
+        self,
+        qt_app: object,
+        wav: Path,
+        window: MainWindow,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(
+            QtWidgets.QInputDialog, "getText", lambda *a, **k: ("hola tierra", True)
+        )
+        assert window.apply_lyric_choice("text", 0) is True
+        assert window.save_edits_sidecar() is True
+
+        fresh = self._reopen(qt_app, wav)
+        assert self._texts(fresh) == ["hola tierra", "adios amor"]
+        assert fresh.edits is not None
+        assert len(fresh.edits) == 1  # the tape replays, not the effective layer
+        assert [line.source for line in fresh.edits.base_lyrics] == ["fake-lyrics"] * 2
+
+        fresh.undo_edit()
+        assert self._texts(fresh) == ["hola mundo", "adios amor"]  # engine answers again
 
 
 class TestPersistingTheEdits:

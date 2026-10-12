@@ -23,7 +23,9 @@ pytestmark = pytest.mark.skipif(
     reason="PyQt6 is not installed (optional 'gui' extra)",
 )
 
-pytest.importorskip("PyQt6.QtWidgets")
+QtCore = pytest.importorskip("PyQt6.QtCore")
+QtGui = pytest.importorskip("PyQt6.QtGui")
+QtWidgets = pytest.importorskip("PyQt6.QtWidgets")
 
 
 def _word(text: str, start: float | None, end: float | None = None):
@@ -157,3 +159,59 @@ class TestTheClock:
 
         assert view.active_index is None
         assert view.active_word is None
+
+
+class TestTheRightClickNamesTheLine:
+    """The widget maps the pointer to a display index; it edits nothing.
+
+    The mapping is the whole contract: one rendered paragraph is one line,
+    the display index is what the lyric commands address, and the window
+    builds the menu from the index this signal carries.
+    """
+
+    @staticmethod
+    def _browser(view: LyricsWidget) -> QtWidgets.QTextBrowser:
+        browser = view.findChild(QtWidgets.QTextBrowser)
+        assert browser is not None
+        return browser
+
+    def _point_in_line(self, view: LyricsWidget, index: int) -> QtCore.QPoint:
+        """A viewport point inside the rendered line ``index``."""
+        cursor = QtGui.QTextCursor(self._browser(view).document().findBlockByNumber(index))
+        return self._browser(view).cursorRect(cursor).center()
+
+    def test_a_right_click_addresses_the_line_it_landed_on(self, qt_app: object) -> None:
+        view = LyricsWidget()
+        view.show()  # cursor mapping needs a laid-out viewport
+        view.set_document(DOCUMENT)  # drawn as hola mundo, adios amor, post-coro
+        received: list[int] = []
+        view.line_menu_requested.connect(received.append)
+        browser = self._browser(view)
+
+        for index in range(3):
+            browser.customContextMenuRequested.emit(self._point_in_line(view, index))
+
+        assert received == [0, 1, 2]
+
+    def test_a_click_past_the_last_line_addresses_the_last_one(self, qt_app: object) -> None:
+        view = LyricsWidget()
+        view.show()  # cursor mapping needs a laid-out viewport
+        view.set_document(DOCUMENT)
+        received: list[int] = []
+        view.line_menu_requested.connect(received.append)
+        below = self._point_in_line(view, 2) + QtCore.QPoint(0, 500)
+
+        self._browser(view).customContextMenuRequested.emit(below)
+
+        assert received == [2]  # clamped, never an index the commands reject
+
+    def test_without_lines_nothing_is_emitted(self, qt_app: object) -> None:
+        view = LyricsWidget()
+        view.set_document(())
+        received: list[int] = []
+        view.line_menu_requested.connect(received.append)
+
+        self._browser(view).customContextMenuRequested.emit(QtCore.QPoint(5, 5))
+
+        assert received == []
+        assert view.line_index_at(QtCore.QPoint(5, 5)) is None

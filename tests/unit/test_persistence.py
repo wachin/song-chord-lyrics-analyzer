@@ -16,8 +16,12 @@ import pytest
 
 from song_chord_lyrics_analyzer.app.editing import (
     CommandStack,
+    DeleteChord,
+    InsertLyric,
     MergeChords,
     SetChordLabel,
+    SetLyricText,
+    SetLyricTiming,
     SplitChord,
     TrimChord,
 )
@@ -28,6 +32,7 @@ from song_chord_lyrics_analyzer.app.persistence import (
     rebuild_stack,
     save_edits,
 )
+from song_chord_lyrics_analyzer.models.lyrics import LyricSegment
 from song_chord_lyrics_analyzer.models.music import ChordEvent, ChordQuality
 from song_chord_lyrics_analyzer.utils.errors import InputError, SchemaError
 
@@ -37,11 +42,35 @@ BASE: list[ChordEvent] = [
     ChordEvent.silence(2.0, 3.0, source="fake"),
 ]
 
+LYRICS: list[LyricSegment] = [
+    LyricSegment(text="uno dos", start=0.0, end=1.0, source="fake"),
+    LyricSegment(text="tres cuatro", start=1.0, end=2.0, source="fake"),
+    LyricSegment(text="post-coro", source="fake"),  # untimed: drawn last
+]
+
 
 def _a_stack() -> CommandStack:
     stack = CommandStack(BASE)
     stack.push(SetChordLabel(1.0, "Em"))
     stack.push(SplitChord(0.0, 0.5))
+    return stack
+
+
+def _mixed_stack() -> CommandStack:
+    """A tape over both layers, including one that reorders the lyric display.
+
+    ``SetLyricTiming`` moves post-coro from last (untimed) into second place,
+    and the text edit after it addresses the *moved* line by its new index -
+    so the round-trip only reconstructs exactly if the fold re-establishes
+    display order between commands, live and on replay.
+    """
+    stack = CommandStack(BASE, lyrics=LYRICS)
+    stack.push(SetChordLabel(1.0, "Em"))
+    stack.push(SetLyricText(0, "uno bien"))
+    stack.push(SetLyricTiming(2, new_start=0.5))
+    stack.push(SetLyricText(1, "post-coro corregido"))
+    stack.push(DeleteChord(2.0))
+    stack.push(InsertLyric("cierre"))
     return stack
 
 
@@ -179,3 +208,158 @@ class TestStaleReplay:
         reloaded = rebuild_stack(load_edits(sidecar))
         assert "user" in [e.source for e in reloaded.effective]
         assert "fake" in [e.source for e in reloaded.effective]
+
+
+class TestTheLyricLayerRoundTrip:
+    """Both layers, one sidecar: lyrics survive save/reload like chords do."""
+
+    def test_both_layers_reconstruct_exactly(self, tmp_path) -> None:
+        stack = _mixed_stack()
+        sidecar = save_edits(stack, tmp_path / "song.songlab.json")
+
+        reloaded = rebuild_stack(load_edits(sidecar))
+        assert [(e.start, e.end, e.label, e.source) for e in reloaded.effective] == [
+            (e.start, e.end, e.label, e.source) for e in stack.effective
+        ]
+        before = [(line.text, line.start, line.end, line.source) for line in stack.effective_lyrics]
+        after = [
+            (line.text, line.start, line.end, line.source) for line in reloaded.effective_lyrics
+        ]
+        assert after == before
+
+    def test_the_reordered_display_addresses_the_same_line_on_replay(self, tmp_path) -> None:
+        # The text edit targets the line that SetLyricTiming moved into index 1;
+        # if replay folded without re-establishing display order, it would land
+        # on the neighbour instead - the exact stale-index bug this pins.
+        stack = _mixed_stack()
+        sidecar = save_edits(stack, tmp_path / "song.songlab.json")
+
+        reloaded = rebuild_stack(load_edits(sidecar))
+        assert [line.text for line in reloaded.effective_lyrics] == [
+            "uno bien",
+            "post-coro corregido",
+            "tres cuatro",
+            "cierre",
+        ]
+
+    def test_the_engine_lyric_layer_is_recoverable_inside_the_file(self, tmp_path) -> None:
+        sidecar = save_edits(_mixed_stack(), tmp_path / "song.songlab.json")
+
+        document = load_edits(sidecar)
+        assert [(line.text, line.source) for line in document.lyrics] == [
+            ("uno dos", "fake"),
+            ("tres cuatro", "fake"),
+            ("post-coro", "fake"),
+        ]
+        fresh = CommandStack(document.chords, lyrics=document.lyrics)
+        assert [line.text for line in fresh.effective_lyrics] == [
+            "uno dos",
+            "tres cuatro",
+            "post-coro",
+        ]
+
+    def test_the_reloaded_stack_undoes_both_layers(self, tmp_path) -> None:
+        stack = _mixed_stack()
+        sidecar = save_edits(stack, tmp_path / "song.songlab.json")
+
+        reloaded = rebuild_stack(load_edits(sidecar))
+        assert reloaded.undo() is not None  # the untimed insert
+        assert [line.text for line in reloaded.effective_lyrics] == [
+            "uno bien",
+            "post-coro corregido",
+            "tres cuatro",
+        ]
+        assert reloaded.undo() is not None  # the chord deletion
+        assert [e.label for e in reloaded.effective] == ["C", "Em", "N"]
+
+    def test_a_sidecar_written_before_lyric_editing_still_loads(self, tmp_path) -> None:
+        # No "lyrics" key at all: the document predates the lyric layer and
+        # must keep serving the chord tape it was written for.
+        sidecar = save_edits(_a_stack(), tmp_path / "song.songlab.json")
+        payload: dict[str, Any] = json.loads(sidecar.read_text(encoding="utf-8"))
+        del payload["document"]["lyrics"]
+        sidecar.write_text(json.dumps(payload), encoding="utf-8")
+
+        document = load_edits(sidecar)
+        assert document.lyrics == []
+        reloaded = rebuild_stack(document)
+        assert len(reloaded) == 2
+        assert [e.label for e in reloaded.effective] == ["C", "C", "Em", "N"]
+        assert reloaded.effective_lyrics == []
+
+    def test_a_text_field_holding_something_else_is_rejected(self, tmp_path) -> None:
+        sidecar = save_edits(_mixed_stack(), tmp_path / "song.songlab.json")
+        payload: dict[str, Any] = json.loads(sidecar.read_text(encoding="utf-8"))
+        text_edit = next(
+            one for one in payload["document"]["commands"] if one["kind"] == "set-lyric-text"
+        )
+        text_edit["text"] = 42
+        sidecar.write_text(json.dumps(payload), encoding="utf-8")
+
+        with pytest.raises(SchemaError, match="must be text"):
+            load_edits(sidecar)
+
+    def test_an_index_holding_something_else_is_rejected(self, tmp_path) -> None:
+        sidecar = save_edits(_mixed_stack(), tmp_path / "song.songlab.json")
+        payload: dict[str, Any] = json.loads(sidecar.read_text(encoding="utf-8"))
+        text_edit = next(
+            one for one in payload["document"]["commands"] if one["kind"] == "set-lyric-text"
+        )
+        text_edit["index"] = 1.5
+        sidecar.write_text(json.dumps(payload), encoding="utf-8")
+
+        with pytest.raises(SchemaError, match="whole number"):
+            load_edits(sidecar)
+
+    def test_a_missing_lyric_field_is_rejected(self, tmp_path) -> None:
+        sidecar = save_edits(_mixed_stack(), tmp_path / "song.songlab.json")
+        payload: dict[str, Any] = json.loads(sidecar.read_text(encoding="utf-8"))
+        text_edit = next(
+            one for one in payload["document"]["commands"] if one["kind"] == "set-lyric-text"
+        )
+        del text_edit["text"]
+        sidecar.write_text(json.dumps(payload), encoding="utf-8")
+
+        with pytest.raises(SchemaError, match="missing"):
+            load_edits(sidecar)
+
+    def test_a_number_field_holding_text_is_rejected(self, tmp_path) -> None:
+        sidecar = save_edits(_mixed_stack(), tmp_path / "song.songlab.json")
+        payload: dict[str, Any] = json.loads(sidecar.read_text(encoding="utf-8"))
+        payload["document"]["commands"][0]["start"] = "banana"
+        sidecar.write_text(json.dumps(payload), encoding="utf-8")
+
+        with pytest.raises(SchemaError, match="must be a number"):
+            load_edits(sidecar)
+
+    def test_a_stale_lyric_index_fails_loudly_and_keeps_the_base(self, tmp_path) -> None:
+        # Saved against three lyric lines, replayed over one: the text edit
+        # cannot address index 1 any more, so the replay refuses outright.
+        stack = CommandStack(BASE, lyrics=LYRICS)
+        stack.push(SetLyricText(1, "tres bien"))
+        sidecar = save_edits(stack, tmp_path / "song.songlab.json")
+        document = load_edits(sidecar)
+
+        stale = type(document)(
+            chords=document.chords,
+            lyrics=document.lyrics[:1],
+            commands=document.commands,
+        )
+        with pytest.raises(InputError, match="No lyric line"):
+            rebuild_stack(stale)
+
+    def test_the_edits_version_stays_compatible(self, tmp_path) -> None:
+        # The lyric layer is additive: old sidecars keep loading, so the
+        # version marker of the format does not move.
+        assert EDITS_SCHEMA_VERSION == "1"
+        sidecar = save_edits(_mixed_stack(), tmp_path / "song.songlab.json")
+        payload: dict[str, Any] = json.loads(sidecar.read_text(encoding="utf-8"))
+        assert payload["document"]["edits_version"] == "1"
+        assert [one["kind"] for one in payload["document"]["commands"]] == [
+            "set-label",
+            "set-lyric-text",
+            "set-lyric-timing",
+            "set-lyric-text",
+            "delete",
+            "insert-lyric",
+        ]

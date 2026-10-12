@@ -1,6 +1,7 @@
 # GUI Requirements — the window Phase D implemented
 
-> Status: **implemented, without lyrics** (roadmap Phase D, 2026-10-08). The
+> Status: **implemented** (roadmap Phase D, 2026-10-08; lyrics view
+> 2026-10-09; chord and lyric editing with persistence 2026-10-10..12). The
 > window exists, is verified offscreen and on real audio, and exposes the full
 > arrangement below for the features that follow.
 
@@ -73,7 +74,7 @@ CLI, the engine or the session.
    timestamps exist. Presenters: `app/lyrics_view.py` (`lyric_lines`,
    `lyric_at`, `word_at`); widget: `gui/lyrics_view.py`; bind: the window's
    `open_file`/`refresh`.
-2. **Chord/lyric editing** — delivered for chords 2026-10-10 with persistence
+2. ~~**Chord/lyric editing**~~ **(done, 2026-10-12)** — chords first, 2026-10-10 with persistence
    2026-10-11: `app/editing.py` holds the command tape (`SetChordLabel`,
    `SplitChord`, `MergeChords`, `TrimChord`, `DeleteChord`, `InsertChord`,
    `CommandStack`) over an immutable engine base; the timeline's context menu
@@ -90,7 +91,21 @@ CLI, the engine or the session.
    a stale command fails loudly on replay. Wired into the window the same
    day: `Ctrl+S` / "Save Edits" writes the sidecar, `open_file` replays it
    automatically, and a corrupt or stale sidecar is reported with the engine
-   layer kept. Still open: lyric editing.
+   layer kept.
+   **Delivered for lyrics 2026-10-12**: four commands (`SetLyricText`,
+   `SetLyricTiming`, `DeleteLyric`, `InsertLyric`) over an immutable lyric
+   base on the *same* tape - one `Ctrl+Z` walks back through chords and lyrics
+   in order. Right-click a line in the lyrics view for its menu (Edit text... /
+   Set start... / Set end... / Insert line... / Delete line), enable states
+   from the effective layer ("set end" waits for a start); the view draws the
+   effective layer, so an edited line - and the active-line highlight - is in
+   step the moment its command is pushed. Lines are addressed by display index
+   (a line may carry no timestamp at all). The sidecar saves the engine lyric
+   base beside the chords (`edits_version` stays `"1"`: a pre-lyric sidecar
+   loads with an empty lyric layer, a build that predates the lyric commands
+   rejects one loudly), and a lyric edit counts as unsaved for the close
+   prompt like any chord edit. Word-level *timings* stay the engine's: per-word
+   editing would need word addressing and is a later, separate decision.
 3. **Transpose** — a chord-level transpose whose window keeps every label in
    `CHORD_QUALITY_SUFFIX` form.
 4. **Chord simplification** — drop slash/extension noise, keep a quality legend.

@@ -15,6 +15,11 @@ both come from the presenter, in a re-render instead of a cursor offset into
 HTML, because the offset arithmetic is exactly the kind of widget logic this
 layer is not allowed to grow. An untimed segment is drawn after the timed
 ones, dimmed, and never becomes active.
+
+A right-click does not edit anything here either: the widget maps the pointer
+to the display index of the line underneath and emits
+:data:`line_menu_requested`, and the window - which owns the edit tape -
+builds the menu, the same split the timeline and its context menu already use.
 """
 
 from __future__ import annotations
@@ -22,7 +27,7 @@ from __future__ import annotations
 import contextlib
 from collections.abc import Callable
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QPoint, Qt, pyqtSignal
 from PyQt6.QtWidgets import QLabel, QTextBrowser, QVBoxLayout, QWidget
 
 from song_chord_lyrics_analyzer.app.lyrics_view import lyric_lines
@@ -41,6 +46,11 @@ class LyricsWidget(QWidget):
     test) hands it the document once and then feeds it positions.
     """
 
+    #: A right-click on a line: the display index of the line under the
+    #: pointer. The window turns that into the lyric commands' menu, exactly
+    #: as the timeline turns its clicks into chord commands.
+    line_menu_requested = pyqtSignal(int)
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._lines: tuple[LyricSegment, ...] = ()
@@ -50,6 +60,8 @@ class LyricsWidget(QWidget):
         self._view = QTextBrowser(self)
         self._view.setOpenExternalLinks(False)
         self._view.setFrameShape(QTextBrowser.Shape.NoFrame)
+        self._view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self._view.customContextMenuRequested.connect(self._request_line_menu)
         self._placeholder = QLabel(EMPTY_TEXT, self)
         self._placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -78,6 +90,25 @@ class LyricsWidget(QWidget):
     def has_lyrics(self) -> bool:
         """Whether the drawn document carries any lyric line."""
         return bool(self._lines)
+
+    def line_index_at(self, pos: QPoint) -> int | None:
+        """The display index of the line under ``pos``, or ``None`` with no lines.
+
+        One rendered paragraph is one line, so the text cursor's block number
+        *is* the display index - the same order the commands address. A click
+        past the last line (or in its trailing whitespace) addresses the last
+        one, so the menu never appears with nothing to act on.
+        """
+        if not self._lines:
+            return None
+        block = self._view.cursorForPosition(pos).blockNumber()
+        return max(0, min(block, len(self._lines) - 1))
+
+    def _request_line_menu(self, pos: QPoint) -> None:
+        """Re-emit the view's right-click as the line it landed on."""
+        index = self.line_index_at(pos)
+        if index is not None:
+            self.line_menu_requested.emit(index)
 
     def set_document(self, segments: tuple[LyricSegment, ...] | list[LyricSegment]) -> None:
         """Draw the segments of the open document, in display order."""

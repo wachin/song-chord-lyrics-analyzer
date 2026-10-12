@@ -700,7 +700,11 @@ through `rebuild_stack()` on load with the same validation as a live push;
 wired to the window as `Ctrl+S` + an auto-replay on `open_file`; a corrupt or
 stale sidecar is reported and the engine layer kept. The command vocabulary is
 frozen so the schema should not need another bump when delete/insert reach the
-GUI). Remaining: lyric editing; GUI exposure of delete/insert/split/merge/trim.
+GUI). Remaining: lyric editing. The timeline context menu now offers all six
+chord commands (edit/split/trim-start/trim-end/merge/delete/insert, each
+addressing the chord under the click) and closing with unsaved edits offers
+Save/Cancel/Discard - the answer is exact, since the tape is compared with the
+last save, so undoing back to the saved state closes silently.
 
 ### Tasks
 
@@ -708,9 +712,10 @@ GUI). Remaining: lyric editing; GUI exposure of delete/insert/split/merge/trim.
   engine output (raw engine results are never overwritten — provenance stays).
   `CommandStack.base` returns the engine layer untouched after any edit;
   user-produced events carry `source="user"`/`"user-merge"`
-- [~] Chord editing: change label, split/merge/trim/delete/insert — six
-  commands exist and are tested (vocabulary frozen 2026-10-11); only *change
-  label* is exposed in the GUI so far (timeline context menu + dialog)
+- [x] Chord editing: change label, split/merge/trim/delete/insert — six
+  commands exist and are tested (vocabulary frozen 2026-10-11); all six are
+  in the timeline context menu (2026-10-11), each addressed by the chord
+  under the click, with enable states computed from the effective layer
 - [ ] Lyric editing: correct words and timings
 - [x] Undo/redo command stack (`CommandStack`: push/undo/redo, redo tape
   discarded on a new push, a failed push leaves the tape as it was)
@@ -729,9 +734,11 @@ GUI). Remaining: lyric editing; GUI exposure of delete/insert/split/merge/trim.
   `tests/unit/test_editing.py` (45 tests, Qt-free),
   `tests/unit/test_persistence.py` (14 tests: round-trip, engine-layer
   recoverability, provenance, loud stale/corrupt rejection), and the GUI flow
-  in `tests/unit/test_gui_main_window.py::TestEditingTheChordLayer` (9 tests)
-  plus `TestPersistingTheEdits` (7 tests: save, reopen-replays, undo after
-  reopen, corrupt/stale sidecar fallback, offscreen; dialogs mocked)
+  in `tests/unit/test_gui_main_window.py::TestEditingTheChordLayer` (9 tests),
+  `TestPersistingTheEdits` (7 tests: save, reopen-replays, undo after reopen,
+  corrupt/stale sidecar fallback) and `TestTheChordCommandsMenu` /
+  `TestClosingWithUnsavedEdits` (18 tests: the menu's enable states, every
+  command, the Save/Cancel/Discard prompt; offscreen, dialogs mocked)
 
 ### Acceptance criteria
 

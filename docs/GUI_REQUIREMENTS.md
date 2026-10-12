@@ -77,16 +77,20 @@ CLI, the engine or the session.
    2026-10-11: `app/editing.py` holds the command tape (`SetChordLabel`,
    `SplitChord`, `MergeChords`, `TrimChord`, `DeleteChord`, `InsertChord`,
    `CommandStack`) over an immutable engine base; the timeline's context menu
-   edits the chord under the click, `Ctrl+Z`/`Ctrl+Shift+Z` undo and redo, and
-   the chord label + strip redraw from the effective layer.
+   offers all six chord commands (edit/split/trim-start/trim-end/merge/delete/
+   insert, each addressed by the chord under the click, with enable states
+   computed from the effective layer), `Ctrl+Z`/`Ctrl+Shift+Z` undo and redo,
+   and the chord label + strip redraw from the effective layer. Closing with
+   unsaved edits offers Save/Cancel/Discard - exact, not a dirty flag: the
+   tape is compared with the last save, so undoing back to the saved state
+   closes silently.
    `app/persistence.py` saves/reloads the edits as a sibling
    `song.songlab.json` (engine chords + ordered commands, own
    `edits_version: "1"`); the engine layer stays recoverable from the file and
    a stale command fails loudly on replay. Wired into the window the same
    day: `Ctrl+S` / "Save Edits" writes the sidecar, `open_file` replays it
    automatically, and a corrupt or stale sidecar is reported with the engine
-   layer kept. Still open: lyric editing, GUI exposure of
-   delete/insert/split/merge/trim.
+   layer kept. Still open: lyric editing.
 3. **Transpose** — a chord-level transpose whose window keeps every label in
    `CHORD_QUALITY_SUFFIX` form.
 4. **Chord simplification** — drop slash/extension noise, keep a quality legend.

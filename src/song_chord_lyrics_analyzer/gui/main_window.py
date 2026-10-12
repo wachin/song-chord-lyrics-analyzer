@@ -50,7 +50,16 @@ from song_chord_lyrics_analyzer.app import (
     frame_from,
     summarize,
 )
-from song_chord_lyrics_analyzer.app.editing import CommandStack, SetChordLabel
+from song_chord_lyrics_analyzer.app.editing import (
+    CommandStack,
+    DeleteChord,
+    EditCommand,
+    InsertChord,
+    MergeChords,
+    SetChordLabel,
+    SplitChord,
+    TrimChord,
+)
 from song_chord_lyrics_analyzer.app.persistence import (
     edits_sidecar_path,
     load_edits,
@@ -119,6 +128,9 @@ class MainWindow(QMainWindow):
         self._bucket_count = 0
         self._ready = False
         self._edits: CommandStack | None = None
+        #: What was last written to (or restored from) the sidecar, for the
+        #: close prompt: the tape equals this exactly when nothing is unsaved.
+        self._saved_applied: tuple[EditCommand, ...] = ()
 
         self.setWindowTitle("Song Chord Lyrics Analyzer")
         self.resize(960, 560)
@@ -297,6 +309,9 @@ class MainWindow(QMainWindow):
             # then any sidecar saved for this file replays over that base.
             self._edits = CommandStack(document.chords if document is not None else [])
             self._restore_saved_edits(Path(path))
+            # Restored commands came from disk: they count as saved.
+            assert self._edits is not None
+            self._saved_applied = self._edits.applied
             self._populate_timeline()
             self._lyrics.set_document(tuple(document.lyrics) if document is not None else ())
             self._panel.set_rows(summarize(document, steps=self._session.steps))
@@ -424,21 +439,115 @@ class MainWindow(QMainWindow):
         self.refresh()
         return True
 
+    def edit_menu_entries(self, position: float) -> tuple[tuple[str, str, bool], ...]:
+        """The timeline's context menu as ``(label, choice, enabled)`` rows.
+
+        One row per Phase G command, each addressed by the chord under
+        ``position`` (or by the gap, for insert). Tests read this tuple to
+        assert the enable states a user would see, without ever opening a menu.
+        """
+        if self._edits is None:
+            return ()
+        event = self._edits.effective_chord_at(position)
+        inside = event is not None and position > event.start
+        ends_before_click = event is not None and event.end is not None and position < event.end
+        split_ok = inside and (event is not None and (event.end is None or position < event.end))
+        trim_start_ok = inside and ends_before_click  # an open end cannot be trimmed from the start
+        trim_end_ok = inside and (event is not None and (event.end is None or position < event.end))
+        merge_ok = event is not None and any(
+            one.start > event.start for one in self._edits.effective
+        )
+        return (
+            ("Edit chord here...", "edit", event is not None),
+            ("Split here", "split", split_ok),
+            ("Trim start to here", "trim-start", trim_start_ok),
+            ("Trim end to here", "trim-end", trim_end_ok),
+            ("Merge with next chord", "merge-next", merge_ok),
+            ("Delete chord", "delete", event is not None),
+            ("Insert chord here...", "insert", event is None),
+        )
+
+    def apply_edit_choice(self, choice: str, position: float) -> bool:
+        """Perform one context-menu command at ``position``; ``False`` if none.
+
+        "edit" opens the label dialog; the others push their command straight
+        away ("insert" asks for the label first). A rejected command is
+        reported like every other edit failure and leaves the tape untouched.
+
+        Args:
+            choice: One of the choice keys in :meth:`edit_menu_entries`.
+            position: The clicked time in seconds.
+
+        Returns:
+            ``True`` when an edit was applied (or the dialog accepted).
+        """
+        if self._edits is None:
+            return False
+        if choice == "edit":
+            return self.edit_chord_at(position)
+        event = self._edits.effective_chord_at(position)
+        try:
+            if choice == "split" and event is not None:
+                command: EditCommand = SplitChord(event.start, position)
+            elif choice == "trim-start" and event is not None:
+                command = TrimChord(event.start, new_start=position)
+            elif choice == "trim-end" and event is not None:
+                command = TrimChord(event.start, new_end=position)
+            elif choice == "merge-next" and event is not None:
+                following = next(
+                    (one for one in self._edits.effective if one.start > event.start),
+                    None,
+                )
+                if following is None:
+                    return False
+                command = MergeChords(event.start, following.start)
+            elif choice == "delete" and event is not None:
+                command = DeleteChord(event.start)
+            elif choice == "insert":
+                label, accepted = QInputDialog.getText(
+                    self,
+                    "Insert chord",
+                    f"Chord label from {position:.2f} s (open-ended):",
+                )
+                if not accepted:
+                    return False
+                command = InsertChord(position, label)
+            else:
+                return False
+        except SongLabError as error:
+            self._report(error)
+            return False
+        try:
+            self._edits.push(command)
+        except SongLabError as error:
+            self._report(error)
+            return False
+        self._populate_timeline()
+        self._update_edit_actions()
+        self.refresh()
+        return True
+
     def _show_edit_menu(self, pos: QPoint) -> None:
-        """The timeline's context menu: edit the chord, undo, redo."""
-        menu = QMenu(self)
-        edit_here = menu.addAction("Edit chord here...")
-        if edit_here is None or self._edits is None:  # pragma: no cover - defensive
+        """The timeline's context menu: the chord commands, undo, redo."""
+        if self._edits is None:
             return
+        position = self._timeline.seconds_at(pos.x())
+        menu = QMenu(self)
+        choices: dict[QAction, str] = {}
+        for label, key, enabled in self.edit_menu_entries(position):
+            action = menu.addAction(label)
+            if action is not None:
+                action.setEnabled(enabled)
+                choices[action] = key
         menu.addSeparator()
         assert self._undo_action is not None and self._redo_action is not None
         menu.addAction(self._undo_action)
         menu.addAction(self._redo_action)
-        chords_live = self._edits.effective_chord_at(self._timeline.seconds_at(pos.x())) is not None
-        edit_here.setEnabled(chords_live)
         chosen = menu.exec(self._timeline.mapToGlobal(pos))
-        if chosen == edit_here and chords_live:
-            self.edit_chord_at(self._timeline.seconds_at(pos.x()))
+        if chosen is not None:
+            picked = choices.get(chosen)
+            if picked is not None:
+                self.apply_edit_choice(picked, position)
 
     def undo_edit(self) -> bool:
         """Take the last edit back; ``False`` when there is nothing to undo."""
@@ -495,6 +604,8 @@ class MainWindow(QMainWindow):
         status_bar = self.statusBar()
         assert status_bar is not None  # QMainWindow always creates one on demand
         status_bar.showMessage(f"Edits saved to {target.name}", 5000)
+        assert self._edits is not None  # guarded above
+        self._saved_applied = self._edits.applied
         return True
 
     def _restore_saved_edits(self, path: Path) -> None:
@@ -557,10 +668,44 @@ class MainWindow(QMainWindow):
         QMessageBox.warning(self, "Song Chord Lyrics Analyzer", text)
 
     def closeEvent(self, event: QCloseEvent | None) -> None:
-        """Stop the refresh timer and release the audio device."""
+        """Offer to save unsaved edits, stop the timer, release the device.
+
+        "Unsaved" means the tape differs from what was last written or
+        restored, so undoing back to the saved state closes silently - the
+        answer is exact, not a dirty flag that lies.
+        """
+        if self._unsaved_edits() and not self._confirm_close():
+            if event is not None:
+                event.ignore()
+            return
         self._timer.stop()
         self._session.close()
         super().closeEvent(event)
+
+    def _unsaved_edits(self) -> bool:
+        """Whether the tape differs from the last save/restore.
+
+        Commands are frozen dataclasses, so tuple equality is exact: undoing
+        back to the saved state counts as saved, and a redo counts as unsaved.
+        """
+        if self._edits is None:
+            return False
+        return self._edits.applied != self._saved_applied
+
+    def _confirm_close(self) -> bool:
+        """Ask what to do about unsaved edits; ``True`` closes the window."""
+        answer = QMessageBox.question(
+            self,
+            "Unsaved chord edits",
+            "The chord edits have not been saved. Save them before closing?",
+            QMessageBox.StandardButton.Save
+            | QMessageBox.StandardButton.Discard
+            | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Save,
+        )
+        if answer == QMessageBox.StandardButton.Save:
+            return self.save_edits_sidecar()
+        return answer == QMessageBox.StandardButton.Discard
 
 
 def launch(

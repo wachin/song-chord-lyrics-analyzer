@@ -589,6 +589,256 @@ class TestPersistingTheEdits:
         assert warned
 
 
+class TestTheChordCommandsMenu:
+    """Every Phase G command is reachable from the timeline's context menu.
+
+    The menu itself is never opened (``exec`` would block offscreen); the tests
+    read the enable states through ``edit_menu_entries`` and perform the chosen
+    command through ``apply_edit_choice``, exactly what the menu does between
+    those two calls.
+    """
+
+    @staticmethod
+    def _enabled(window: MainWindow, position: float) -> dict[str, bool]:
+        return {key: enabled for _label, key, enabled in window.edit_menu_entries(position)}
+
+    @staticmethod
+    def _labels(window: MainWindow) -> list[str]:
+        return [band.label for band in window.timeline.bands]
+
+    def test_inside_a_chord_everything_but_insert_is_offered(self, window: MainWindow) -> None:
+        enabled = self._enabled(window, 0.5)  # inside C
+
+        assert enabled == {
+            "edit": True,
+            "split": True,
+            "trim-start": True,
+            "trim-end": True,
+            "merge-next": True,
+            "delete": True,
+            "insert": False,
+        }
+
+    def test_at_a_chords_start_only_the_whole_chord_commands_are_offered(
+        self, window: MainWindow
+    ) -> None:
+        enabled = self._enabled(window, 1.0)  # exactly G's start
+
+        assert enabled["edit"] is True
+        assert enabled["delete"] is True
+        assert enabled["merge-next"] is True
+        assert enabled["split"] is False  # nothing to cut at the boundary
+        assert enabled["trim-start"] is False
+        assert enabled["trim-end"] is False
+        assert enabled["insert"] is False
+
+    def test_in_a_gap_only_insert_is_offered(self, window: MainWindow) -> None:
+        enabled = self._enabled(window, DURATION + 0.5)
+
+        assert enabled["insert"] is True
+        assert all(not value for key, value in enabled.items() if key != "insert")
+
+    def test_split_cuts_the_chord_under_the_click(self, window: MainWindow) -> None:
+        assert window.apply_edit_choice("split", 0.5) is True
+
+        assert self._labels(window) == ["C", "C", "G", "N", "F"]
+        assert [(band.start, band.end) for band in window.timeline.bands[:2]] == [
+            (0.0, 0.5),
+            (0.5, 1.0),
+        ]
+
+    def test_trim_start_moves_the_start_forward(self, window: MainWindow) -> None:
+        assert window.apply_edit_choice("trim-start", 0.5) is True
+
+        assert (window.timeline.bands[0].start, window.timeline.bands[0].end) == (0.5, 1.0)
+        assert self._labels(window) == ["C", "G", "N", "F"]
+
+    def test_trim_end_pulls_the_end_back(self, window: MainWindow) -> None:
+        assert window.apply_edit_choice("trim-end", 0.5) is True
+
+        assert (window.timeline.bands[0].start, window.timeline.bands[0].end) == (0.0, 0.5)
+        assert self._labels(window) == ["C", "G", "N", "F"]
+
+    def test_merge_with_next_spans_both_chords(self, window: MainWindow) -> None:
+        assert window.apply_edit_choice("merge-next", 0.5) is True
+
+        assert self._labels(window) == ["C", "N", "F"]
+        assert (window.timeline.bands[0].start, window.timeline.bands[0].end) == (0.0, 2.0)
+
+    def test_delete_removes_the_chord_under_the_click(self, window: MainWindow) -> None:
+        assert window.apply_edit_choice("delete", 0.5) is True
+
+        assert self._labels(window) == ["G", "N", "F"]
+
+    def test_insert_asks_for_a_label_and_fills_a_gap(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Deleting G leaves the [1.0, 2.0) gap a user would fill again.
+        assert window.apply_edit_choice("delete", 1.5) is True
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getText", lambda *a, **k: ("Am", True))
+
+        assert window.apply_edit_choice("insert", 1.5) is True
+
+        band = window.timeline.bands[1]
+        # Open-ended: chord_bands runs it until the next event (N at 2.0).
+        assert (band.label, band.start, band.end) == ("Am", 1.5, 2.0)
+
+    def test_insert_into_covered_time_is_reported_and_changes_nothing(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        warned = _warned(monkeypatch)
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getText", lambda *a, **k: ("Am", True))
+
+        assert window.apply_edit_choice("insert", 1.5) is False
+
+        assert self._labels(window) == ["C", "G", "N", "F"]
+        assert warned and "covered" in warned[0]
+
+    def test_a_cancelled_insert_dialog_changes_nothing(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getText", lambda *a, **k: ("", False))
+
+        assert window.apply_edit_choice("insert", DURATION + 0.5) is False
+        assert self._labels(window) == ["C", "G", "N", "F"]
+
+    def test_every_menu_command_is_undoable(self, window: MainWindow) -> None:
+        for choice, position in (
+            ("split", 0.5),
+            ("trim-start", 1.5),
+            ("trim-end", 2.5),
+            ("merge-next", 0.5),
+            ("delete", 0.5),
+        ):
+            assert window.apply_edit_choice(choice, position) is True
+            assert window.undo_edit() is True
+        assert self._labels(window) == ["C", "G", "N", "F"]
+
+
+class TestClosingWithUnsavedEdits:
+    """Closing with edits beyond the last save offers Save/Cancel/Discard.
+
+    The prompt is the difference between the tape and what was last written or
+    restored, so undoing back to the saved state closes silently - the answer
+    is exact, not a dirty flag that lies.
+    """
+
+    @staticmethod
+    def _answer(monkeypatch: pytest.MonkeyPatch, button: object) -> None:
+        monkeypatch.setattr(QtWidgets.QMessageBox, "question", lambda *a, **k: button)
+
+    @staticmethod
+    def _never_asks(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+        prompts: list[str] = []
+
+        def _unexpected(*args: object, **kwargs: object) -> object:
+            prompts.append(str(args))
+            return QtWidgets.QMessageBox.StandardButton.Save
+
+        monkeypatch.setattr(QtWidgets.QMessageBox, "question", _unexpected)
+        return prompts
+
+    @staticmethod
+    def _edit(window: MainWindow, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getText", lambda *a, **k: ("Am", True))
+        assert window.edit_chord_at(1.5) is True
+
+    def test_saving_on_close_writes_the_sidecar(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        wav = window.session.path
+        self._edit(window, monkeypatch)
+        self._answer(monkeypatch, QtWidgets.QMessageBox.StandardButton.Save)
+        assert wav is not None
+        sidecar = wav.with_suffix(".songlab.json")
+
+        window.close()
+
+        assert sidecar.is_file()
+        assert window.session.is_open is False  # the close went through
+
+    def test_discarding_on_close_does_not_write(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        wav = window.session.path
+        self._edit(window, monkeypatch)
+        self._answer(monkeypatch, QtWidgets.QMessageBox.StandardButton.Discard)
+        assert wav is not None
+        sidecar = wav.with_suffix(".songlab.json")
+
+        window.close()
+
+        assert not sidecar.exists()
+        assert window.session.is_open is False
+
+    def test_cancelling_on_close_keeps_the_window_open(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._edit(window, monkeypatch)
+        self._answer(monkeypatch, QtWidgets.QMessageBox.StandardButton.Cancel)
+        event = QtGui.QCloseEvent()
+
+        window.closeEvent(event)
+
+        assert event.isAccepted() is False
+        assert window.session.is_open is True  # nothing was released
+        assert window.edits is not None and len(window.edits) == 1
+
+    def test_closing_without_edits_never_asks(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        prompts = self._never_asks(monkeypatch)
+
+        window.close()
+
+        assert prompts == []
+        assert window.session.is_open is False
+
+    def test_undoing_back_to_the_saved_state_closes_silently(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        wav = window.session.path
+        self._edit(window, monkeypatch)
+        self._answer(monkeypatch, QtWidgets.QMessageBox.StandardButton.Save)
+        window.close()  # saved: the tape is now the saved state
+        # Reopen, edit again, undo back - nothing is unsaved any more.
+        assert wav is not None
+        assert window.open_file(wav) is True
+        prompts = self._never_asks(monkeypatch)
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getText", lambda *a, **k: ("Em", True))
+        assert window.edit_chord_at(1.5) is True
+        assert window.undo_edit() is True
+        # Drive closeEvent directly: a hidden widget's close() sends no event.
+        window.closeEvent(QtGui.QCloseEvent())
+
+        assert prompts == []
+
+    def test_redo_after_an_undo_counts_as_unsaved_again(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        wav = window.session.path
+        self._edit(window, monkeypatch)
+        self._answer(monkeypatch, QtWidgets.QMessageBox.StandardButton.Save)
+        window.close()
+        assert wav is not None
+        assert window.open_file(wav) is True
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getText", lambda *a, **k: ("Em", True))
+        assert window.edit_chord_at(1.5) is True
+        assert window.undo_edit() is True
+        assert window.redo_edit() is True
+        asked: list[str] = []
+
+        def _record(*args: object, **kwargs: object) -> object:
+            asked.append("asked")
+            return QtWidgets.QMessageBox.StandardButton.Save
+
+        monkeypatch.setattr(QtWidgets.QMessageBox, "question", _record)
+        # A hidden widget's close() sends no event; drive closeEvent directly.
+        window.closeEvent(QtGui.QCloseEvent())
+
+        assert asked  # the redo made the tape differ from the saved state again
+
+
 class TestSeeking:
     def test_a_click_on_the_timeline_seeks_to_that_position(self, window: MainWindow) -> None:
         _click_timeline(window, 0.625)

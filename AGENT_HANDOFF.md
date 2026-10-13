@@ -153,8 +153,8 @@ Phase C display work landed **2026-10-07**, the Phase D window landed
   Phase A).
 - **Synchronized display**: `songlab play` (terminal) and `songlab gui`
   (window) both render the same `DisplayFrame`; what the window does **not**
-  have yet is its `[F]` depth - editing, lyrics view, undo/redo, transpose,
-  export dialogs, confidence/engine panels, translations.
+  have yet is its remaining `[F]` depth - the confidence/engine panels and
+  translations.
 - **GUI testing without a screen**: the presenters are pure Python and the
   widgets are driven offscreen, but nothing here has been run by hand on
   Windows or macOS (no claim is made about them beyond the shared code path).
@@ -182,10 +182,11 @@ Phase C display work landed **2026-10-07**, the Phase D window landed
 
 ### Planned / not started (product path)
 
-- The window's `[F]` features: export dialogs, confidence/engine panels,
-  translations (`docs/GUI_REQUIREMENTS.md`; landed already: the lyrics view
-  2026-10-09, chord and lyric editing with undo/redo and persistence
-  2026-10-10..12, transpose + chord simplification 2026-10-13). Each item is
+- The window's `[F]` features: confidence/engine panels, translations
+  (`docs/GUI_REQUIREMENTS.md`; landed already: the lyrics view 2026-10-09,
+  chord and lyric editing with undo/redo and persistence 2026-10-10..12,
+  transpose + chord simplification 2026-10-13, the Export document...
+  save dialog over the Phase H exporters 2026-10-13). Each remaining item is
   small enough to land on its own and every one of them needs an `app/`
   presenter with offscreen tests.
 - Lyrics engine integration (Phase E), synchronized lyrics, packaging.
@@ -403,12 +404,13 @@ then the signed commit goes out.
 
 **What remains open (and what is not the next task):**
 
-* The `[F]` GUI list in `docs/GUI_REQUIREMENTS.md` — export dialogs,
-  confidence/engine panels, translations
+* The `[F]` GUI list in `docs/GUI_REQUIREMENTS.md` — confidence/engine
+  panels, translations
   (landed already: the lyrics view 2026-10-09, chord and lyric editing with
   undo/redo and persistence 2026-10-10..12, transpose + chord simplification
-  2026-10-13). Each item is small enough to land on its own and every one of
-  them needs an `app/` presenter with offscreen tests.
+  2026-10-13, the Export document... save dialog 2026-10-13). Each item is
+  small enough to land on its own and every one of them needs an `app/`
+  presenter with offscreen tests.
 * **Confidence per chord + the JSON contract** — the `lyrics` step carries
   `unknown` confidence and the canonical `EngineResult` ships a `lyrics` field;
   exposing that honestly per position in the window is `[F]` work, not more

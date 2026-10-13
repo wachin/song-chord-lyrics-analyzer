@@ -26,6 +26,7 @@ from fixtures.fake_analysis import DURATION, analysis_outcome, opened_session
 from fixtures.fake_player import FakePlayer
 from song_chord_lyrics_analyzer.app import SongSession
 from song_chord_lyrics_analyzer.audio.playback import PlaybackState
+from song_chord_lyrics_analyzer.export import render_chordpro, render_markdown
 from song_chord_lyrics_analyzer.gui.main_window import SEEK_STEP, MainWindow, launch
 from song_chord_lyrics_analyzer.utils.errors import DependencyError
 
@@ -137,6 +138,7 @@ class TestAnEmptyWindow:
         assert _toolbar_texts(window) == [
             "Open...",
             "Save Edits",
+            "Export document...",
             "Play",
             "Stop",
             "Back",
@@ -256,14 +258,14 @@ class TestTheChordFollowsThePlayhead:
         assert window.state_label.text() == "stopped"
 
     def test_the_play_button_reports_what_it_will_do_next(self, window: MainWindow) -> None:
-        # Position 2: after Open... and Save Edits.
-        assert _toolbar_texts(window)[2] == "Play"
+        # Position 3: after Open..., Save Edits and Export document....
+        assert _toolbar_texts(window)[3] == "Play"
 
         window.toggle_play()
-        assert _toolbar_texts(window)[2] == "Pause"
+        assert _toolbar_texts(window)[3] == "Pause"
 
         window.toggle_play()
-        assert _toolbar_texts(window)[2] == "Play"
+        assert _toolbar_texts(window)[3] == "Play"
 
     def test_a_missing_audio_device_is_reported_not_hidden(
         self, qt_app: object, wav: Path, monkeypatch: pytest.MonkeyPatch
@@ -1293,6 +1295,148 @@ class TestDocumentTransforms:
         window.closeEvent(QtGui.QCloseEvent())
 
         assert asked == ["asked"]
+
+
+class TestExportingTheDocument:
+    """Phase H: the save-export dialog over the exporters ``songlab export`` uses.
+
+    The dialog is mocked, the write is real, and it goes through the same
+    ``export_document()`` seam the CLI calls - so the file on disk is asserted
+    against what the exporter renders for the *effective* layers, not against
+    hand-written text.
+    """
+
+    @staticmethod
+    def _answered(monkeypatch: pytest.MonkeyPatch, answer: tuple[str, str]) -> None:
+        monkeypatch.setattr(QtWidgets.QFileDialog, "getSaveFileName", lambda *a, **k: answer)
+
+    @staticmethod
+    def _export_action(window: MainWindow) -> QtWidgets.QAction:
+        """The Export action, found where the user finds it: the toolbar."""
+        candidates = [
+            action
+            for toolbar in window.findChildren(QtWidgets.QToolBar)
+            for action in toolbar.actions()
+            if action.text() == "Export document..."
+        ]
+        assert len(candidates) == 1, candidates
+        return candidates[0]
+
+    def test_the_toolbar_offers_the_export_action(self, window: MainWindow) -> None:
+        # Between Save Edits and Play: document actions first, transport after.
+        assert _toolbar_texts(window)[1:3] == ["Save Edits", "Export document..."]
+
+    def test_export_is_enabled_only_once_a_song_is_open(self, qt_app: object, wav: Path) -> None:
+        def enabled(owner: MainWindow) -> bool:
+            return self._export_action(owner).isEnabled()
+
+        empty = MainWindow()
+        assert enabled(empty) is False
+
+        session, _player, _clock = opened_session(wav)
+        built = MainWindow(session=session)
+        assert built.open_file(wav) is True
+        assert enabled(built) is True
+
+    def test_the_dialog_exports_the_chordpro_sheet(
+        self,
+        window: MainWindow,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        target = tmp_path / "song.pro"
+        self._answered(monkeypatch, (str(target), "ChordPro (*.pro *.crd)"))
+
+        assert window.export_file_dialog() is True
+        assert target.is_file()
+        document, edits = window.session.document, window.edits
+        assert document is not None and edits is not None
+        expected = render_chordpro(document, chords=edits.effective, lyrics=edits.effective_lyrics)
+        assert target.read_text(encoding="utf-8") == expected
+        assert "Exported chordpro to" in window.statusBar().currentMessage()
+
+    def test_a_cancelled_dialog_exports_nothing(
+        self, window: MainWindow, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        target = tmp_path / "never-exported.pro"
+        # A cancelled dialog comes back as an empty name.
+        self._answered(monkeypatch, ("", "ChordPro (*.pro *.crd)"))
+
+        assert window.export_file_dialog() is False
+        # tmp_path also holds the song the fixture wrote; the target is what
+        # the cancelled dialog must not have created.
+        assert not target.exists()
+
+    def test_without_a_song_the_dialog_never_opens(
+        self, qt_app: object, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def _forbidden(*args: object, **kwargs: object) -> tuple[str, str]:
+            raise AssertionError("the export dialog must not open without a song")
+
+        monkeypatch.setattr(QtWidgets.QFileDialog, "getSaveFileName", _forbidden)
+
+        assert MainWindow().export_file_dialog() is False
+
+    def test_the_filter_selects_the_markdown_format(
+        self,
+        window: MainWindow,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        target = tmp_path / "song.md"
+        self._answered(monkeypatch, (str(target), "Markdown (*.md)"))
+
+        assert window.export_file_dialog() is True
+        document, edits = window.session.document, window.edits
+        assert document is not None and edits is not None
+        expected = render_markdown(document, chords=edits.effective, lyrics=edits.effective_lyrics)
+        assert target.read_text(encoding="utf-8") == expected
+
+    def test_the_suffix_decides_when_the_dialog_gives_no_filter(
+        self,
+        window: MainWindow,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        # Qt's rule: the picked filter is authoritative. When it is not one
+        # of ours (empty string here), the typed name keeps its format.
+        target = tmp_path / "sheet-v2.md"
+        self._answered(monkeypatch, (str(target), ""))
+
+        assert window.export_file_dialog() is True
+        document, edits = window.session.document, window.edits
+        assert document is not None and edits is not None
+        expected = render_markdown(document, chords=edits.effective, lyrics=edits.effective_lyrics)
+        assert target.read_text(encoding="utf-8") == expected
+
+    def test_the_export_carries_the_edited_layers(
+        self,
+        window: MainWindow,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getText", lambda *a, **k: ("Am", True))
+        window.edit_chord_at(1.5)  # G -> Am on the tape
+        target = tmp_path / "song.json"
+        self._answered(monkeypatch, (str(target), "JSON (*.json)"))
+
+        assert window.export_file_dialog() is True
+        payload = json.loads(target.read_text(encoding="utf-8"))
+        assert [chord["label"] for chord in payload["chords"]] == ["C", "Am", "N", "F"]
+        assert len(payload["lyrics"]) == 2
+
+    def test_an_unwritable_location_is_reported_not_hidden(
+        self,
+        window: MainWindow,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        warned = _warned(monkeypatch)
+        target = tmp_path / "no-such-dir" / "song.md"
+        self._answered(monkeypatch, (str(target), "Markdown (*.md)"))
+
+        assert window.export_file_dialog() is False
+        assert warned and "Could not write" in warned[0]
 
 
 class TestLaunch:

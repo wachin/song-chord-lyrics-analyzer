@@ -119,12 +119,16 @@ CLI, the engine or the session.
    `contract_chord_label()` reduction (extensions/alterations drop to the
    plain triad or seventh, slash basses are removed); the same transform is
    reachable as `songlab export --simplify`.
-5. **Export dialogs** — JSON of the canonical document, ChordPro, lyric lyrics,
-   plain text. The exporters themselves are done (`export/`: `render_json`,
-   `render_chordpro`, `render_markdown`) and reachable from the CLI
-   (`songlab export`, JSON/ChordPro/Markdown, honouring the saved sidecar and
-   the `--transpose`/`--simplify` flags); what remains `[F]` is only the
-   window's Save-Export dialog presenting these formats.
+5. ~~**Export dialogs**~~ **(done, 2026-10-13)** — "Export document..." on the
+   transport toolbar (Ctrl+Shift+E): a save dialog proposing a sibling file of
+   the song with a JSON / ChordPro / Markdown filter, writing through the same
+   `export_document()` seam `songlab export` uses — the effective layers (edits
+   included) are what gets written, so the file cannot drift from the window.
+   Qt's rule stands: the picked filter names the format; a name typed over the
+   proposal keeps its meaning via the suffix when no filter of ours is
+   reported. A failed write is reported, a cancelled dialog changes nothing.
+   With this, every `[F]` item above 7 is delivered except translations
+   (item 7) and the confidence/engine panels (item 6).
 6. **Confidence/engine panels** — per-chord confidence (from the engine), the
    `Engines`/`Warnings` rows of the summary panel.
 7. **Translations** — the `i18n/` package (phase 17) feeding a language menu;

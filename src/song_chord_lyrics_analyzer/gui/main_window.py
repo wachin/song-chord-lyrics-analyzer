@@ -77,12 +77,13 @@ from song_chord_lyrics_analyzer.app.persistence import (
     save_edits as save_edits_document,
 )
 from song_chord_lyrics_analyzer.audio.playback import PlaybackState
+from song_chord_lyrics_analyzer.export import export_document
 from song_chord_lyrics_analyzer.gui.analysis_panel import AnalysisPanel
 from song_chord_lyrics_analyzer.gui.lyrics_view import LyricsWidget
 from song_chord_lyrics_analyzer.gui.timeline import TimelineWidget
 from song_chord_lyrics_analyzer.utils.errors import SongLabError
 
-__all__ = ["AUDIO_FILTER", "AUDIO_SUFFIXES", "MainWindow", "launch"]
+__all__ = ["AUDIO_FILTER", "AUDIO_SUFFIXES", "EXPORT_FILTER", "MainWindow", "launch"]
 
 #: Audio file extensions the Open dialog offers. Kept as one list so the dialog
 #: and any future validation agree on what "an audio file" means.
@@ -102,8 +103,43 @@ AUDIO_SUFFIXES: tuple[str, ...] = (
 
 AUDIO_FILTER = "Audio (" + " ".join(f"*.{suffix}" for suffix in AUDIO_SUFFIXES) + ");;All files (*)"
 
+#: The save dialog's format choice, the same formats ``songlab export`` takes.
+#: The order and wording is what the user sees; the mapping below turns the
+#: chosen filter into the :data:`~song_chord_lyrics_analyzer.export.EXPORT_FORMATS`
+#: name - nothing here renders anything itself.
+EXPORT_FILTER = "ChordPro (*.pro *.crd);;Markdown (*.md);;JSON (*.json)"
+
+_EXPORT_FORMAT_BY_FILTER = {
+    "ChordPro (*.pro *.crd)": "chordpro",
+    "Markdown (*.md)": "markdown",
+    "JSON (*.json)": "json",
+}
+
+_SAVING_SUFFIX_FORMATS = {
+    ".pro": "chordpro",
+    ".crd": "chordpro",
+    ".md": "markdown",
+    ".json": "json",
+}
+
 #: Seek step of the back/forward actions, in seconds.
 SEEK_STEP = 5.0
+
+
+def _format_for(selected: str, target: Path) -> str:
+    """The ``songlab export`` format name for the dialog's choice.
+
+    Qt's rule stands: the picked filter is authoritative, and it maps onto
+    :data:`EXPORT_FORMATS` through ``_EXPORT_FORMAT_BY_FILTER``. The typed
+    name's suffix decides only when the dialog reports no filter of ours (an
+    empty string comes back from cancelled or tool-less calls), and anything
+    else exports as ChordPro - the format ``songlab export`` defaults to.
+    Nothing here renders anything.
+    """
+    by_filter = _EXPORT_FORMAT_BY_FILTER.get(selected)
+    if by_filter is not None:
+        return by_filter
+    return _SAVING_SUFFIX_FORMATS.get(target.suffix.lower(), "chordpro")
 
 
 class MainWindow(QMainWindow):
@@ -144,6 +180,9 @@ class MainWindow(QMainWindow):
         self.resize(960, 560)
         self._build_actions()
         self._build_widgets()
+        # The actions start honest: nothing to undo/redo/save, no song to
+        # export, before the first open.
+        self._update_edit_actions()
 
         self._timer = QTimer(self)
         self._timer.setInterval(max(1, int(interval * 1000)))
@@ -239,12 +278,20 @@ class MainWindow(QMainWindow):
         self._simplify_action = QAction("Simplify chords", self)
         self._simplify_action.triggered.connect(self.simplify_chords)
 
+        # Phase H: the same exporters `songlab export` uses, offered from the
+        # window - the dialog only picks a file and a format, the write goes
+        # through the identical seam so the two surfaces cannot drift.
+        self._export_action = QAction("Export document...", self)
+        self._export_action.setShortcut(QKeySequence("Ctrl+Shift+E"))
+        self._export_action.triggered.connect(self.export_file_dialog)
+
         toolbar = self.addToolBar("Transport")
         assert toolbar is not None  # always created by QMainWindow
         toolbar.setMovable(False)
         for action in (
             self._open_action,
             self._save_action,
+            self._export_action,
             self._play_action,
             self._stop_action,
             self._back_action,
@@ -841,6 +888,9 @@ class MainWindow(QMainWindow):
         undo.setEnabled(self._edits is not None and self._edits.can_undo)
         redo.setEnabled(self._edits is not None and self._edits.can_redo)
         save.setEnabled(self._edits is not None and len(self._edits) > 0)
+        export = self._export_action
+        assert export is not None
+        export.setEnabled(self._session.is_open)
 
     # -- persistence (Phase G) --------------------------------------------
 
@@ -873,6 +923,64 @@ class MainWindow(QMainWindow):
         status_bar.showMessage(f"Edits saved to {target.name}", 5000)
         assert self._edits is not None  # guarded above
         self._saved_applied = self._edits.applied
+        return True
+
+    # -- export (Phase H) ---------------------------------------------------
+
+    def export_file_dialog(self) -> bool:
+        """Ask for a file and format, then export the open song.
+
+        The save dialog proposes a sibling file named after the song and lets
+        the user choose one of the :data:`EXPORT_FORMATS` through its filter. A
+        cancelled dialog changes nothing. ``False`` when there is no open song
+        either way - the action is disabled before then.
+        """
+        path = self._session.path
+        if path is None or not self._session.is_open:
+            return False
+        proposed = path.with_suffix(".chordpro")
+        chosen, selected = QFileDialog.getSaveFileName(
+            self,
+            "Export document",
+            str(proposed),
+            EXPORT_FILTER,
+        )
+        if not chosen:
+            return False
+        return self.export_document_to(Path(chosen), _format_for(selected, Path(chosen)))
+
+    def export_document_to(self, target: Path, fmt: str) -> bool:
+        """Write the open song's effective layers to ``target`` as ``fmt``.
+
+        The dialog pre-answered: the same exporter ``songlab export`` calls,
+        fed the *effective* chord and lyric layers (edits included) - what is
+        exported is what the window shows, not the raw engine output.
+
+        Returns:
+            ``True`` when the file was written; ``False`` when there is no song
+            or the write failed (already reported).
+        """
+        document = self._session.document
+        if document is None or not self._session.is_open:
+            return False
+        chords = self._edits.effective if self._edits is not None else None
+        lyrics = self._edits.effective_lyrics if self._edits is not None else None
+        try:
+            written = export_document(document, fmt, target, chords=chords, lyrics=lyrics)
+        except SongLabError as error:
+            self._report(error)
+            return False
+        except OSError as error:
+            self._report(
+                SongLabError(
+                    f"Could not write {target}: {error}",
+                    hint="Choose a location this user can write to.",
+                )
+            )
+            return False
+        status_bar = self.statusBar()
+        assert status_bar is not None  # QMainWindow always creates one on demand
+        status_bar.showMessage(f"Exported {fmt} to {written.name}", 5000)
         return True
 
     def _restore_saved_edits(self, path: Path) -> None:

@@ -14,6 +14,8 @@ import pytest
 
 from song_chord_lyrics_analyzer.app.editing import (
     MERGE_SOURCE,
+    SIMPLIFY_SOURCE,
+    TRANSPOSE_SOURCE,
     USER_SOURCE,
     CommandStack,
     DeleteChord,
@@ -24,7 +26,9 @@ from song_chord_lyrics_analyzer.app.editing import (
     SetChordLabel,
     SetLyricText,
     SetLyricTiming,
+    SimplifyChords,
     SplitChord,
+    TransposeChords,
     TrimChord,
     effective_chords,
     effective_lyrics,
@@ -604,3 +608,166 @@ class TestOneTapeForBothLayers:
         stack.push(SetLyricText(0, "uno bien"))
         stack.undo()
         assert calls == ["changed", "changed"]
+
+
+def _extension_base() -> list[ChordEvent]:
+    """A layer with something from every corner the transforms must handle."""
+    return [
+        ChordEvent(start=0.0, end=1.0, root="C", quality=ChordQuality.MAJOR, source="fake"),
+        ChordEvent(
+            start=1.0, end=2.0, root="E", quality=ChordQuality.MINOR7, bass="G", source="fake"
+        ),
+        ChordEvent.silence(2.0, 3.0, source="fake"),
+        ChordEvent(start=3.0, end=4.0, root="F#", quality=ChordQuality.SUS4, source="fake"),
+        ChordEvent(
+            start=4.0,
+            end=5.0,
+            root="B",
+            quality=ChordQuality.OTHER,
+            extensions=("13b9",),
+            label="B13b9",  # what SetChordLabel renders for the user's text
+            source="fake",
+        ),
+        ChordEvent(start=5.0, end=6.0, source="fake"),  # unknown: no evidence at all
+    ]
+
+
+class TestTransposeChords:
+    def test_roots_and_basses_move_by_the_offset(self) -> None:
+        transposed = TransposeChords(2).apply(_extension_base())
+
+        assert transposed[0].label == "D"
+        assert transposed[1].label == "F#m7/A"
+        assert transposed[3].label == "G#sus4"
+
+    def test_timing_confidence_and_metadata_are_untouched(self) -> None:
+        base = _extension_base()
+        transposed = TransposeChords(-1).apply(base)
+
+        assert [event.start for event in transposed] == [event.start for event in base]
+        assert [event.end for event in transposed] == [event.end for event in base]
+        assert [event.confidence for event in transposed] == [event.confidence for event in base]
+        assert [event.metadata for event in transposed] == [event.metadata for event in base]
+
+    def test_silence_and_unknown_evidence_are_left_exactly_as_the_engine_wrote_them(self) -> None:
+        transposed = TransposeChords(3).apply(_extension_base())
+
+        assert transposed[2].label == "N" and transposed[2].source == "fake"
+        assert transposed[4].label == "B13b9" and transposed[4].source == "fake"
+        assert transposed[5].label == "?" and transposed[5].source == "fake"
+
+    def test_the_provenance_is_the_transpose(self) -> None:
+        transposed = TransposeChords(2).apply(_extension_base())
+        assert [event.source for event in transposed[:2]] == [TRANSPOSE_SOURCE, TRANSPOSE_SOURCE]
+        assert transposed[0].root == "D"
+
+    def test_the_base_layer_survives_bit_identical(self) -> None:
+        base = _extension_base()
+        TransposeChords(5).apply(base)
+
+        assert [event.label for event in base] == [
+            "C",
+            "Em7/G",
+            "N",
+            "F#sus4",
+            "B13b9",
+            "?",
+        ]
+
+    def test_applying_twice_moves_by_the_double_offset(self) -> None:
+        events = [
+            ChordEvent(start=0.0, end=1.0, root="C", quality=ChordQuality.MAJOR, source="fake")
+        ]
+        twice = TransposeChords(3).apply(TransposeChords(3).apply(events))
+        assert twice[0].label == "F#"  # +6 semitones in total
+
+    def test_an_octave_offset_is_rejected(self) -> None:
+        with pytest.raises(InputError):
+            TransposeChords(12)
+        with pytest.raises(InputError):
+            TransposeChords(-12)
+
+    def test_zero_semitones_change_nothing_and_are_rejected(self) -> None:
+        with pytest.raises(InputError):
+            TransposeChords(0)
+
+    def test_the_upper_edge_of_the_range_is_accepted(self) -> None:
+        transposed = TransposeChords(11).apply(
+            [ChordEvent(start=0.0, end=1.0, root="C", quality=ChordQuality.MAJOR, source="fake")]
+        )
+        assert transposed[0].label == "B"
+
+
+class TestSimplifyChords:
+    def test_extensions_collapse_to_the_triad(self) -> None:
+        simplified = SimplifyChords().apply(_extension_base())
+
+        assert simplified[0].label == "C"
+        assert simplified[1].label == "Em/G"
+
+    def test_altered_rich_chords_collapse_to_their_undecorated_root(self) -> None:
+        base = [
+            ChordEvent(start=0.0, end=1.0, root="A", quality=ChordQuality.DOMINANT7, source="fake"),
+            ChordEvent(start=1.0, end=2.0, root="C", quality=ChordQuality.MAJOR7, source="fake"),
+            ChordEvent(start=2.0, end=3.0, root="D", quality=ChordQuality.NINTH, source="fake"),
+            ChordEvent(
+                start=3.0, end=4.0, root="B", quality=ChordQuality.MINOR_SIXTH, source="fake"
+            ),
+            ChordEvent(start=4.0, end=5.0, root="F", quality=ChordQuality.MINOR7, source="fake"),
+        ]
+        simplified = SimplifyChords().apply(base)
+
+        assert [event.label for event in simplified] == ["A", "C", "D", "Bm", "Fm"]
+
+    def test_triads_and_unrecognised_evidence_stay_verbatim(self) -> None:
+        simplified = SimplifyChords().apply(_extension_base())
+
+        assert simplified[3].label == "F#sus4"  # suspensions are not "richer"
+        assert simplified[4].label == "B13b9" and simplified[4].source == "fake"
+        assert simplified[5].label == "?" and simplified[5].source == "fake"
+
+    def test_the_provenance_is_the_simplification(self) -> None:
+        simplified = SimplifyChords().apply(_extension_base())
+        assert simplified[1].source == SIMPLIFY_SOURCE
+        assert simplified[0].source == "fake"  # already a triad, untouched
+        assert simplified[3].source == "fake"
+
+    def test_idempotent_over_an_already_triad_layer(self) -> None:
+        base = _extension_base()
+        once = SimplifyChords().apply(base)
+        twice = SimplifyChords().apply(once)
+
+        assert [event.label for event in twice] == [event.label for event in once]
+
+    def test_timing_is_untouched(self) -> None:
+        base = _extension_base()
+        simplified = SimplifyChords().apply(base)
+        assert [event.start for event in simplified] == [event.start for event in base]
+        assert [event.end for event in simplified] == [event.end for event in base]
+
+
+class TestDocumentTransformsOnTheTape:
+    def test_the_transforms_undo_in_one_step_each(self) -> None:
+        stack = CommandStack(_extension_base())
+        stack.push(TransposeChords(2))
+        stack.push(SimplifyChords())
+
+        assert [event.label for event in stack.effective] == [
+            "D",
+            "F#m/A",
+            "N",
+            "G#sus4",
+            "B13b9",  # unrecognised evidence is un-transposable
+            "?",
+        ]
+
+        stack.undo()  # the simplify only
+        assert stack.effective[1].label == "F#m7/A"
+        assert stack.can_undo
+
+        stack.undo()  # the transpose
+        assert [event.label for event in stack.effective] == [
+            event.label for event in _extension_base()
+        ]
+        assert [event.source for event in stack.effective] == ["fake"] * 6
+        assert stack.can_undo is False

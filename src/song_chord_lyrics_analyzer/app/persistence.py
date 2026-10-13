@@ -42,7 +42,9 @@ from song_chord_lyrics_analyzer.app.editing import (
     SetChordLabel,
     SetLyricText,
     SetLyricTiming,
+    SimplifyChords,
     SplitChord,
+    TransposeChords,
     TrimChord,
 )
 from song_chord_lyrics_analyzer.models.lyrics import LyricSegment
@@ -69,11 +71,12 @@ _logger = get_logger("app.persistence")
 
 #: Version of the edits-sidcar format. Bump on breaking changes to it.
 #:
-#: The lyric layer (2026-10-12) is additive and does **not** bump it: a
-#: sidecar written before lyric editing simply has no "lyrics" key and loads
-#: with an empty lyric base, while a build that predates the lyric commands
-#: rejects a sidecar containing one loudly ("Unknown edit command kind")
-#: rather than dropping it - no reader ever folds a document it cannot replay.
+#: The lyric layer (2026-10-12) and the document-level transforms
+#: (2026-10-12, Phase H) are additive and do **not** bump it: a sidecar
+#: written before them simply has no such key / no such command, while a
+#: build that predates the new vocabulary rejects a sidecar containing one
+#: loudly ("Unknown edit command kind") rather than dropping it - no reader
+#: ever folds a document it cannot replay.
 EDITS_SCHEMA_VERSION = "1"
 
 #: How each command names itself inside the JSON document. The mapping is the
@@ -90,6 +93,8 @@ _COMMAND_TAGS: dict[str, type] = {
     "set-lyric-timing": SetLyricTiming,
     "delete-lyric": DeleteLyric,
     "insert-lyric": InsertLyric,
+    "transpose": TransposeChords,
+    "simplify": SimplifyChords,
 }
 _COMMAND_FIELDS: dict[type, tuple[str, ...]] = {
     SetChordLabel: ("start", "label"),
@@ -102,6 +107,8 @@ _COMMAND_FIELDS: dict[type, tuple[str, ...]] = {
     SetLyricTiming: ("index", "new_start", "new_end"),
     DeleteLyric: ("index",),
     InsertLyric: ("text", "start", "end"),
+    TransposeChords: ("semitones",),
+    SimplifyChords: (),
 }
 
 #: Field names that hold text rather than a number - unambiguous across the
@@ -110,8 +117,8 @@ _COMMAND_FIELDS: dict[type, tuple[str, ...]] = {
 _TEXT_FIELDS = frozenset({"label", "text"})
 
 #: Field names that hold a whole number (lyric lines are addressed by their
-#: display index, not by time).
-_INT_FIELDS = frozenset({"index"})
+#: display index, not by time; transposition is an in-octave semitone count).
+_INT_FIELDS = frozenset({"index", "semitones"})
 
 
 @dataclass
@@ -183,6 +190,9 @@ def _command_from_json(data: Any) -> EditCommand:
     missing = [name for name in names if name not in data]
     if missing:
         raise SchemaError(f"A {command_type.__name__} edit is missing {', '.join(missing)!r}.")
+    if len(data) != len(names) + 1:  # every kind + exactly its fields
+        unknown = sorted(set(data) - {"kind", *names})
+        raise SchemaError(f"A {command_type.__name__} edit has unknown fields {unknown!r}.")
     values: dict[str, Any] = {}
     for name in names:
         value = data[name]

@@ -106,11 +106,25 @@ CLI, the engine or the session.
    rejects one loudly), and a lyric edit counts as unsaved for the close
    prompt like any chord edit. Word-level *timings* stay the engine's: per-word
    editing would need word addressing and is a later, separate decision.
-3. **Transpose** — a chord-level transpose whose window keeps every label in
-   `CHORD_QUALITY_SUFFIX` form.
-4. **Chord simplification** — drop slash/extension noise, keep a quality legend.
+3. ~~**Transpose**~~ **(done, 2026-10-13)** — "Transpose all chords..." asks
+   for the semitone offset (-11..+11; a cancelled dialog changes nothing) and
+   pushes a `TransposeDocument` command; every re-rendered label stays in
+   `CHORD_QUALITY_SUFFIX` form (slash chords transpose the bass too). The
+   transform acts on the *effective* layer (originals preserved underneath)
+   and rides the same tape as the per-chord edits: one `Ctrl+Z` takes a whole
+   song's transpose back like any other edit, and `Ctrl+S` persists it.
+   The flag-first workflow is on the CLI: `songlab export --transpose N`.
+4. ~~**Chord simplification**~~ **(done, 2026-10-13)** — "Simplify all chords"
+   pushes a `SimplifyDocument` command built on the tested
+   `contract_chord_label()` reduction (extensions/alterations drop to the
+   plain triad or seventh, slash basses are removed); the same transform is
+   reachable as `songlab export --simplify`.
 5. **Export dialogs** — JSON of the canonical document, ChordPro, lyric lyrics,
-   plain text.
+   plain text. The exporters themselves are done (`export/`: `render_json`,
+   `render_chordpro`, `render_markdown`) and reachable from the CLI
+   (`songlab export`, JSON/ChordPro/Markdown, honouring the saved sidecar and
+   the `--transpose`/`--simplify` flags); what remains `[F]` is only the
+   window's Save-Export dialog presenting these formats.
 6. **Confidence/engine panels** — per-chord confidence (from the engine), the
    `Engines`/`Warnings` rows of the summary panel.
 7. **Translations** — the `i18n/` package (phase 17) feeding a language menu;

@@ -783,22 +783,25 @@ In-place mutation of engine output; edits lost on reload; no undo.
 
 **Objective:** musically useful transformations and export of the analysis.
 
-**Current status:** `[~]` — `transpose_chord_label()` /
-`transpose_note_name()` already exist as tested library functions; nothing
-user-facing uses them; `export/` is an empty package; JSON export exists only
-as `analyze --json`.
+**Current status:** `[x]` — **Delivered 2026-10-13.** Library transposition plus
+the whole-document `TransposeDocument` / `SimplifyDocument` commands in
+`app/editing.py` (GUI "Transpose all chords..." / "Simplify all chords" and the
+CLI's flag-first `songlab export --transpose/--simplify`, both riding the edit
+tape), and the `export/` package with `songlab export` (JSON / ChordPro /
+Markdown) that honours the saved sidecar so what is exported is what was
+edited.
 
 ### Tasks
 
 - [x] Library-level transposition (`normalization/chords.py`)
-- [ ] Transpose workflow: apply semitone offset to the whole document (CLI flag
+- [x] Transpose workflow: apply semitone offset to the whole document (CLI flag
   first, GUI control after); chords displayed/transposed, originals preserved
-- [ ] Chord simplification: reduce extensions/alterations to simpler voicings
-  (define the reduction table, test it, expose as a workflow) — check
-  `evaluation/chords.py` `triad_reduce` before writing anything new
-- [ ] `songlab export` command with formats: canonical JSON (exists), ChordPro,
+- [x] Chord simplification: reduce extensions/alterations to simpler voicings
+  (define the reduction table, test it, expose as a workflow) — reduced on top
+  of the documented `contract_chord_label()` table in `normalization/chords.py`
+- [x] `songlab export` command with formats: canonical JSON (exists), ChordPro,
   simple Markdown/tabular; exporters live in `export/`, never in the model
-- [ ] Round-trip tests: export → parse → same data
+- [x] Round-trip tests: export → parse → same data
 
 ### Acceptance criteria
 

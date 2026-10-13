@@ -14,7 +14,9 @@
 **Language:** Python 3.10+ (developed on 3.13, Linux), core has **zero required dependencies**
 **Target platforms:** Linux, Windows, macOS
 **GUI:** PyQt6 behind the optional `gui` extra — the minimal window exists
-(`songlab gui`, roadmap Phase D, 2026-10-08); editing/lyrics/exports in it do not
+(`songlab gui`, roadmap Phase D, 2026-10-08); the `[F]` features landed phase by
+phase after it (lyrics view, editing, transpose/simplify and `songlab export` —
+see `docs/GUI_REQUIREMENTS.md` for what is still open).
 
 ---
 
@@ -133,6 +135,16 @@ Phase C display work landed **2026-10-07**, the Phase D window landed
 - Tests: **1340 passed / 57 skipped** (core `.venv`), **1395 passed / 2
   skipped** (DSP + GUI `.venv-chords`); `ruff check`, `ruff format --check` (118
   files), `mypy` (71 files) all green.
+- **Phase H transforms + export (2026-10-13):**
+  - `app/editing.py` — `TransposeDocument` / `SimplifyDocument` over the
+    effective layer, on the same tape as the per-chord edits (undo, redo and
+    sidecar persistence come for free).
+  - `gui/main_window.py` — "Transpose all chords..." (-11..+11 dialog) and
+    "Simplify all chords" on the Edit toolbar.
+  - `export/` — `render_json` / `render_chordpro` / `render_markdown` and
+    `export_document()`; `cli/commands/export.py` exposes the flag-first
+    `songlab export` (sidecar edits fold in, `--transpose/--simplify` last).
+  - Tests: round-trip export → parse and unit suites for the two commands.
 
 ### Partially implemented
 
@@ -147,10 +159,14 @@ Phase C display work landed **2026-10-07**, the Phase D window landed
   widgets are driven offscreen, but nothing here has been run by hand on
   Windows or macOS (no claim is made about them beyond the shared code path).
 - **Chord confidence**: field exists, baseline engine reports `unknown`.
-- **Transpose**: `transpose_chord_label()` / `transpose_note_name()` exist as
-  library functions only — no user-facing workflow.
-- **JSON export**: only `analyze --json`; `export/` package is an empty
-  placeholder (`__init__.py` only). Same for `alignment/`, `fusion/`, `i18n/`.
+- **Transpose / simplify / export (Phase H, 2026-10-13)**: `TransposeDocument`
+  and `SimplifyDocument` commands in `app/editing.py` ride the same tape as the
+  per-chord edits; the window pitches them as "Transpose all chords..." (a
+  -11..+11 dialog) and "Simplify all chords". `export/` now has
+  `render_json` / `render_chordpro` / `render_markdown`, and `songlab export`
+  writes JSON / ChordPro / Markdown from the effective layer — sidecar edits
+  included, `--transpose`/`--simplify` applied last so the flags reflect the
+  same workflow the GUI uses.
 
 ### Research only (measured, recorded, NOT wired into the product)
 
@@ -166,9 +182,12 @@ Phase C display work landed **2026-10-07**, the Phase D window landed
 
 ### Planned / not started (product path)
 
-- The window's `[F]` features: lyrics display, editing with undo/redo,
-  transpose, chord simplification, export dialogs, confidence/engine panels,
-  translations (`docs/GUI_REQUIREMENTS.md`).
+- The window's `[F]` features: export dialogs, confidence/engine panels,
+  translations (`docs/GUI_REQUIREMENTS.md`; landed already: the lyrics view
+  2026-10-09, chord and lyric editing with undo/redo and persistence
+  2026-10-10..12, transpose + chord simplification 2026-10-13). Each item is
+  small enough to land on its own and every one of them needs an `app/`
+  presenter with offscreen tests.
 - Lyrics engine integration (Phase E), synchronized lyrics, packaging.
 - A Qt Multimedia `Player` backend: the window currently drives the session's
   `sounddevice` player, which is deliberate (one audio path) but is still the
@@ -354,29 +373,25 @@ are obsolete).
 
 ## Immediate Next Task — complete, recorded for the next session
 
-**Phase E was completed 2026-10-08.** It is no longer the next task: the
-lyrics engine is a registered, optional extra (`ParakeetLyricsEngine`, via
-`onnx-asr`, MIT runtime / CC-BY-4.0 weights), chunked at 20 s, flow through
-`run_analysis()`, `songlab lyrics` and both front ends, and structurally
-verified on `samples/vocadito_6.wav` (real weights, real voice).
+**Phase H was completed 2026-10-13.** It is no longer the next task: the
+whole-document transforms and the export package are in. Use it as the
+reference for the session that wants to continue here (`ROADMAP.md` §9
+tracks the completion in the same change):
 
-Use it as the reference for the session that wants to continue here
-(`ROADMAP.md` §7 tracks the completion in the same change):
-
-* `engines/lyrics_parakeet.py` (engine + `Transcriber` seam, `is_available()`
-  honest, model download stays out of the repository),
-* `engines/lyrics_chunking.py` (windowing, timestamp reassembly, the
-  documented "earlier window wins" overlap rule),
-* `cli/commands/lyrics.py` (`songlab lyrics`, `--engine NAME`, `--chunk-`*
-  `--start`/`--end`/`--language`/`--no-words`),
-* `analysis/service.py` (lyrics step, same skipped/failed handling as the
-  other layers),
-* `utils/text.py` (the English agreement helper shared by the two front ends),
-* `tests/integration/test_lyrics_integration.py` and the `test_lyrics_*.py`
-  units (injected transcriber, real decode + windows on a generated song,
-  structural honesty only on the committed sample),
-* `pyproject.toml` (optional `lyrics` extra), `ROADMAP.md` §7, the docs
-  (`ENGINE_COMPARISON.md`, `DEPENDENCY_MATRIX.md`, `GUI_REQUIREMENTS.md`).
+* `app/editing.py` — `TransposeDocument` (semitone offset over the effective
+  chord layer, bass incl., labels re-rendered in `CHORD_QUALITY_SUFFIX` form)
+  and `SimplifyDocument` (built on the tested `contract_chord_label()`
+  reduction table) — both ordinary commands on the same tape, so undo/redo and
+  sidecar persistence need no new machinery,
+* `gui/main_window.py` — "Transpose all chords..." (a -11..+11 dialog, a
+  cancelled one changes nothing) and "Simplify all chords" on the Edit toolbar,
+* `export/` — `render_json` / `render_chordpro` / `render_markdown` plus
+  `export_document()`; exporters never live in the model,
+* `cli/commands/export.py` — `songlab export` (JSON / ChordPro / Markdown) that
+  folds the saved sidecar into what it writes and applies `--transpose N` /
+  `--simplify` last, so the CLI reflects exactly what the GUI shows,
+* round-trip tests (`tests/unit/test_export.py`, `test_export_command.py`),
+* `ROADMAP.md` §9 and the docs (`GUI_REQUIREMENTS.md`, this file).
 
 The gate for this work is known and unforgiving (same as every phase):
 `.venv/bin/ruff check . --output-format=concise`, `.venv/bin/ruff format --check`,
@@ -388,12 +403,12 @@ then the signed commit goes out.
 
 **What remains open (and what is not the next task):**
 
-* The `[F]` GUI list in `docs/GUI_REQUIREMENTS.md` — transpose, chord
-  simplification, export dialogs, confidence/engine panels, translations
+* The `[F]` GUI list in `docs/GUI_REQUIREMENTS.md` — export dialogs,
+  confidence/engine panels, translations
   (landed already: the lyrics view 2026-10-09, chord and lyric editing with
-  undo/redo and persistence 2026-10-10..12). Each item is small enough to
-  land on its own and every one of them needs an `app/` presenter with
-  offscreen tests.
+  undo/redo and persistence 2026-10-10..12, transpose + chord simplification
+  2026-10-13). Each item is small enough to land on its own and every one of
+  them needs an `app/` presenter with offscreen tests.
 * **Confidence per chord + the JSON contract** — the `lyrics` step carries
   `unknown` confidence and the canonical `EngineResult` ships a `lyrics` field;
   exposing that honestly per position in the window is `[F]` work, not more

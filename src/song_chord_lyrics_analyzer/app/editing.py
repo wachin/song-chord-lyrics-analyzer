@@ -51,6 +51,7 @@ from song_chord_lyrics_analyzer.models.music import (
     ChordEvent,
     ChordQuality,
 )
+from song_chord_lyrics_analyzer.normalization.chords import transpose_note_name
 from song_chord_lyrics_analyzer.utils.errors import InputError
 
 __all__ = [
@@ -63,12 +64,16 @@ __all__ = [
     "InsertLyric",
     "LyricCommand",
     "MERGE_SOURCE",
+    "SIMPLIFY_SOURCE",
+    "TRANSPOSE_SOURCE",
     "USER_SOURCE",
     "MergeChords",
     "SetChordLabel",
     "SetLyricText",
     "SetLyricTiming",
+    "SimplifyChords",
     "SplitChord",
+    "TransposeChords",
     "TrimChord",
     "effective_chords",
     "effective_lyrics",
@@ -79,6 +84,12 @@ USER_SOURCE = "user"
 
 #: Provenance source of an event produced by merging two or more.
 MERGE_SOURCE = "user-merge"
+
+#: Provenance source of an event rewritten by a document-level transpose.
+TRANSPOSE_SOURCE = "user-transpose"
+
+#: Provenance source of an event rewritten by the simplification table.
+SIMPLIFY_SOURCE = "user-simplify"
 
 #: Suffixes the label parser accepts, mapped to their quality. Keeping the
 #: table small is deliberate: it edits what the engines produce (triads,
@@ -405,6 +416,104 @@ def _inserted(events: Sequence[ChordEvent], at: float, label: str, end: float | 
                 hint="Insert only into uncovered time, scoped by the split or trim.",
             )
     return inserted
+
+
+# -- document-level transforms (Phase H) ----------------------------------
+
+
+@dataclass(frozen=True)
+class TransposeChords(ChordCommand):
+    """Rewrite every editable event of the whole layer by ``semitones``.
+
+    The whole-layer re-labelling the roadmap calls the transpose workflow:
+    timing, confidence and metadata are untouched, roots and slash basses
+    move, and provenance is stamped ``source="user-transpose"``. Silence,
+    unrecognised (``OTHER``/``UNKNOWN``) and evidence-less events are left
+    exactly as the analysis produced them - transposing them would *invent*
+    the interpretation the engine never claimed (the same rule
+    :func:`~normalization.chords.transpose_chord_label` runs on). Applying it
+    twice moves by ``2 * semitones``, so undo is simply the opposite offset -
+    no snapshots on the tape.
+    """
+
+    semitones: int
+
+    def __post_init__(self) -> None:
+        if not -11 <= self.semitones <= 11:
+            raise InputError(
+                f"semitones must be within -11..+11, got {self.semitones!r}",
+                hint="An octave is the same music; use the in-octave offset.",
+            )
+        if self.semitones == 0:
+            raise InputError("A transpose of 0 semitones changes nothing.")
+
+    def apply(self, events: Sequence[ChordEvent]) -> list[ChordEvent]:
+        out: list[ChordEvent] = []
+        for event in events:
+            editable = (
+                event.root is not None
+                and event.quality is not ChordQuality.NO_CHORD
+                # Unrecognised evidence is un-transposable by the same rule the
+                # library transpose runs on: rewriting a raw label would invent
+                # precision the engine never claimed ("B13b9" stays "B13b9").
+                and event.quality is not ChordQuality.OTHER
+                and event.quality is not ChordQuality.UNKNOWN
+            )
+            if not editable:
+                out.append(event)
+                continue
+            edited = _user_version(
+                event,
+                root=transpose_note_name(event.root, self.semitones),  # type: ignore[arg-type]
+                bass=(
+                    transpose_note_name(event.bass, self.semitones)
+                    if event.bass is not None
+                    else None
+                ),
+            )
+            edited.source = TRANSPOSE_SOURCE
+            out.append(edited)
+        return out
+
+
+#: The simplification table (roadmap Phase H): qualities reduced to the
+#: triad underneath them. Extensions and alterations collapse; voicings that
+#: already are triads (susensions, dim, aug) and evidence without a parsed
+#: quality are deliberately untouched. Documented and tested together so the
+#: table is a decision, not an accident.
+_SIMPLIFICATION: dict[ChordQuality, ChordQuality] = {
+    ChordQuality.DOMINANT7: ChordQuality.MAJOR,
+    ChordQuality.MAJOR7: ChordQuality.MAJOR,
+    ChordQuality.ADD9: ChordQuality.MAJOR,
+    ChordQuality.SIXTH: ChordQuality.MAJOR,
+    ChordQuality.NINTH: ChordQuality.MAJOR,
+    ChordQuality.MINOR7: ChordQuality.MINOR,
+    ChordQuality.MINOR_SIXTH: ChordQuality.MINOR,
+    ChordQuality.MINOR_NINTH: ChordQuality.MINOR,
+}
+
+
+@dataclass(frozen=True)
+class SimplifyChords(ChordCommand):
+    """Collapse extensions/alterations to the triad the table declares.
+
+    ``Am7`` becomes ``Am``, ``Cmaj7`` becomes ``C``; suspensions, dim, aug
+    and unrecognised evidence stay verbatim. Timing and confidence are kept;
+    provenance is stamped ``source="user-simplify"``. Idempotent: applying it
+    to an already-triad layer changes nothing.
+    """
+
+    def apply(self, events: Sequence[ChordEvent]) -> list[ChordEvent]:
+        out: list[ChordEvent] = []
+        for event in events:
+            reduced = _SIMPLIFICATION.get(event.quality)
+            if reduced is None:
+                out.append(event)
+                continue
+            edited = _user_version(event, quality=reduced)
+            edited.source = SIMPLIFY_SOURCE
+            out.append(edited)
+        return out
 
 
 # -- the lyric layer ------------------------------------------------------

@@ -19,6 +19,7 @@ from song_chord_lyrics_analyzer.cli.commands import (
     benchmark,
     chords,
     doctor,
+    export,
     gui,
     info,
     lyrics,
@@ -39,6 +40,7 @@ Commands:
   lyrics     transcribe lyrics with word-level timestamps (needs the "lyrics" extra)
   analyze    run the full pipeline and assemble the canonical document
   play       play an audio file and watch the chord under the playhead change
+  export     export the analysis of a song (JSON, ChordPro, Markdown)
   gui        open the desktop window (needs the optional "gui" extra)
   benchmark  score benchmark cases, optionally running an engine
 
@@ -46,7 +48,6 @@ Planned commands (added phase by phase, see ROADMAP.md):
   compare   compare several engines on the same song
   separate  separate the mix into stems
   fuse      combine engine results into one consensus analysis
-  export    export the canonical document (JSON, ChordPro, ...)
 
 Environment variables:
   SONGLAB_FFMPEG, SONGLAB_FFPROBE   explicit paths to the FFmpeg tools
@@ -167,6 +168,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     play.add_arguments(play_parser)
     play_parser.set_defaults(handler=play.run)
+
+    export_parser = subparsers.add_parser(
+        "export",
+        help="export the analysis of a song (JSON, ChordPro, Markdown)",
+        description=(
+            "Export the analysis of one audio file (roadmap Phase H) from the "
+            "canonical document: JSON keeps everything, ChordPro places the "
+            "chords over the words, Markdown is a readable sheet. A saved "
+            "edits sidecar next to the audio file (what the GUI writes) is "
+            "folded in first, so the export matches what the user sees, "
+            "transposed or simplified chords included."
+        ),
+    )
+    export.add_arguments(export_parser)
+    export_parser.set_defaults(handler=export.run)
 
     gui_parser = subparsers.add_parser(
         "gui",

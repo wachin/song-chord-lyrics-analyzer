@@ -1195,6 +1195,106 @@ class TestDrawing:
         assert player.closed is True
 
 
+class TestDocumentTransforms:
+    """Phase H in the window: the whole-document chord transforms.
+
+    As with the Phase G menus, the dialog and menus themselves are never
+    opened; the tests perform the chosen command through
+    ``apply_transform_choice`` and read what a user would see through
+    ``transform_menu_entries`` - the same calls the wiring makes between them.
+    """
+
+    def _labels(self, window: MainWindow) -> list[str]:
+        return [band.label for band in window.timeline.bands]
+
+    def test_both_transforms_are_offered_on_an_open_song(self, window: MainWindow) -> None:
+        assert window.transform_menu_entries() == (
+            ("Transpose all chords...", "transpose", True),
+            ("Simplify all chords", "simplify", True),
+        )
+
+    def test_nothing_is_offered_before_the_first_open(self, qt_app: object, wav: Path) -> None:
+        # A session built but not shown/opened by the window yet: the edits
+        # stack only exists once a file is opened.
+        session, _player, _clock = opened_session(wav)
+        fresh = MainWindow(session=session)
+
+        assert fresh.transform_menu_entries() == ()
+        assert fresh.apply_transform_choice("simplify") is False
+
+    def test_transpose_rewrites_every_band(self, window: MainWindow) -> None:
+        assert window.apply_transform_choice_with_semitones(2) is True
+
+        assert self._labels(window) == ["D", "A", "N", "G"]
+
+    def test_a_cancelled_transpose_changes_nothing(self, window: MainWindow) -> None:
+        # A semitone value of ``None`` stands in for a cancelled dialog.
+        assert window.apply_transform_choice_with_semitones(None) is False
+
+        assert self._labels(window) == ["C", "G", "N", "F"]
+
+    def test_a_rejected_offset_is_reported_and_the_tape_untouched(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        reported: list[str] = []
+        monkeypatch.setattr(window, "_report", lambda error: reported.append(error.message))
+
+        assert window.apply_transform_choice_with_semitones(12) is False
+        assert reported and "-11..+11" in reported[0]
+        assert window.edits is not None and len(window.edits) == 0
+        assert self._labels(window) == ["C", "G", "N", "F"]
+
+    def test_simplify_collapses_the_layer(self, window: MainWindow) -> None:
+        assert window.apply_transform_choice("simplify") is True
+
+        # The fake layer is already triads, so the labels stay - but the tape
+        # records the command and provenance proves it ran.
+        assert self._labels(window) == ["C", "G", "N", "F"]
+        assert window.edits is not None and len(window.edits) == 1
+
+    def test_unknown_choice_is_a_no_op(self, window: MainWindow) -> None:
+        assert window.apply_transform_choice("nonsense") is False
+        assert window.edits is not None and len(window.edits) == 0
+
+    def test_an_undone_transform_restores_the_engine_layer(self, window: MainWindow) -> None:
+        window.apply_transform_choice_with_semitones(2)
+        assert window.undo_edit() is True
+
+        assert self._labels(window) == ["C", "G", "N", "F"]
+
+    def test_the_transforms_share_the_undo_and_redo_tape(self, window: MainWindow) -> None:
+        window.apply_transform_choice_with_semitones(2)
+        window.apply_transform_choice("simplify")
+        assert window.edits is not None and len(window.edits) == 2
+
+        # One Ctrl+Z takes the simplify back, another the transpose.
+        assert window.undo_edit() is True
+        assert window.undo_edit() is True
+        assert self._labels(window) == ["C", "G", "N", "F"]
+
+        # Redo walks the same commands back on, one per keystroke (the tape
+        # had two, the undone two are one redo each).
+        assert window.redo_edit() is True
+        assert window.edits is not None and len(window.edits) == 1
+
+    def test_the_transforms_are_covered_by_the_close_prompt(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A transposed tape counts as unsaved work, exactly like an edit."""
+        window.apply_transform_choice_with_semitones(2)
+        asked: list[str] = []
+
+        def _record(*args: object, **kwargs: object) -> object:
+            asked.append("asked")
+            return QtWidgets.QMessageBox.StandardButton.Discard
+
+        monkeypatch.setattr(QtWidgets.QMessageBox, "question", _record)
+        # A hidden widget's close() sends no event; drive closeEvent directly.
+        window.closeEvent(QtGui.QCloseEvent())
+
+        assert asked == ["asked"]
+
+
 class TestLaunch:
     def test_launching_without_a_file_opens_an_empty_window_and_returns(
         self, qt_app: object

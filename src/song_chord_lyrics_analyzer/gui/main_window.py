@@ -63,7 +63,9 @@ from song_chord_lyrics_analyzer.app.editing import (
     SetChordLabel,
     SetLyricText,
     SetLyricTiming,
+    SimplifyChords,
     SplitChord,
+    TransposeChords,
     TrimChord,
 )
 from song_chord_lyrics_analyzer.app.persistence import (
@@ -228,6 +230,15 @@ class MainWindow(QMainWindow):
         self._redo_action.setShortcut(QKeySequence.StandardKey.Redo)
         self._redo_action.triggered.connect(self.redo_edit)
 
+        # Phase H: the whole-document transforms ride the same tape as the
+        # per-chord edits - one Ctrl+Z takes a transpose back like any other
+        # edit, and Ctrl+S persists it to the sidecar.
+        self._transpose_action = QAction("Transpose chords...", self)
+        self._transpose_action.triggered.connect(self.transpose_chords)
+
+        self._simplify_action = QAction("Simplify chords", self)
+        self._simplify_action.triggered.connect(self.simplify_chords)
+
         toolbar = self.addToolBar("Transport")
         assert toolbar is not None  # always created by QMainWindow
         toolbar.setMovable(False)
@@ -240,6 +251,12 @@ class MainWindow(QMainWindow):
             self._forward_action,
         ):
             toolbar.addAction(action)
+
+        edit_menu = self.addToolBar("Edit")
+        assert edit_menu is not None
+        edit_menu.setMovable(False)
+        edit_menu.addAction(self._transpose_action)
+        edit_menu.addAction(self._simplify_action)
 
     def _build_widgets(self) -> None:
         self._chord_label = QLabel("--")
@@ -556,6 +573,12 @@ class MainWindow(QMainWindow):
                 action.setEnabled(enabled)
                 choices[action] = key
         menu.addSeparator()
+        for label, key, enabled in self.transform_menu_entries():
+            action = menu.addAction(label)
+            if action is not None:
+                action.setEnabled(enabled)
+                choices[action] = key
+        menu.addSeparator()
         assert self._undo_action is not None and self._redo_action is not None
         menu.addAction(self._undo_action)
         menu.addAction(self._redo_action)
@@ -563,7 +586,98 @@ class MainWindow(QMainWindow):
         if chosen is not None:
             picked = choices.get(chosen)
             if picked is not None:
+                if picked in ("transpose", "simplify"):
+                    self.apply_transform_choice(picked)
+                else:
+                    self.apply_edit_choice(picked, position)
+        if chosen is not None:
+            picked = choices.get(chosen)
+            if picked is not None:
                 self.apply_edit_choice(picked, position)
+
+    # -- document-level transforms (Phase H) -------------------------------
+
+    def transform_menu_entries(self) -> tuple[tuple[str, str, bool], ...]:
+        """The whole-document chords transforms as ``(label, choice, enabled)``.
+
+        One row per Phase H transform; both act on the entire effective chord
+        layer, so both are enabled whenever a song is open - even on an empty
+        layer, where a transpose is a no-op worth allowing (it still lands on
+        the tape and costs one Ctrl+Z to take back). Tests read this tuple to
+        assert what a user would see, without ever opening a menu.
+        """
+        if self._edits is None:
+            return ()
+        return (
+            ("Transpose all chords...", "transpose", True),
+            ("Simplify all chords", "simplify", True),
+        )
+
+    def apply_transform_choice(self, choice: str) -> bool:
+        """Perform one whole-document chord transform; ``False`` if unknown.
+
+        "transpose" asks for the semitone offset (-11..+11) first (a cancelled
+        dialog changes nothing); "simplify" pushes straight away. The commands
+        go on the same tape as the per-chord edits, so undo/redo and Ctrl+S
+        cover them with nothing new to wire.
+
+        Args:
+            choice: ``"transpose"`` or ``"simplify"``.
+
+        Returns:
+            ``True`` when a transform was applied (or the dialog accepted).
+        """
+        if self._edits is None:
+            return False
+        if choice == "transpose":
+            return self.transpose_chords()
+        if choice == "simplify":
+            return self._push_transform(SimplifyChords())
+        return False
+
+    def _push_transform(self, command: EditCommand) -> bool:
+        """Push one transform command onto the tape and redraw; report failures."""
+        try:
+            self._edits.push(command)  # type: ignore[union-attr]
+        except SongLabError as error:
+            self._report(error)
+            return False
+        self._after_edit()
+        return True
+
+    def transpose_chords(self) -> bool:
+        """The Transpose action: ask for the semitones, push the command."""
+        semitones, accepted = QInputDialog.getInt(
+            self,
+            "Transpose chords",
+            "Semitones to transpose every chord by (-11..+11):",
+            value=0,
+            min=-11,
+            max=11,
+        )
+        if not accepted:
+            return False
+        return self.apply_transform_choice_with_semitones(semitones)
+
+    def apply_transform_choice_with_semitones(self, semitones: int | None) -> bool:
+        """The transpose path with the dialog pre-answered (or cancelled).
+
+        The same validation and reporting as the interactive transpose - the
+        dialog result is simply given instead of asked, which is what lets a
+        headless test drive the real code path.
+        """
+        if semitones is None:  # a cancelled dialog
+            return False
+        try:
+            command = TransposeChords(semitones)
+        except SongLabError as error:  # an offset the command itself rejects
+            self._report(error)
+            return False
+        return self._push_transform(command)
+
+    def simplify_chords(self) -> bool:
+        """The Simplify action: push the command straight away."""
+        return self.apply_transform_choice("simplify")
 
     # -- lyric editing (Phase G) -------------------------------------------
 

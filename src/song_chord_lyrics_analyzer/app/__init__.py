@@ -20,7 +20,11 @@ from song_chord_lyrics_analyzer.app.display import (
     render_frame,
 )
 from song_chord_lyrics_analyzer.app.lyrics_view import lyric_at, lyric_lines, word_at
-from song_chord_lyrics_analyzer.app.session import SessionSnapshot, SongSession
+from song_chord_lyrics_analyzer.app.session import (
+    ProgressReporter,
+    SessionSnapshot,
+    SongSession,
+)
 from song_chord_lyrics_analyzer.app.summary import SummaryRow, summarize
 from song_chord_lyrics_analyzer.app.timeline import (
     ChordBand,
@@ -34,6 +38,7 @@ __all__ = [
     "ChordBand",
     "ConsoleDisplay",
     "DisplayFrame",
+    "ProgressReporter",
     "SessionSnapshot",
     "SongSession",
     "SummaryRow",

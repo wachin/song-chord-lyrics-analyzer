@@ -17,15 +17,21 @@ playing anything at all (which is also how the CI checks this command).
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
+from song_chord_lyrics_analyzer.analysis import ProgressEvent, validate_windowing_options
 from song_chord_lyrics_analyzer.app import (
     DEFAULT_REFRESH_INTERVAL,
     ConsoleDisplay,
+    ProgressReporter,
     SongSession,
     follow,
 )
-from song_chord_lyrics_analyzer.cli.commands.analyze import parse_engine_overrides
+from song_chord_lyrics_analyzer.cli.commands.analyze import (
+    format_progress,
+    parse_engine_overrides,
+)
 from song_chord_lyrics_analyzer.models.analysis import AnalysisResult
 from song_chord_lyrics_analyzer.utils.errors import InputError
 from song_chord_lyrics_analyzer.utils.time import format_timestamp
@@ -77,6 +83,37 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="skip the SHA-256 of the input in provenance (faster on large files)",
     )
+    parser.add_argument(
+        "--chord-chunk-seconds",
+        type=float,
+        default=None,
+        metavar="SECONDS",
+        help=(
+            "analyse chords in windows of this length instead of one whole-file "
+            "pass (long songs; default: off)"
+        ),
+    )
+    parser.add_argument(
+        "--chord-overlap-seconds",
+        type=float,
+        default=0.0,
+        metavar="SECONDS",
+        help="how much neighbouring chord windows share (default: 0)",
+    )
+    parser.add_argument(
+        "--progress",
+        action="store_true",
+        help="print one line per step and per chord window on standard error",
+    )
+
+
+def _progress_printer() -> ProgressReporter:
+    """A reporter that writes progress to standard error, never to stdout."""
+
+    def report(event: ProgressEvent) -> None:
+        print(format_progress(event), file=sys.stderr)
+
+    return report
 
 
 def format_header(document: AnalysisResult, path: Path, duration: float) -> str:
@@ -110,6 +147,9 @@ def _validate(args: argparse.Namespace) -> None:
         )
     if args.frames is not None and args.frames < 1:
         raise InputError(f"--frames must be at least 1, got {args.frames!r}")
+    # The same rule the analysis service applies, checked here so a typo in the
+    # windowing flags is reported before the file is decoded.
+    validate_windowing_options(args.chord_chunk_seconds, args.chord_overlap_seconds)
 
 
 def run(args: argparse.Namespace) -> int:
@@ -122,6 +162,9 @@ def run(args: argparse.Namespace) -> int:
             args.audio,
             engines=overrides,
             input_hash=not args.no_hash,
+            chord_chunk_seconds=args.chord_chunk_seconds,
+            chord_overlap_seconds=args.chord_overlap_seconds,
+            on_progress=_progress_printer() if args.progress else None,
         )
         display = ConsoleDisplay(inline=not args.no_inline)
 

@@ -74,6 +74,14 @@ CLI, the engine or the session.
    timestamps exist. Presenters: `app/lyrics_view.py` (`lyric_lines`,
    `lyric_at`, `word_at`); widget: `gui/lyrics_view.py`; bind: the window's
    `open_file`/`refresh`.
+   **External lyric bases (Phase F) 2026-10-14**: the Edit menu's "Load
+   lyrics from file..." (Ctrl+L) parses a `.lrc`/`.srt` file with the shared
+   `alignment/` package and swaps the tape's lyric base
+   (`with_lyric_base`): the file wins over the engine transcription, the old
+   tape's lyric commands go out with the base they addressed, chord work
+   stays undoable, and the new base is saved to the Phase G sidecar by
+   `Ctrl+S` like any other edit. The same parse backs `songlab analyze
+   --lyrics-from FILE`.
 2. ~~**Chord/lyric editing**~~ **(done, 2026-10-12)** — chords first, 2026-10-10 with persistence
    2026-10-11: `app/editing.py` holds the command tape (`SetChordLabel`,
    `SplitChord`, `MergeChords`, `TrimChord`, `DeleteChord`, `InsertChord`,

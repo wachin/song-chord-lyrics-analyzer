@@ -11,17 +11,30 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections.abc import Sequence
+import sys
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
-from song_chord_lyrics_analyzer.analysis import SUPPORTED_KINDS, AnalysisOutcome, run_analysis
+from song_chord_lyrics_analyzer.analysis import (
+    SUPPORTED_KINDS,
+    AnalysisOutcome,
+    ProgressEvent,
+    run_analysis,
+    with_lyrics_from_timed_text,
+)
 from song_chord_lyrics_analyzer.app.summary import lyrics_label
 from song_chord_lyrics_analyzer.models.analysis import AnalysisResult
 from song_chord_lyrics_analyzer.performance import real_time_factor
 from song_chord_lyrics_analyzer.schema.codec import encode
 from song_chord_lyrics_analyzer.utils.errors import InputError
 
-__all__ = ["add_arguments", "format_report", "parse_engine_overrides", "run"]
+__all__ = [
+    "add_arguments",
+    "format_progress",
+    "format_report",
+    "parse_engine_overrides",
+    "run",
+]
 
 
 def add_arguments(parser: argparse.ArgumentParser) -> None:
@@ -36,6 +49,39 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
             "use this engine for one layer, e.g. --engine chords=chroma-baseline "
             "(repeatable; layers without an override use the first available engine)"
         ),
+    )
+    parser.add_argument(
+        "--lyrics-from",
+        type=Path,
+        default=None,
+        metavar="FILE",
+        help=(
+            "take the lyrics from a timed-text file (.lrc/.srt) instead of the "
+            "lyrics engine; the file wins over any engine transcription"
+        ),
+    )
+    parser.add_argument(
+        "--chord-chunk-seconds",
+        type=float,
+        default=None,
+        metavar="SECONDS",
+        help=(
+            "analyse chords in windows of this length instead of one whole-file "
+            "pass (roadmap Phase K: long songs, which otherwise hold the whole "
+            "decode and its chroma in memory at once; default: off)"
+        ),
+    )
+    parser.add_argument(
+        "--chord-overlap-seconds",
+        type=float,
+        default=0.0,
+        metavar="SECONDS",
+        help="how much neighbouring chord windows share (default: 0)",
+    )
+    parser.add_argument(
+        "--progress",
+        action="store_true",
+        help="print one line per step and per chord window on standard error",
     )
     parser.add_argument(
         "--json",
@@ -78,6 +124,24 @@ def parse_engine_overrides(values: Sequence[str] | None) -> dict[str, str]:
             )
         overrides[kind] = name.strip()
     return overrides
+
+
+def format_progress(event: ProgressEvent) -> str:
+    """One progress line: the service's own ``detail`` when it computed one."""
+    return f"{event.kind}: {event.detail}" if event.detail else f"{event.kind}: {event.engine}"
+
+
+def _progress_printer() -> Callable[[ProgressEvent], None]:
+    """A reporter that writes progress to standard error.
+
+    Progress must never pollute the document ``--json`` prints on stdout, so
+    every line goes to stderr, which is also what a pipeline expects.
+    """
+
+    def report(event: ProgressEvent) -> None:
+        print(format_progress(event), file=sys.stderr)
+
+    return report
 
 
 def _format_confidence(document: AnalysisResult) -> str:
@@ -162,7 +226,12 @@ def run(args: argparse.Namespace) -> int:
         args.audio,
         engines=parse_engine_overrides(args.engine),
         input_hash=not args.no_hash,
+        chord_chunk_seconds=args.chord_chunk_seconds,
+        chord_overlap_seconds=args.chord_overlap_seconds,
+        on_progress=_progress_printer() if args.progress else None,
     )
+    if args.lyrics_from is not None:
+        outcome = with_lyrics_from_timed_text(outcome, args.lyrics_from)
     if args.json:
         print(json.dumps(encode(outcome.result), indent=2, ensure_ascii=False))
         return 0

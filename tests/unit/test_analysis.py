@@ -17,11 +17,15 @@ import pytest
 from fixtures.audio import write_sine_wav
 from fixtures.fake_chord_engine import FakeChordEngine
 from fixtures.fake_key_tempo_engines import FakeKeyEngine, FakeLyricsEngine, FakeTempoEngine
-from song_chord_lyrics_analyzer.analysis import StepStatus, run_analysis
+from song_chord_lyrics_analyzer.analysis import (
+    StepStatus,
+    run_analysis,
+    with_lyrics_from_timed_text,
+)
 from song_chord_lyrics_analyzer.cli.main import main
 from song_chord_lyrics_analyzer.engines import EngineRegistry
 from song_chord_lyrics_analyzer.models.analysis import RunStatus
-from song_chord_lyrics_analyzer.utils.errors import DependencyError
+from song_chord_lyrics_analyzer.utils.errors import DependencyError, InputError
 
 #: Sentinel for "register the default fake"; ``None`` means "register nothing
 #: for that layer", which is how the missing-layer behaviour is tested.
@@ -180,8 +184,8 @@ class TestAnalyzeCommand:
         registry = _registry(**kwargs)
         real = run_analysis
 
-        def _fake(audio_path: Path, *, engines=None, input_hash: bool = True):
-            return real(audio_path, registry=registry, engines=engines, input_hash=input_hash)
+        def _fake(audio_path: Path, **options):
+            return real(audio_path, registry=registry, **options)
 
         monkeypatch.setattr("song_chord_lyrics_analyzer.cli.commands.analyze.run_analysis", _fake)
         return registry
@@ -261,3 +265,124 @@ class TestAnalyzeCommand:
         self._patch(monkeypatch)
         assert main(["analyze", str(_audio(tmp_path)), "--engine", "chords=nope"]) == 2
         assert "Unknown chords engine" in capsys.readouterr().err
+
+    def test_lyrics_from_flag_takes_the_lyrics_from_a_lrc_file(
+        self, tmp_path: Path, capsys, monkeypatch
+    ) -> None:
+        self._patch(monkeypatch)
+        source = tmp_path / "song.lrc"
+        source.write_text("[00:10.00]external line\n", encoding="utf-8")
+
+        assert main(["analyze", str(_audio(tmp_path)), "--lyrics-from", str(source)]) == 0
+
+        output = capsys.readouterr().out
+        assert "lyrics   timed-text" in output
+        assert "2 lyric segments" not in output  # the file's one line, not the engine's
+        assert "1 lyric segment from song.lrc" in output
+
+    def test_lyrics_from_flag_reaches_the_json_document(
+        self, tmp_path: Path, capsys, monkeypatch
+    ) -> None:
+        self._patch(monkeypatch)
+        source = tmp_path / "song.lrc"
+        source.write_text("[00:10.00]external line\n", encoding="utf-8")
+
+        assert main(["analyze", str(_audio(tmp_path)), "--json", "--lyrics-from", str(source)]) == 0
+
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["lyrics"][0]["text"] == "external line"
+        assert payload["lyrics"][0]["source"] == "lrc"
+        assert payload["provenance"]["configuration"]["lyrics_from"].endswith("song.lrc")
+
+    def test_lyrics_from_flag_with_a_broken_file_is_an_input_error(
+        self, tmp_path: Path, capsys, monkeypatch
+    ) -> None:
+        self._patch(monkeypatch)
+        source = tmp_path / "song.lrc"
+        source.write_text("[ti:only tags]\n", encoding="utf-8")
+
+        assert main(["analyze", str(_audio(tmp_path)), "--lyrics-from", str(source)]) == 2
+        assert "no lyric lines" in capsys.readouterr().err
+
+
+class TestLyricsFromTimedText:
+    """The Phase F replacement: one external file becomes the lyric layer.
+
+    Service-level rules beyond what the CLI can show: the file wins, the
+    engine rows stay untouched on the original outcome, and a read or parse
+    failure raises before anything is changed.
+    """
+
+    @staticmethod
+    def _lrc(tmp_path: Path, text: str) -> Path:
+        source = tmp_path / "song.lrc"
+        source.write_text(text, encoding="utf-8")
+        return source
+
+    def test_the_file_wins_over_the_engine_layer(self, tmp_path: Path) -> None:
+        outcome = run_analysis(_audio(tmp_path), registry=_registry())
+        source = self._lrc(tmp_path, "[00:02.50]from file\n[00:07.00]second line\n")
+
+        merged = with_lyrics_from_timed_text(outcome, source)
+
+        assert [(line.text, line.start, line.end) for line in merged.result.lyrics] == [
+            ("from file", 2.5, 7.0),
+            ("second line", 7.0, None),
+        ]
+        assert all(line.source == "lrc" for line in merged.result.lyrics)
+        assert [(line.text, line.start) for line in outcome.result.lyrics] == [
+            ("hola mundo", None)
+        ]  # the engine's untimed row, untouched by the merge
+
+    def test_the_step_summary_names_the_file_and_the_run_recovers(self, tmp_path: Path) -> None:
+        registry = _registry()
+        complete = run_analysis(_audio(tmp_path), registry=registry)
+        assert complete.result.run.status == RunStatus.SUCCEEDED
+        failing = _registry(lyrics=FakeLyricsEngine(available=False))
+        outcome = run_analysis(_audio(tmp_path), registry=failing)
+        assert outcome.result.run.status == RunStatus.PARTIAL
+
+        merged = with_lyrics_from_timed_text(
+            outcome, self._lrc(tmp_path, "[00:01.00]line one\n[00:02.00]two\n")
+        )
+
+        lyrics_step = next(step for step in merged.steps if step.kind == "lyrics")
+        assert lyrics_step.engine == "timed-text"
+        assert lyrics_step.status is StepStatus.OK
+        assert lyrics_step.detail == "2 lyric segments from song.lrc"
+        assert lyrics_step.processing_time_seconds is None
+        assert merged.result.run.status == RunStatus.SUCCEEDED
+
+    def test_a_skipped_lyrics_step_is_replaced_and_the_run_recovers(self, tmp_path: Path) -> None:
+        outcome = run_analysis(_audio(tmp_path), registry=_registry(lyrics=None))
+        skipped = next(step for step in outcome.steps if step.kind == "lyrics")
+        assert skipped.status is StepStatus.SKIPPED
+        assert outcome.result.run.status == RunStatus.PARTIAL  # the only missing layer
+
+        merged = with_lyrics_from_timed_text(
+            outcome, self._lrc(tmp_path, "[00:01.00]late arrival\n")
+        )
+
+        lyrics_step = next(step for step in merged.steps if step.kind == "lyrics")
+        assert lyrics_step.engine == "timed-text" and lyrics_step.status is StepStatus.OK
+        # Every layer now delivered something: the run is a success again.
+        assert merged.result.run.status == RunStatus.SUCCEEDED
+
+    def test_provenance_records_where_the_lyrics_came_from(self, tmp_path: Path) -> None:
+        outcome = run_analysis(_audio(tmp_path), registry=_registry())
+        source = self._lrc(tmp_path, "[00:01.00]line\n")
+
+        merged = with_lyrics_from_timed_text(outcome, source)
+
+        assert merged.result.provenance.configuration["lyrics_from"] == str(source)
+        assert merged.result.provenance.configuration["lyrics"] == "fake-lyrics"
+        assert outcome.result.provenance.configuration.get("lyrics_from") is None
+
+    def test_a_parse_failure_leaves_the_outcome_untouched(self, tmp_path: Path) -> None:
+        outcome = run_analysis(_audio(tmp_path), registry=_registry())
+        source = self._lrc(tmp_path, "[ti:no lyrics here]\n")
+
+        with pytest.raises(InputError, match="no lyric lines"):
+            with_lyrics_from_timed_text(outcome, source)
+
+        assert outcome.result.lyrics and outcome.result.lyrics[0].text == "hola mundo"

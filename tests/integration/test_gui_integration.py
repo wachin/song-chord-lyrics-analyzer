@@ -15,6 +15,7 @@ output device, exactly like the terminal display's integration test.
 from __future__ import annotations
 
 import importlib.util
+import time
 from pathlib import Path
 
 import pytest
@@ -69,16 +70,56 @@ def progression(tmp_path: Path) -> Path:
     )
 
 
+def _wait_for_analysis(window: MainWindow, *, timeout: float = 120.0) -> None:
+    """Spin the event loop until the threaded analysis ends.
+
+    The window analyses on a worker thread (Phase K), and the runner joins that
+    thread in the slot that clears ``analysis_running`` - so waiting for the
+    flag is also the join. A real engine on four seconds of audio is quick, but
+    a first import of the DSP stack is not: the deadline only bounds a hang.
+    """
+    deadline = time.monotonic() + timeout
+    while window.analysis_running and time.monotonic() < deadline:
+        QtWidgets.QApplication.processEvents()
+        time.sleep(0.01)
+    assert window.analysis_running is False, "the analysis never finished"
+
+
+def _close_after_analysis(window: MainWindow) -> None:
+    """Close a window at the end of a test without leaking its worker.
+
+    A close asked for during an analysis is deferred by the window, so a test
+    that gave up early would leave the worker running and Qt would abort the
+    whole process when the thread object is collected. Joining first keeps even
+    a failing test clean.
+    """
+    deadline = time.monotonic() + 120.0
+    while window.analysis_running and time.monotonic() < deadline:
+        QtWidgets.QApplication.processEvents()
+        time.sleep(0.01)
+    window.close()
+
+
 @requires_dsp
 def test_the_window_shows_the_real_analysis_of_a_generated_song(
-    qt_app: object, progression: Path
+    qt_app: object, progression: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    reported: list[str] = []
+    monkeypatch.setattr(
+        QtWidgets.QMessageBox,
+        "warning",
+        lambda *args, **kwargs: reported.append(args[-1]),
+    )
     session = SongSession()
     window = MainWindow(session=session)
     window.resize(900, 520)
     window.show()
     try:
         assert window.open_file(progression) is True
+
+        # The analysis runs off the UI thread: wait for the song to be drawn.
+        _wait_for_analysis(window)
+        assert reported == [], f"opening the song reported: {reported}"
 
         # The waveform and the chord strip come from the real file.
         peaks = window.timeline.peaks
@@ -102,7 +143,7 @@ def test_the_window_shows_the_real_analysis_of_a_generated_song(
             assert window.chord_label.text() == expected
             assert window.timeline.position == pytest.approx(position)
     finally:
-        window.close()
+        _close_after_analysis(window)
 
 
 @requires_dsp
@@ -133,6 +174,7 @@ def test_the_chord_on_screen_follows_the_real_playback(qt_app: object, progressi
     window.show()
     try:
         assert window.open_file(progression) is True
+        _wait_for_analysis(window)
         window.toggle_play()
         assert session.state is PlaybackState.PLAYING
 
@@ -150,7 +192,7 @@ def test_the_chord_on_screen_follows_the_real_playback(qt_app: object, progressi
         assert session.position() > 0.2, "playback never advanced"
         assert len(set(seen)) >= 2, f"the chord never changed during playback: {seen}"
     finally:
-        window.close()
+        _close_after_analysis(window)
 
 
 @requires_dsp
@@ -161,6 +203,7 @@ def test_the_timeline_of_the_real_song_paints_offscreen(qt_app: object, progress
     window.show()
     try:
         assert window.open_file(progression) is True
+        _wait_for_analysis(window)
         window.seek(DURATION / 2)
 
         image = QtGui.QImage(window.timeline.size(), QtGui.QImage.Format.Format_ARGB32)
@@ -176,4 +219,4 @@ def test_the_timeline_of_the_real_song_paints_offscreen(qt_app: object, progress
         }
         assert len(colours) > 2, "the real timeline painted nothing recognisable"
     finally:
-        window.close()
+        _close_after_analysis(window)

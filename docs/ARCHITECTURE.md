@@ -59,10 +59,12 @@ src/song_chord_lyrics_analyzer/
 ├── engines/              engine protocols, options, registry, chord + key + tempo engines, decoding
 ├── schema/               canonical JSON codec
 ├── models/               canonical typed data model (dataclasses)
-├── analysis/             runs the engines and assembles one AnalysisResult + Provenance
+├── analysis/             runs the engines and assembles one AnalysisResult + Provenance;
+│                         chunking.py (windowed chords, Phase K) + progress.py
 ├── normalization/        chord parsing, rendering, transposition
 ├── evaluation/           chord scoring semantics (roadmap §44): MIREX equality, CSR
-├── alignment/            (phase 9) shared timeline
+├── alignment/            (phase 9) external `.lrc`/`.srt` lyric bases parsed into the
+│                         canonical lyric rows (implemented 2026-10-14); shared timeline still reserved
 ├── fusion/               (phase 10) multi-engine consensus
 ├── metrics/              (phase 11) chord, key, tempo and lyrics metrics + model adapters
 ├── performance.py        (roadmap §45) run measurement: time, RAM, real-time factor
@@ -236,7 +238,7 @@ Only WAV files can be inspected without FFmpeg.
 | Key and tempo engines | `krumhansl` and `librosa-tempo` registered, tested and measured; an engine for beats does not exist |
 | Product slice (open → analyze → play → synchronized chord) | **reached** on 2026-10-07 as `songlab play` + `app/display.py`, and reachable through a window since 2026-10-08 (`songlab gui`) |
 | GUI | **minimal window implemented** (2026-10-08): `gui/main_window.py`, `gui/timeline.py` (waveform + chord bands + playhead, click/drag to seek), `gui/analysis_panel.py`; PyQt6 behind the optional `gui` extra, tested offscreen. Editing, lyrics, exports and translations are `[F]` work and not started |
-| Lyrics, beats, stems, alignment, fusion, export, packaging | not started; `metrics/`/`evaluation/` metrics and the `benchmark/` runner exist as library code, `export/`, `alignment/`, `fusion/` and `i18n/` are empty placeholders |
+| Lyrics, beats, stems, alignment, fusion, export, packaging | partially landed; `metrics/`/`evaluation/` metrics and the `benchmark/` runner exist as library code, the `.lrc`/`.srt` parsers, `export/` and the lyrics engine are implemented, `fusion/` and `i18n/` are empty placeholders |
 
 [`ROADMAP.md`](../ROADMAP.md) is the authoritative progress view, with `[x]` /
 `[~]` / `[ ]` markers per task and per phase; this table summarises it and must

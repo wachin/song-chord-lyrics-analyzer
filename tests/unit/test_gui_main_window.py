@@ -17,18 +17,25 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import threading
+import time
+from collections.abc import Callable, Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from fixtures.audio import write_sine_wav, write_wav_bytes
 from fixtures.fake_analysis import DURATION, analysis_outcome, opened_session
 from fixtures.fake_player import FakePlayer
+from song_chord_lyrics_analyzer.analysis import AnalysisOutcome, ProgressEvent
 from song_chord_lyrics_analyzer.app import SongSession
+from song_chord_lyrics_analyzer.app.persistence import edits_sidecar_path
 from song_chord_lyrics_analyzer.audio.playback import PlaybackState
 from song_chord_lyrics_analyzer.export import render_chordpro, render_markdown
+from song_chord_lyrics_analyzer.gui.analysis_worker import ImmediateAnalysis
 from song_chord_lyrics_analyzer.gui.main_window import SEEK_STEP, MainWindow, launch
-from song_chord_lyrics_analyzer.utils.errors import DependencyError
+from song_chord_lyrics_analyzer.utils.errors import DependencyError, InputError
 
 pytestmark = pytest.mark.skipif(
     importlib.util.find_spec("PyQt6") is None,
@@ -51,7 +58,7 @@ def wav(tmp_path: Path) -> Path:
 def window(qt_app: object, wav: Path) -> MainWindow:
     """An open, shown window whose session runs on the fake player."""
     session, _player, _clock = opened_session(wav)
-    built = MainWindow(session=session)
+    built = MainWindow(session=session, analysis=ImmediateAnalysis(session))
     built.resize(900, 520)
     built.show()
     assert built.open_file(wav) is True
@@ -98,6 +105,132 @@ def _warned(monkeypatch: pytest.MonkeyPatch) -> list[str]:
         lambda *args, **kwargs: messages.append(args[-1]),
     )
     return messages
+
+
+def _spin(seconds: float) -> None:
+    """Let the event loop run for ``seconds``, like a real desktop would."""
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        QtWidgets.QApplication.processEvents()
+        time.sleep(0.002)
+
+
+def _wait_until(predicate: Callable[[], bool], timeout: float = 5.0) -> bool:
+    """Spin the event loop until ``predicate`` holds; ``False`` on timeout."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        QtWidgets.QApplication.processEvents()
+        if predicate():
+            return True
+        time.sleep(0.002)
+    return predicate()
+
+
+class _GatedAnalysis:
+    """An analysis the test can hold open while it inspects the window.
+
+    It reports two progress events (a step start and a chord window), then waits
+    for the test to release it - which is what makes "the window stayed
+    responsive" and "progress crossed the thread boundary" assertable instead of
+    timing-dependent.
+    """
+
+    def __init__(self) -> None:
+        self.entered = threading.Event()
+        self.release = threading.Event()
+        self.calls: list[dict[str, Any]] = []
+
+    def __call__(self, path: str | Path, **options: Any) -> AnalysisOutcome:
+        self.calls.append({"path": Path(path), **options})
+        report = options.get("on_progress")
+        if report is not None:
+            report(ProgressEvent("chords", "fake-chords", 0, 1))
+            report(ProgressEvent("chords", "fake-chords", 1, 3, "window 1 of 3"))
+        self.entered.set()
+        # The window is inspected while this waits; a wedged worker must fail the
+        # test rather than hang it.
+        assert self.release.wait(10.0), "the test never released the analysis"
+        return analysis_outcome(path)
+
+
+class _FailingAnalysis:
+    """An analysis that fails with ``error`` once the test lets it go."""
+
+    def __init__(self, error: BaseException) -> None:
+        self.error = error
+        self.entered = threading.Event()
+
+    def __call__(self, path: str | Path, **options: Any) -> AnalysisOutcome:
+        self.entered.set()
+        raise self.error
+
+
+@pytest.fixture
+def gate() -> Iterator[_GatedAnalysis]:
+    """A gated analysis, always released so a failing test cannot wedge a thread."""
+    gated = _GatedAnalysis()
+    yield gated
+    gated.release.set()
+
+
+def _threaded_window(session: SongSession) -> MainWindow:
+    """A shown window with the *default* runner: the real worker thread."""
+    window = MainWindow(session=session)
+    window.resize(900, 520)
+    window.show()
+    return window
+
+
+@pytest.fixture(autouse=True)
+def _no_window_is_left_visible(qt_app: object) -> Iterator[None]:
+    """Leave no visible top-level widget behind after a test.
+
+    ``QApplication.quit()`` closes every visible top-level window (Qt calls
+    ``closeAllWindows`` for it), and a window with unsaved edits answers that
+    close with a modal prompt. A window leaked by one test would therefore be
+    closed during the *next* test that runs a real event loop - ``TestLaunch`` -
+    and its prompt would hang the run instead of failing it.
+
+    Hiding is the safe reset: Qt sends no close event to a hidden widget, and
+    hiding never prompts, so this is correct even for a test that deliberately
+    ends with edits still un-saved.
+    """
+    yield
+    application = QtWidgets.QApplication.instance()
+    assert application is not None
+    for widget in application.topLevelWidgets():
+        widget.hide()
+
+
+@pytest.fixture
+def worker_window(
+    qt_app: object, gate: _GatedAnalysis, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[MainWindow]:
+    """A shown window on the real worker thread, joined before the test ends.
+
+    A worker must never outlive its test: the gate is released and the thread is
+    allowed to finish even when an assertion failed halfway, which is what keeps
+    this module free of "QThread: Destroyed while thread is still running".
+    """
+    window = _threaded_window(SongSession(player=FakePlayer(), analyze=gate))
+    yield window
+    gate.release.set()
+    # A worker that ended in failure while nobody watched would open a modal
+    # warning from inside this teardown, and nothing would ever answer it.
+    monkeypatch.setattr(QtWidgets.QMessageBox, "warning", lambda *args, **kwargs: None)
+    monkeypatch.setattr(QtWidgets.QMessageBox, "critical", lambda *args, **kwargs: None)
+    _wait_until(lambda: not window.analysis_running)
+    window.close()
+
+
+def _enabled_labels(window: MainWindow) -> list[str]:
+    """The labels of the enabled actions across both toolbars."""
+    return [
+        action.text()
+        for toolbar in window.findChildren(QtWidgets.QToolBar)
+        for action in toolbar.actions()
+        if action.text() and action.isEnabled()
+    ]
 
 
 class TestAnEmptyWindow:
@@ -182,7 +315,8 @@ class TestOpeningASong:
         self, qt_app: object, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         messages = _warned(monkeypatch)
-        window = MainWindow()
+        session = SongSession()
+        window = MainWindow(session=session, analysis=ImmediateAnalysis(session))
 
         assert window.open_file(write_wav_bytes(tmp_path / "corrupt.wav")) is False
         assert window.session.is_open is False
@@ -308,7 +442,7 @@ class TestTheChordFollowsThePlayhead:
             player=MutedPlayer(),  # type: ignore[arg-type]
             analyze=lambda path, **options: analysis_outcome(path),
         )
-        window = MainWindow(session=session)
+        window = MainWindow(session=session, analysis=ImmediateAnalysis(session))
 
         assert window.open_file(wav) is True
         window.toggle_play()
@@ -495,7 +629,7 @@ class TestEditingTheLyricsLayer:
     @staticmethod
     def _reopen(qt_app: object, wav: Path) -> MainWindow:
         session, _player, _clock = opened_session(wav)
-        fresh = MainWindow(session=session)
+        fresh = MainWindow(session=session, analysis=ImmediateAnalysis(session))
         fresh.resize(900, 520)
         assert fresh.open_file(wav) is True
         return fresh
@@ -773,7 +907,7 @@ class TestPersistingTheEdits:
 
     def _reopen(self, qt_app: object, wav: Path) -> MainWindow:
         session, _player, _clock = opened_session(wav)
-        fresh = MainWindow(session=session)
+        fresh = MainWindow(session=session, analysis=ImmediateAnalysis(session))
         fresh.resize(900, 520)
         assert fresh.open_file(wav) is True
         return fresh
@@ -1219,7 +1353,7 @@ class TestDocumentTransforms:
         # A session built but not shown/opened by the window yet: the edits
         # stack only exists once a file is opened.
         session, _player, _clock = opened_session(wav)
-        fresh = MainWindow(session=session)
+        fresh = MainWindow(session=session, analysis=ImmediateAnalysis(session))
 
         assert fresh.transform_menu_entries() == ()
         assert fresh.apply_transform_choice("simplify") is False
@@ -1297,6 +1431,210 @@ class TestDocumentTransforms:
         assert asked == ["asked"]
 
 
+class TestLoadingLyricsFromAFile:
+    """Phase F completed: an .lrc/.srt file becomes the song's lyric base.
+
+    The dialog is mocked; the parse, the base swap and the tape rules are
+    real: the file wins, chord work stays undoable, lyric edits of the old
+    base go out with it, and Ctrl+S persists the new base like any other.
+    """
+
+    @staticmethod
+    def _opened(monkeypatch: pytest.MonkeyPatch, answer: tuple[str, str]) -> None:
+        monkeypatch.setattr(QtWidgets.QFileDialog, "getOpenFileName", lambda *a, **k: answer)
+
+    @staticmethod
+    def _load_action(window: MainWindow) -> QtWidgets.QAction:
+        candidates = [
+            action
+            for toolbar in window.findChildren(QtWidgets.QToolBar)
+            for action in toolbar.actions()
+            if action.text() == "Load lyrics from file..."
+        ]
+        assert len(candidates) == 1, candidates
+        return candidates[0]
+
+    def test_the_edit_toolbar_offers_the_action_next_to_the_transforms(
+        self, window: MainWindow
+    ) -> None:
+        edit_toolbar = window.findChildren(QtWidgets.QToolBar)[1]
+        labels = [
+            action.text() for action in edit_toolbar.actions() if action.text()
+        ]  # separators carry no label
+
+        assert labels == [
+            "Transpose chords...",
+            "Simplify chords",
+            "Load lyrics from file...",
+        ]
+
+    def test_loading_is_enabled_only_once_a_song_is_open(self, qt_app: object, wav: Path) -> None:
+        empty = MainWindow()
+        assert self._load_action(empty).isEnabled() is False
+
+        session, _player, _clock = opened_session(wav)
+        built = MainWindow(session=session, analysis=ImmediateAnalysis(session))
+        assert built.open_file(wav) is True
+        assert self._load_action(built).isEnabled() is True
+
+    def test_an_lrc_file_replaces_the_lyric_base(
+        self,
+        window: MainWindow,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        source = tmp_path / "song.lrc"
+        source.write_text("[00:01.00]from file line\n[00:03.00]second line\n", encoding="utf-8")
+        self._opened(monkeypatch, (str(source), "Timed lyrics (*.lrc *.srt);;All files (*)"))
+
+        assert window.load_lyrics_dialog() is True
+
+        assert [(line.text, line.start, line.end) for line in window.lyrics.lines] == [
+            ("from file line", 1.0, 3.0),
+            ("second line", 3.0, None),
+        ]
+        assert "Lyrics loaded from" in window.statusBar().currentMessage()
+
+    def test_chord_work_stays_undoable_after_the_swap(
+        self,
+        window: MainWindow,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getText", lambda *a, **k: ("Am", True))
+        window.edit_chord_at(1.5)  # G -> Am on the tape
+        source = tmp_path / "words.lrc"
+        source.write_text("[00:00.50]only lyrics\n", encoding="utf-8")
+        self._opened(monkeypatch, (str(source), "Timed lyrics (*.lrc *.srt);;All files (*)"))
+
+        assert window.load_lyrics_dialog() is True
+
+        assert [band.label for band in window.timeline.bands] == ["C", "Am", "N", "F"]
+        assert window.undo_edit() is True  # the chord command is still on the tape
+        assert [band.label for band in window.timeline.bands] == ["C", "G", "N", "F"]
+
+    def test_lyric_edits_of_the_old_base_go_out_with_it(
+        self,
+        window: MainWindow,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getText", lambda *a, **k: ("edited", True))
+        window.apply_lyric_choice("text", 0)  # a lyric edit against the engine base
+        assert window.edits is not None and len(window.edits.applied) == 1
+
+        source = tmp_path / "words.lrc"
+        source.write_text("[00:00.50]only lyrics\n", encoding="utf-8")
+        self._opened(monkeypatch, (str(source), "Timed lyrics (*.lrc *.srt);;All files (*)"))
+
+        assert window.load_lyrics_dialog() is True
+        assert window.edits is not None and len(window.edits.applied) == 0
+        assert [line.text for line in window.lyrics.lines] == ["only lyrics"]
+
+    def test_a_cancelled_dialog_loads_nothing(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._opened(monkeypatch, ("", "Timed lyrics (*.lrc *.srt);;All files (*)"))
+
+        assert window.load_lyrics_dialog() is False
+        assert [line.text for line in window.lyrics.lines] == ["hola mundo", "adios amor"]
+
+    def test_without_a_song_the_dialog_never_opens(
+        self, qt_app: object, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def _forbidden(*args: object, **kwargs: object) -> tuple[str, str]:
+            raise AssertionError("the load dialog must not open without a song")
+
+        monkeypatch.setattr(QtWidgets.QFileDialog, "getOpenFileName", _forbidden)
+
+        assert MainWindow().load_lyrics_dialog() is False
+
+    def test_a_broken_lyric_file_is_reported_and_changes_nothing(
+        self,
+        window: MainWindow,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        warned = _warned(monkeypatch)
+        source = tmp_path / "empty.lrc"
+        source.write_text("[ti:nothing]\n", encoding="utf-8")
+        self._opened(monkeypatch, (str(source), "Timed lyrics (*.lrc *.srt);;All files (*)"))
+
+        assert window.load_lyrics_dialog() is False
+        assert warned and "no lyric lines" in warned[0]
+        assert [line.text for line in window.lyrics.lines] == ["hola mundo", "adios amor"]
+
+    def test_the_loaded_base_persists_with_the_next_save(
+        self,
+        window: MainWindow,
+        wav: Path,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        source = tmp_path / "song.lrc"
+        source.write_text("[00:01.00]from file line\n", encoding="utf-8")
+        self._opened(monkeypatch, (str(source), "Timed lyrics (*.lrc *.srt);;All files (*)"))
+        window.load_lyrics_dialog()
+
+        assert window.save_edits_sidecar() is True
+        payload = json.loads(edits_sidecar_path(wav).read_text(encoding="utf-8"))["document"]
+        assert [line["text"] for line in payload["lyrics"]] == ["from file line"]
+
+        fresh_session, _player, _clock = opened_session(wav)
+        rebuilt = MainWindow(session=fresh_session, analysis=ImmediateAnalysis(fresh_session))
+        assert rebuilt.open_file(wav) is True
+        assert [line.text for line in rebuilt.lyrics.lines] == ["from file line"]
+
+    def test_a_swapped_base_alone_counts_as_unsaved_work(
+        self,
+        window: MainWindow,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """The swap is real work even with an empty tape: the close prompt asks.
+
+        The saved state is the tape *and* the lyric base the sidecar carries,
+        so a swapped base with no command must not slip out unsaved.
+        """
+        source = tmp_path / "song.lrc"
+        source.write_text("[00:01.00]from file line\n", encoding="utf-8")
+        self._opened(monkeypatch, (str(source), "Timed lyrics (*.lrc *.srt);;All files (*)"))
+        assert window.load_lyrics_dialog() is True
+        assert window.edits is not None and len(window.edits) == 0  # no command at all
+
+        asked: list[str] = []
+
+        def _ask(*args: object, **kwargs: object) -> object:
+            asked.append("asked")
+            return QtWidgets.QMessageBox.StandardButton.Cancel
+
+        monkeypatch.setattr(QtWidgets.QMessageBox, "question", _ask)
+        window.closeEvent(QtGui.QCloseEvent())
+
+        assert asked == ["asked"]
+        assert window.session.is_open is True  # Cancel kept the song open
+
+    def test_saving_the_swapped_base_closes_silently_again(
+        self,
+        window: MainWindow,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        source = tmp_path / "song.lrc"
+        source.write_text("[00:01.00]from file line\n", encoding="utf-8")
+        self._opened(monkeypatch, (str(source), "Timed lyrics (*.lrc *.srt);;All files (*)"))
+        assert window.load_lyrics_dialog() is True
+        assert window.save_edits_sidecar() is True
+
+        def _forbidden(*args: object, **kwargs: object) -> object:
+            raise AssertionError("a saved base must not prompt on close")
+
+        monkeypatch.setattr(QtWidgets.QMessageBox, "question", _forbidden)
+        window.closeEvent(QtGui.QCloseEvent())
+
+        assert window.session.is_open is False  # closed with nothing lost
+
+
 class TestExportingTheDocument:
     """Phase H: the save-export dialog over the exporters ``songlab export`` uses.
 
@@ -1334,7 +1672,7 @@ class TestExportingTheDocument:
         assert enabled(empty) is False
 
         session, _player, _clock = opened_session(wav)
-        built = MainWindow(session=session)
+        built = MainWindow(session=session, analysis=ImmediateAnalysis(session))
         assert built.open_file(wav) is True
         assert enabled(built) is True
 
@@ -1437,6 +1775,168 @@ class TestExportingTheDocument:
 
         assert window.export_file_dialog() is False
         assert warned and "Could not write" in warned[0]
+
+
+class TestTheAnalysisRunsOffTheUiThread:
+    """Phase K: the window keeps painting while a song is analysed.
+
+    These tests use the real threaded runner, with an analysis the test holds
+    open, so "the window stayed responsive" is asserted against a busy worker
+    rather than assumed. The progress a user would see, the actions that are
+    disabled meanwhile and the close that is deferred are all checked through
+    the window's own public surface.
+    """
+
+    def test_open_file_returns_while_the_analysis_is_still_running(
+        self, worker_window: MainWindow, wav: Path, gate: _GatedAnalysis
+    ) -> None:
+        assert worker_window.open_file(wav) is True  # started, not finished
+        assert gate.entered.wait(5.0)
+        assert worker_window.analysis_running is True
+        assert worker_window.session.is_open is False  # the song is not there yet
+        assert worker_window.progress.isVisible() is True
+        assert "Analysing song.wav" in worker_window.statusBar().currentMessage()
+
+    def test_the_event_loop_keeps_running_while_the_analysis_is_busy(
+        self, worker_window: MainWindow, wav: Path, gate: _GatedAnalysis
+    ) -> None:
+        ticks: list[int] = []
+        timer = QtCore.QTimer()
+        timer.setInterval(1)
+        timer.timeout.connect(lambda: ticks.append(1))
+        timer.start()
+
+        assert worker_window.open_file(wav) is True
+        assert gate.entered.wait(5.0)
+        _spin(0.1)  # a repainting desktop would tick here, not freeze
+
+        assert ticks, "the event loop never ran while the analysis was busy"
+        assert worker_window.analysis_running is True
+        timer.stop()
+
+    def test_progress_events_cross_the_thread_to_the_window(
+        self, worker_window: MainWindow, wav: Path
+    ) -> None:
+        assert worker_window.open_file(wav) is True
+
+        # The service reports *window 1 of 3*: that fraction is on the bar, and
+        # the detail line it computed is on the status bar, not a guess made up
+        # by the window.
+        assert _wait_until(lambda: worker_window.progress.maximum() == 3)
+        assert worker_window.progress.value() == 1
+        assert worker_window.statusBar().currentMessage() == "Analysing chords: window 1 of 3"
+
+    def test_every_action_is_disabled_while_analysing_and_enabled_after(
+        self, worker_window: MainWindow, wav: Path, gate: _GatedAnalysis
+    ) -> None:
+        assert worker_window.open_file(wav) is True
+        assert gate.entered.wait(5.0)
+
+        assert _enabled_labels(worker_window) == []  # nothing touches a moving session
+
+        gate.release.set()
+        # The frame is the done-handler's last word and the actions are
+        # re-enabled before it, so waiting for it also settles the labels.
+        assert _wait_until(lambda: worker_window.frame is not None)
+
+        assert _enabled_labels(worker_window) == [
+            "Open...",
+            "Export document...",
+            "Play",
+            "Stop",
+            "Back",
+            "Forward",
+            "Transpose chords...",
+            "Simplify chords",
+            "Load lyrics from file...",
+        ]  # Save Edits stays off: an empty tape is nothing to save
+        assert worker_window.progress.isVisible() is False
+
+    def test_the_song_is_drawn_when_the_analysis_finishes(
+        self, worker_window: MainWindow, wav: Path, gate: _GatedAnalysis
+    ) -> None:
+        assert worker_window.open_file(wav) is True
+
+        gate.release.set()
+        assert _wait_until(lambda: worker_window.frame is not None)
+
+        window = worker_window
+        assert window.session.is_open is True
+        assert window.frame is not None
+        assert window.chord_label.text() == "C"
+        assert [(band.label, band.start, band.end) for band in window.timeline.bands] == [
+            ("C", 0.0, 1.0),
+            ("G", 1.0, 2.0),
+            ("N", 2.0, 3.0),
+            ("F", 3.0, 4.0),
+        ]
+        assert dict(window.panel.text_rows())["Chords"] == "4 events from fake-chords"
+        assert window.analysis_running is False
+
+    def test_a_second_song_is_refused_while_one_is_being_analysed(
+        self, worker_window: MainWindow, wav: Path, gate: _GatedAnalysis
+    ) -> None:
+        assert worker_window.open_file(wav) is True
+        assert gate.entered.wait(5.0)
+
+        assert worker_window.open_file(wav) is False
+        assert "still running" in worker_window.statusBar().currentMessage()
+        assert len(gate.calls) == 1  # the second request never reached the worker
+
+    def test_a_failed_analysis_is_reported_and_leaves_no_half_open_song(
+        self, qt_app: object, wav: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        warned = _warned(monkeypatch)
+        failing = _FailingAnalysis(InputError("the decoder rejected the stream"))
+        window = _threaded_window(SongSession(player=FakePlayer(), analyze=failing))
+
+        assert window.open_file(wav) is True
+        assert failing.entered.wait(5.0)
+        # The report is the outcome. The thread is joined before the queued
+        # failure reaches the window, so ``analysis_running`` can clear a tick
+        # before the dialog is captured: wait for the captured warning.
+        assert _wait_until(lambda: warned and not window.analysis_running)
+
+        assert warned and "decoder rejected" in warned[0]
+        assert window.session.is_open is False
+        assert window.frame is None
+        assert window.progress.isVisible() is False
+        assert _enabled_labels(window) == ["Open..."]  # ready for the next song
+        window.close()
+
+    def test_a_file_that_cannot_be_opened_is_refused_without_starting_work(
+        self, worker_window: MainWindow, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        warned = _warned(monkeypatch)
+
+        assert worker_window.open_file(tmp_path / "absent.wav") is False
+
+        assert warned and "not found" in warned[0].lower()
+        assert worker_window.analysis_running is False  # no worker was ever started
+        assert worker_window.progress.isVisible() is False
+
+    def test_closing_while_analysing_defers_the_close_until_it_ends(
+        self, worker_window: MainWindow, wav: Path, gate: _GatedAnalysis
+    ) -> None:
+        assert worker_window.open_file(wav) is True
+        assert gate.entered.wait(5.0)
+
+        event = QtGui.QCloseEvent()
+        worker_window.closeEvent(event)
+
+        # An engine call cannot be interrupted and the worker owns the session,
+        # so the close is honoured when the analysis ends, not faked now.
+        assert event.isAccepted() is False
+        assert "Closing when the analysis finishes" in worker_window.statusBar().currentMessage()
+        assert worker_window.analysis_running is True
+
+        gate.release.set()
+        # The deferred close is the outcome: the window hides itself from the
+        # done-handler, which runs after the worker thread was joined.
+        assert _wait_until(lambda: not worker_window.isVisible())
+
+        assert worker_window.isVisible() is False  # the deferred close happened
+        assert worker_window.session.is_open is False
 
 
 class TestLaunch:

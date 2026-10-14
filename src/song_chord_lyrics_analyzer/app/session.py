@@ -18,7 +18,12 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from song_chord_lyrics_analyzer.analysis import AnalysisOutcome, StepOutcome, run_analysis
+from song_chord_lyrics_analyzer.analysis import (
+    AnalysisOutcome,
+    ProgressEvent,
+    StepOutcome,
+    run_analysis,
+)
 from song_chord_lyrics_analyzer.app.lyrics_view import lyric_at, lyric_lines, word_at
 from song_chord_lyrics_analyzer.audio.decode import DecodedAudio, decode_audio
 from song_chord_lyrics_analyzer.audio.peaks import DEFAULT_PEAK_BUCKETS, WaveformPeaks, peaks_of
@@ -30,9 +35,12 @@ from song_chord_lyrics_analyzer.models.music import ChordEvent
 from song_chord_lyrics_analyzer.utils.errors import InputError
 from song_chord_lyrics_analyzer.utils.logging import get_logger
 
-__all__ = ["SessionSnapshot", "SongSession"]
+__all__ = ["ProgressReporter", "SessionSnapshot", "SongSession"]
 
 _logger = get_logger("app.session")
+
+#: How a caller watches a long analysis: one event per step and per window.
+ProgressReporter = Callable[[ProgressEvent], None]
 
 
 @dataclass(frozen=True)
@@ -101,6 +109,9 @@ class SongSession:
         *,
         engines: dict[str, str] | None = None,
         input_hash: bool = True,
+        on_progress: ProgressReporter | None = None,
+        chord_chunk_seconds: float | None = None,
+        chord_overlap_seconds: float = 0.0,
     ) -> AnalysisResult:
         """Decode, analyse and load ``path``; return the canonical document.
 
@@ -108,6 +119,13 @@ class SongSession:
             path: The audio file to open.
             engines: Optional ``kind -> engine name`` overrides for the analysis.
             input_hash: Whether to record the input's SHA-256 in provenance.
+            on_progress: Optional progress reporter for the analysis, so a long
+                song reports what it is doing instead of showing silence
+                (roadmap Phase K). Forwarded only when given, so a caller's own
+                analysis stand-in keeps working unchanged.
+            chord_chunk_seconds: Analyse chords in windows of this length
+                instead of one whole-file pass; ``None`` keeps the default.
+            chord_overlap_seconds: How much neighbouring chord windows share.
 
         Raises:
             AudioFileNotFoundError: The path does not exist.
@@ -120,7 +138,14 @@ class SongSession:
             # The player decodes; keeping what it decoded is what lets the
             # timeline draw a waveform without a second decode (Phase D).
             audio = self.player.load(resolved)
-            outcome = self._analyze(resolved, engines=engines, input_hash=input_hash)
+            options: dict[str, object] = {}
+            if on_progress is not None:
+                options["on_progress"] = on_progress
+            if chord_chunk_seconds is not None:
+                options["chord_chunk_seconds"] = chord_chunk_seconds
+            if chord_overlap_seconds:
+                options["chord_overlap_seconds"] = chord_overlap_seconds
+            outcome = self._analyze(resolved, engines=engines, input_hash=input_hash, **options)
         except Exception:
             self.close()
             raise

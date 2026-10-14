@@ -71,6 +71,47 @@ def _wav(tmp_path: Path) -> Path:
     return write_sine_wav(tmp_path / "song.wav", seconds=DURATION, channels=1)
 
 
+class TestLongSongFlags:
+    """Phase K: the windowing flags reach the analysis the session runs."""
+
+    def test_the_windowing_flags_reach_the_analysis(self, tmp_path: Path, monkeypatch) -> None:
+        recorder = _Recorder()
+        _patch_session(monkeypatch, FakePlayer(), recorder)
+
+        assert (
+            main(
+                [
+                    "play",
+                    str(_wav(tmp_path)),
+                    "--at",
+                    "1.0",
+                    "--chord-chunk-seconds",
+                    "120",
+                    "--chord-overlap-seconds",
+                    "10",
+                    "--progress",
+                ]
+            )
+            == 0
+        )
+
+        options = recorder.calls[0]
+        assert options["chord_chunk_seconds"] == 120.0
+        assert options["chord_overlap_seconds"] == 10.0
+        assert callable(options["on_progress"])
+
+    def test_an_impossible_window_length_is_reported_before_anything_is_opened(
+        self, tmp_path: Path, capsys, monkeypatch
+    ) -> None:
+        recorder = _Recorder()
+        _patch_session(monkeypatch, FakePlayer(), recorder)
+
+        assert main(["play", str(_wav(tmp_path)), "--chord-chunk-seconds", "0"]) == 2
+
+        assert "window length must be positive" in capsys.readouterr().err
+        assert recorder.calls == []
+
+
 class TestAtMode:
     def test_prints_the_chord_at_one_position_without_playing(
         self, tmp_path: Path, capsys, monkeypatch

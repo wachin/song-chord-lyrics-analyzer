@@ -77,6 +77,7 @@ __all__ = [
     "TrimChord",
     "effective_chords",
     "effective_lyrics",
+    "with_lyric_base",
 ]
 
 #: Provenance source of a single-user correction.
@@ -851,3 +852,25 @@ class CommandStack:
     def _notify(self) -> None:
         if self._on_change is not None:
             self._on_change()
+
+
+def with_lyric_base(stack: CommandStack, lines: Sequence[LyricSegment]) -> CommandStack:
+    """A new stack over ``lines``, keeping the chord work of ``stack``.
+
+    External lyric bases (roadmap Phase F: an ``.lrc``/``.srt`` file becomes
+    the lyric base) replace the lyric base of the tape. The lyric commands of
+    the old tape addressed the old base by display index, so over a different
+    base they could resolve against the wrong line or fail: they are dropped,
+    and the swapped-in lyrics start an editing session of their own. The
+    chord commands address the same chord base the stack was built over, so
+    they replay unchanged.
+
+    The swap itself is not a command and is not undoable: it replaces the
+    base the tape works over, exactly like opening a song does. What stays
+    undoable is the chord work it kept.
+    """
+    rebuilt = CommandStack(stack.base, lyrics=lines)
+    for command in stack.applied:
+        if isinstance(command, ChordCommand):
+            rebuilt.push(command)
+    return rebuilt

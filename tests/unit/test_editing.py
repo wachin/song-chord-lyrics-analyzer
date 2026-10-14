@@ -10,6 +10,8 @@ command stack is exercised with plain lists.
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 import pytest
 
 from song_chord_lyrics_analyzer.app.editing import (
@@ -32,6 +34,7 @@ from song_chord_lyrics_analyzer.app.editing import (
     TrimChord,
     effective_chords,
     effective_lyrics,
+    with_lyric_base,
 )
 from song_chord_lyrics_analyzer.models.lyrics import LyricSegment, LyricWord
 from song_chord_lyrics_analyzer.models.music import ChordEvent, ChordQuality
@@ -771,3 +774,69 @@ class TestDocumentTransformsOnTheTape:
         ]
         assert [event.source for event in stack.effective] == ["fake"] * 6
         assert stack.can_undo is False
+
+
+class TestSwappingTheLyricBase:
+    """Phase F: an external ``.lrc``/``.srt`` file replaces the lyric base.
+
+    The swap keeps what still addresses its layer (chord commands, which were
+    built over the chord base) and drops what does not (lyric commands, which
+    addressed the old lines by display index). It is a base swap, not a
+    command: undoing the tape never resurrects the old lyrics.
+    """
+
+    NEW: ClassVar[list[LyricSegment]] = [
+        LyricSegment(text="nuevo uno", start=0.0, end=0.5, source="lrc"),
+        LyricSegment(text="nuevo dos", start=0.5, end=1.0, source="lrc"),
+    ]
+
+    def test_the_chord_work_survives_and_the_lyric_commands_go_out(self) -> None:
+        stack = CommandStack(BASE, lyrics=LYRICS)
+        stack.push(SetChordLabel(1.0, "Em"))
+        stack.push(SetLyricText(0, "uno bien"))
+
+        swapped = with_lyric_base(stack, self.NEW)
+
+        assert [event.label for event in swapped.effective] == ["C", "Em", "N", "F"]
+        assert _texts(swapped.effective_lyrics) == ["nuevo uno", "nuevo dos"]
+        assert [line.source for line in swapped.effective_lyrics] == ["lrc", "lrc"]
+        assert len(swapped) == 1  # only the chord edit is left on the tape
+
+    def test_the_swap_is_not_undoable_however_deep_the_tape(self) -> None:
+        stack = CommandStack(BASE, lyrics=LYRICS)
+        stack.push(SetChordLabel(1.0, "Em"))
+        stack.push(DeleteLyric(1))
+
+        swapped = with_lyric_base(stack, self.NEW)
+        swapped.undo()  # undoes the chord edit, never the swap
+
+        assert [event.label for event in swapped.effective] == ["C", "G", "N", "F"]
+        assert _texts(swapped.effective_lyrics) == ["nuevo uno", "nuevo dos"]
+        assert swapped.can_undo is False
+
+    def test_the_stack_being_replaced_keeps_its_base_and_commands(self) -> None:
+        stack = CommandStack(BASE, lyrics=LYRICS)
+        stack.push(SetChordLabel(1.0, "Em"))
+        stack.push(SetLyricText(0, "uno bien"))
+
+        with_lyric_base(stack, self.NEW)
+
+        assert _texts(stack.effective_lyrics) == ["uno bien", "tres cuatro", "post-coro"]
+        assert stack.base_lyrics == tuple(LYRICS)
+        assert len(stack) == 2
+
+    def test_the_new_base_is_the_untouched_layer_both_parts_expose(self) -> None:
+        swapped = with_lyric_base(CommandStack(BASE, lyrics=LYRICS), self.NEW)
+
+        assert swapped.base == tuple(BASE)
+        assert swapped.base_lyrics == tuple(self.NEW)
+
+    def test_the_swapped_tape_edits_and_undoes_the_new_base_normally(self) -> None:
+        swapped = with_lyric_base(CommandStack(BASE, lyrics=LYRICS), self.NEW)
+
+        swapped.push(SetLyricText(1, "editado"))
+        assert _texts(swapped.effective_lyrics) == ["nuevo uno", "editado"]
+
+        swapped.undo()
+        assert _texts(swapped.effective_lyrics) == ["nuevo uno", "nuevo dos"]
+        assert [line.source for line in swapped.effective_lyrics] == ["lrc", "lrc"]

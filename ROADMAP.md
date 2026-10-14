@@ -646,11 +646,16 @@ decoding stack.
 
 **Objective:** show lyrics and chords together on the same playback clock.
 
-**Current status:** `[~]` — the clock-sharing work is landed and tested
+**Current status:** `[x]` — the clock-sharing work landed and was tested
 (2026-10-10, on top of the 2026-10-09 lyrics view): `SongSession.lyric_at()` /
 `word_at()` answer the lyrics layer exactly the way `chord_at()` answers the
 chords layer, and the window's refresh feeds both widgets from one snapshot.
-Remaining: external timed-text alignment below.
+The external timed-text alignment landed 2026-10-14: `alignment/lrc.py` and
+`alignment/srt.py` parse a `.lrc`/`.srt` file into the same canonical
+`LyricSegment` rows the lyrics engine produces, `songlab analyze --lyrics-from
+FILE` takes the layer from a file instead of the engine, and the window loads
+one with Ctrl+L (`with_lyric_base` swaps the tape's lyric base, keeping the
+chord work and persisting the new base to the Phase G sidecar).
 
 ### Tasks
 
@@ -662,9 +667,22 @@ Remaining: external timed-text alignment below.
 - [x] GUI: lyric line display synchronized with playback (active word
   highlighted when word timestamps exist). The widget takes the session's
   answers (`set_active(segment, word)`) and decides nothing about the clock
-- [ ] Alignment rules when lyrics come from an external timed-text file
-  (`.lrc`/sidecar) — reuse `alignment/` (currently empty) instead of a new
-  duplicate module
+- [x] Alignment rules when lyrics come from an external timed-text file
+  (`.lrc`/`.srt`) — `alignment/lrc.py` + `alignment/srt.py` in the shared
+  `alignment/` package (2026-10-14), one entry point (`parse_timed_text`)
+  for both front ends:
+  * LRC: `[mm:ss.xx]` with the fraction padded **on the right** to ms,
+    repeated stamps repeating the text, `[offset:±ms]`, metadata tags
+    consumed as annotations, enhanced A2 word stamps, a line's `end` = the
+    next line's `start`, the last line open-ended, untimed lines kept but
+    never active
+  * SRT: `HH:MM:SS,mmm --> HH:MM:SS,mmm` (dot also accepted) with trailing
+    position markers ignored, internal line breaks joined into one display
+    line, empty blocks skipped as silence markers, inverted timings reported
+  * CLI: `songlab analyze --lyrics-from FILE` replaces the lyrics layer
+    (the file wins) and records it in the step summary + provenance
+  * GUI: the Edit menu's "Load lyrics from file..." (Ctrl+L) swaps the
+    lyric base; the file's lines are saved by Ctrl+S like any other edit
 - [x] Tests: fake-clock synchronization for both streams; boundary cases
   (`TestLyricLookup` in `tests/unit/test_session.py` pins the same edges as
   `chord_at`; `TestTheLyricsViewFollowsTheSameClock` asserts both front-end
@@ -674,7 +692,9 @@ Remaining: external timed-text alignment below.
 
 While a song plays, both the current chord and the current lyric line update in
 sync, from one timestamped source of truth. **Met for the engine-transcribed
-lyrics on 2026-10-10.**
+lyrics on 2026-10-10, and for an external `.lrc`/`.srt` lyric base on
+2026-10-14** (the parsed rows carry `start`/`end` in the same clock the chord
+layer uses, and the session's `lyric_at` does not care where they came from).
 
 ### Dependencies / blockers
 
@@ -879,7 +899,9 @@ New datasets/benchmarks added without a product-driven question.
 users.
 
 **Current status:** `[~]` — portable code + platform-aware discovery exist and
-CI runs on the gate; no packaging, no Windows/macOS runtime verification.
+CI runs on the gate; the long-song strategy landed 2026-10-14 (windowed chord
+analysis + progress reporting); no packaging yet, and no Windows/macOS runtime
+verification.
 
 ### Tasks
 
@@ -887,7 +909,37 @@ CI runs on the gate; no packaging, no Windows/macOS runtime verification.
 - [x] Cross-platform CI for lint/type/tests
 - [ ] Measure and record real-time factor for the full product path on a
   reference machine (§45 harness already exists)
-- [ ] Long-song strategy (chunked analysis, progress reporting)
+- [x] Long-song strategy (chunked analysis, progress reporting) — landed
+  2026-10-14, **opt-in and honest about its scope**:
+  * `analysis/chunking.py` analyses the chord layer in windows
+    (`--chord-chunk-seconds`, default off, `plan_chunks` reused from the
+    lyrics windowing). The seam rules are the deliverable: an earlier window
+    wins, coverage is never lost (a straddling chord keeps its part after the
+    previous coverage, so no boundary is invented), a chord split by a seam is
+    joined within one frame, and an engine that ignores the time range is
+    reported instead of producing a duplicated timeline
+  * only chords are windowed: key and tempo need the whole song, and the
+    lyrics engine already chunks internally at 20 s
+  * `analysis/progress.py`: `run_analysis(..., on_progress=...)` reports each
+    step and each window, printed to *stderr* by `songlab analyze --progress`
+    and `songlab play --progress`, so `--json` on stdout stays clean
+  * the windowing is recorded in provenance (`chords_chunk_seconds`) and the
+    run cost is the sum of the windows, never a partial sum
+  * measured and recorded in `docs/ENGINE_COMPARISON.md` section 5
+    (2026-10-14, environment + date stated): same chord labels and order as the
+    whole-file pass on a 480 s fixture with one seam boundary moved by 94 ms;
+    peak RSS 996 MB -> 309 MB on a 600 s file, runtime unchanged within noise
+  * the GUI half landed 2026-10-14: `gui/analysis_worker.py` runs the
+    session's own `open()` on a `QThread` (`ThreadedAnalysis`, the window's
+    default runner; `ImmediateAnalysis` keeps the synchronous seam for tests
+    and embedders). The window shows the service's `on_progress` events on a
+    progress bar and the status line (a fraction only when a step reports
+    one), disables every action while the worker owns the session, refuses a
+    second song until it ends, and honours a close asked for mid-analysis
+    when the analysis ends - the worker thread is joined in the slot that
+    reports the outcome, so a window never dies with a running thread.
+    Verified offscreen (`TestTheAnalysisRunsOffTheUiThread`) and against the
+    real engine (`tests/integration/test_gui_integration.py`)
 - [ ] Packaging: PyInstaller or briefcase builds per platform; optional extras
   (DSP, GUI) bundled or clearly reported by `songlab doctor`
 - [ ] Smoke test of the packaged app on each target OS (honest matrix in README)

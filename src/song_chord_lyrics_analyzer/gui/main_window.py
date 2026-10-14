@@ -37,11 +37,14 @@ from PyQt6.QtWidgets import (
     QMainWindow,
     QMenu,
     QMessageBox,
+    QProgressBar,
     QSplitter,
     QVBoxLayout,
     QWidget,
 )
 
+from song_chord_lyrics_analyzer.alignment import parse_timed_text
+from song_chord_lyrics_analyzer.analysis import ProgressEvent
 from song_chord_lyrics_analyzer.app import (
     DEFAULT_REFRESH_INTERVAL,
     DisplayFrame,
@@ -67,6 +70,7 @@ from song_chord_lyrics_analyzer.app.editing import (
     SplitChord,
     TransposeChords,
     TrimChord,
+    with_lyric_base,
 )
 from song_chord_lyrics_analyzer.app.persistence import (
     edits_sidecar_path,
@@ -77,10 +81,17 @@ from song_chord_lyrics_analyzer.app.persistence import (
     save_edits as save_edits_document,
 )
 from song_chord_lyrics_analyzer.audio.playback import PlaybackState
+from song_chord_lyrics_analyzer.audio.validation import validate_audio_file
 from song_chord_lyrics_analyzer.export import export_document
 from song_chord_lyrics_analyzer.gui.analysis_panel import AnalysisPanel
+from song_chord_lyrics_analyzer.gui.analysis_worker import (
+    AnalysisRunner,
+    ThreadedAnalysis,
+)
 from song_chord_lyrics_analyzer.gui.lyrics_view import LyricsWidget
 from song_chord_lyrics_analyzer.gui.timeline import TimelineWidget
+from song_chord_lyrics_analyzer.models.analysis import AnalysisResult
+from song_chord_lyrics_analyzer.models.lyrics import LyricSegment
 from song_chord_lyrics_analyzer.utils.errors import SongLabError
 
 __all__ = ["AUDIO_FILTER", "AUDIO_SUFFIXES", "EXPORT_FILTER", "MainWindow", "launch"]
@@ -108,6 +119,10 @@ AUDIO_FILTER = "Audio (" + " ".join(f"*.{suffix}" for suffix in AUDIO_SUFFIXES) 
 #: chosen filter into the :data:`~song_chord_lyrics_analyzer.export.EXPORT_FORMATS`
 #: name - nothing here renders anything itself.
 EXPORT_FILTER = "ChordPro (*.pro *.crd);;Markdown (*.md);;JSON (*.json)"
+
+#: The open dialog's format choice for an external lyric file (Phase F): the
+#: karaoke format musicians share first, SubRip titles second.
+LYRICS_FILTER = "Timed lyrics (*.lrc *.srt);;All files (*)"
 
 _EXPORT_FORMAT_BY_FILTER = {
     "ChordPro (*.pro *.crd)": "chordpro",
@@ -152,6 +167,11 @@ class MainWindow(QMainWindow):
         engines: Optional ``kind -> engine name`` overrides for the analysis.
         input_hash: Whether opening a file records its SHA-256 in provenance.
         interval: Seconds between two refreshes of the widgets.
+        analysis: How a song's analysis is run. Defaults to
+            :class:`~song_chord_lyrics_analyzer.gui.analysis_worker.ThreadedAnalysis`,
+            which keeps the window painting while a long song is decoded and
+            analysed; a test injects the immediate runner so the state after
+            ``open_file()`` is already final.
         parent: Qt parent, for embedding.
     """
 
@@ -162,19 +182,36 @@ class MainWindow(QMainWindow):
         engines: Mapping[str, str] | None = None,
         input_hash: bool = True,
         interval: float = DEFAULT_REFRESH_INTERVAL,
+        analysis: AnalysisRunner | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self._session = session if session is not None else SongSession()
+        # The default runner owns a worker thread; parenting it to the window
+        # ties its lifetime to the window's, so a window that goes away takes
+        # its (finished) thread with it instead of leaking one.
+        self._analysis: AnalysisRunner = (
+            analysis if analysis is not None else ThreadedAnalysis(self._session, self)
+        )
         self._engines = dict(engines or {})
         self._input_hash = input_hash
         self._frame: DisplayFrame | None = None
         self._bucket_count = 0
         self._ready = False
+        #: The song being analysed right now, or ``None`` when the window is
+        #: idle. While it is set the worker owns the session (Phase K): the
+        #: window neither reads it nor calls it, and every action is disabled.
+        self._loading: Path | None = None
+        #: A close the user asked for during an analysis. The engine call cannot
+        #: be interrupted, so the request is honoured the moment it ends.
+        self._close_pending = False
         self._edits: CommandStack | None = None
         #: What was last written to (or restored from) the sidecar, for the
         #: close prompt: the tape equals this exactly when nothing is unsaved.
         self._saved_applied: tuple[EditCommand, ...] = ()
+        #: The lyric base the sidecar carries, same purpose as the commands:
+        #: a base swapped for an external file is unsaved work too (Phase F).
+        self._saved_base_lyrics: tuple[LyricSegment, ...] = ()
 
         self.setWindowTitle("Song Chord Lyrics Analyzer")
         self.resize(960, 560)
@@ -182,7 +219,7 @@ class MainWindow(QMainWindow):
         self._build_widgets()
         # The actions start honest: nothing to undo/redo/save, no song to
         # export, before the first open.
-        self._update_edit_actions()
+        self._update_actions()
 
         self._timer = QTimer(self)
         self._timer.setInterval(max(1, int(interval * 1000)))
@@ -230,6 +267,16 @@ class MainWindow(QMainWindow):
     def lyrics(self) -> LyricsWidget:
         """The lyrics view bound to the same clock as the chord band."""
         return self._lyrics
+
+    @property
+    def progress(self) -> QProgressBar:
+        """The analysis progress bar (Phase K); hidden while the window is idle."""
+        return self._progress
+
+    @property
+    def analysis_running(self) -> bool:
+        """Whether a song is being analysed right now."""
+        return self._analysis.is_running
 
     # -- construction ------------------------------------------------------
 
@@ -285,6 +332,12 @@ class MainWindow(QMainWindow):
         self._export_action.setShortcut(QKeySequence("Ctrl+Shift+E"))
         self._export_action.triggered.connect(self.export_file_dialog)
 
+        # Phase F: an external .lrc/.srt file becomes the lyric base - the
+        # same alignment rules songlab analyze --lyrics-from applies.
+        self._lyrics_load_action = QAction("Load lyrics from file...", self)
+        self._lyrics_load_action.setShortcut(QKeySequence("Ctrl+L"))
+        self._lyrics_load_action.triggered.connect(self.load_lyrics_dialog)
+
         toolbar = self.addToolBar("Transport")
         assert toolbar is not None  # always created by QMainWindow
         toolbar.setMovable(False)
@@ -304,6 +357,8 @@ class MainWindow(QMainWindow):
         edit_menu.setMovable(False)
         edit_menu.addAction(self._transpose_action)
         edit_menu.addAction(self._simplify_action)
+        edit_menu.addSeparator()
+        edit_menu.addAction(self._lyrics_load_action)
 
     def _build_widgets(self) -> None:
         self._chord_label = QLabel("--")
@@ -348,6 +403,18 @@ class MainWindow(QMainWindow):
         layout.addWidget(splitter, 1)
         self.setCentralWidget(central)
 
+        # Phase K: the analysis runs off the UI thread, so the window needs a
+        # place to say what is being worked on. It sits in the status bar, which
+        # is also where the detail line the service computed is shown.
+        self._progress = QProgressBar()
+        self._progress.setObjectName("analysis-progress")
+        self._progress.setVisible(False)
+        self._progress.setTextVisible(False)
+        self._progress.setFixedWidth(160)
+        status_bar = self.statusBar()
+        assert status_bar is not None  # QMainWindow always creates one on demand
+        status_bar.addPermanentWidget(self._progress)
+
     # -- opening a song ----------------------------------------------------
 
     def choose_file(self) -> None:
@@ -359,45 +426,136 @@ class MainWindow(QMainWindow):
             self.open_file(Path(chosen))
 
     def open_file(self, path: str | Path) -> bool:
-        """Analyse and load ``path`` into the window.
+        """Start analysing ``path``; the song is drawn when the analysis ends.
+
+        The analysis runs off the UI thread (Phase K), so this returns as soon
+        as the work is under way and the result arrives through the runner's
+        callbacks. Two kinds of failure stay synchronous because they cost
+        nothing to detect - a path that does not exist, is a directory, or holds
+        no data - so a typo is still reported before the window changes state.
+        A container the decoder rejects, a missing optional stack and an engine
+        failure are reported when the analysis knows, which is the honest
+        moment.
 
         Args:
             path: The audio file to open.
 
         Returns:
-            ``True`` when the song is open and drawn; ``False`` when it could not
-            be opened, in which case the reason was already reported to the user.
+            ``True`` when the song is loading - or, with a synchronous runner,
+            already loaded; ``False`` when it could not be opened, in which case
+            the reason was already reported to the user.
         """
-        self._timer.stop()
-        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        candidate = Path(path)
         try:
-            document = self._session.open(
-                path,
-                engines=self._engines or None,
-                input_hash=self._input_hash,
-            )
-            # A fresh song starts with a fresh edit tape over its engine layer,
-            # then any sidecar saved for this file replays over that base.
-            self._edits = CommandStack(
-                document.chords if document is not None else [],
-                lyrics=document.lyrics if document is not None else [],
-            )
-            self._restore_saved_edits(Path(path))
-            # Restored commands came from disk: they count as saved.
-            assert self._edits is not None
-            self._saved_applied = self._edits.applied
-            self._populate_timeline()
-            self._populate_lyrics()
-            self._panel.set_rows(summarize(document, steps=self._session.steps))
+            validate_audio_file(candidate)
         except SongLabError as error:
             self._report(error)
             return False
-        finally:
-            QApplication.restoreOverrideCursor()
-        self._update_edit_actions()
+        if self._analysis.is_running:
+            status_bar = self.statusBar()
+            assert status_bar is not None
+            status_bar.showMessage(
+                "An analysis is still running; the window holds one song at a time.", 5000
+            )
+            return False
+        self._timer.stop()
+        self._set_loading(candidate)
+        started = self._analysis.submit(
+            candidate,
+            engines=self._engines or None,
+            input_hash=self._input_hash,
+            on_progress=self._on_analysis_progress,
+            on_done=self._on_analysis_done,
+            on_failed=self._on_analysis_failed,
+        )
+        if not started:  # only an immediate runner can fail here, and it reported
+            self._set_loading(None)
+        return started
+
+    def _set_loading(self, path: Path | None) -> None:
+        """Enter (or leave) the analysing state and refresh the action states.
+
+        While an analysis runs the worker owns the session, so nothing else in
+        the window may touch it: every action is disabled, the progress bar is
+        shown and the status bar names the file being worked on.
+        """
+        self._loading = path
+        status_bar = self.statusBar()
+        assert status_bar is not None
+        bar = self._progress
+        bar.setVisible(path is not None)
+        if path is not None:
+            bar.setRange(0, 0)  # busy until the service reports a fraction
+            status_bar.showMessage(f"Analysing {path.name}...")
+        else:
+            bar.setRange(0, 1)
+            bar.setValue(0)
+        self._update_actions()
+
+    def _on_analysis_progress(self, event: ProgressEvent) -> None:
+        """Show what the analysis is doing (runs on the GUI thread).
+
+        The service knows a fraction only for a windowed step (*window i of n*,
+        roadmap Phase K); anywhere else the bar stays busy rather than drawing a
+        percentage nobody measured.
+        """
+        status_bar = self.statusBar()
+        assert status_bar is not None
+        status_bar.showMessage(f"Analysing {event.kind}: {event.detail or event.engine}")
+        bar = self._progress
+        if event.total > 1:
+            bar.setRange(0, event.total)
+            bar.setValue(event.completed)
+        else:
+            bar.setRange(0, 0)
+
+    def _on_analysis_done(self, document: AnalysisResult) -> None:
+        """Draw the freshly analysed song (runs on the GUI thread)."""
+        # A fresh song starts with a fresh edit tape over its engine layer,
+        # then any sidecar saved for this file replays over that base.
+        self._edits = CommandStack(
+            document.chords if document is not None else [],
+            lyrics=document.lyrics if document is not None else [],
+        )
+        path = self._session.path
+        if path is not None:
+            self._restore_saved_edits(Path(path))
+        # Restored commands came from disk: they count as saved, lyric base
+        # included (a sidecar can carry an external lyric base).
+        assert self._edits is not None
+        self._saved_applied = self._edits.applied
+        self._saved_base_lyrics = self._edits.base_lyrics
+        self._populate_timeline()
+        self._populate_lyrics()
+        self._panel.set_rows(summarize(document, steps=self._session.steps))
+        self._set_loading(None)
         self.refresh()
         self._timer.start()
-        return True
+        self._honour_pending_close()
+
+    def _on_analysis_failed(self, error: BaseException) -> None:
+        """Report a failed analysis; nothing half-open is left behind.
+
+        A :class:`SongLabError` is what the user can act on and is shown the way
+        the CLI prints it. Anything else is an engine bug, reported with its type
+        - the same message shape the CLI uses for an unexpected failure.
+        """
+        self._set_loading(None)
+        if isinstance(error, SongLabError):
+            self._report(error)
+        else:
+            QMessageBox.critical(
+                self,
+                "Song Chord Lyrics Analyzer",
+                f"Unexpected error: {type(error).__name__}: {error}",
+            )
+        self._honour_pending_close()
+
+    def _honour_pending_close(self) -> None:
+        """Close the window if the user asked for it while analysing."""
+        if self._close_pending:
+            self._close_pending = False
+            self.close()
 
     def _populate_timeline(self) -> None:
         """Draw the waveform and the chord strip of the open song.
@@ -427,7 +585,7 @@ class MainWindow(QMainWindow):
     def resizeEvent(self, event: QResizeEvent | None) -> None:
         """Redraw the waveform at the new width; peaks are cached per width."""
         super().resizeEvent(event)
-        if not self._ready or not self._session.is_open:
+        if not self._ready or self._loading is not None or not self._session.is_open:
             return
         if self._bucket_count != max(1, self._timeline.width()):
             self._populate_timeline()
@@ -878,19 +1036,31 @@ class MainWindow(QMainWindow):
         """
         self._populate_timeline()
         self._populate_lyrics()
-        self._update_edit_actions()
+        self._update_actions()
         self.refresh()
 
-    def _update_edit_actions(self) -> None:
-        """Enable Undo/Redo/Save only when the tape can serve them."""
+    def _update_actions(self) -> None:
+        """Enable exactly the actions that can serve the current state.
+
+        A song being analysed is not a song: while ``_loading`` is set the worker
+        owns the session, so open, transport, edit, export and lyrics actions are
+        all disabled rather than left to act on a session that is mid-reopen.
+        """
         undo, redo, save = self._undo_action, self._redo_action, self._save_action
-        assert undo is not None and redo is not None and save is not None
-        undo.setEnabled(self._edits is not None and self._edits.can_undo)
-        redo.setEnabled(self._edits is not None and self._edits.can_redo)
-        save.setEnabled(self._edits is not None and len(self._edits) > 0)
-        export = self._export_action
-        assert export is not None
-        export.setEnabled(self._session.is_open)
+        export, lyrics_load = self._export_action, self._lyrics_load_action
+        open_action, play = self._open_action, self._play_action
+        assert None not in (undo, redo, save, export, lyrics_load, open_action, play)
+        loading = self._loading is not None
+        open_action.setEnabled(not loading)
+        for action in (play, self._stop_action, self._back_action, self._forward_action):
+            action.setEnabled(not loading and self._session.is_open)
+        for action in (self._transpose_action, self._simplify_action):
+            action.setEnabled(not loading and self._session.is_open)
+        undo.setEnabled(not loading and self._edits is not None and self._edits.can_undo)
+        redo.setEnabled(not loading and self._edits is not None and self._edits.can_redo)
+        save.setEnabled(not loading and self._edits is not None and len(self._edits) > 0)
+        export.setEnabled(not loading and self._session.is_open)
+        lyrics_load.setEnabled(not loading and self._session.is_open)
 
     # -- persistence (Phase G) --------------------------------------------
 
@@ -904,7 +1074,14 @@ class MainWindow(QMainWindow):
             ``True`` when the edits were written; ``False`` when there is no
             song, no edits, or the write failed (already reported).
         """
-        if self._edits is None or len(self._edits) == 0 or self._session.path is None:
+        # An empty tape is nothing to save - unless the lyric base changed
+        # under it (an external .lrc/.srt swap), which is work worth persisting.
+        base_changed = self._edits is not None and (
+            self._edits.base_lyrics != self._saved_base_lyrics
+        )
+        if self._edits is None or (len(self._edits) == 0 and not base_changed):
+            return False
+        if self._session.path is None:
             return False
         document = self._session.document
         provenance = document.provenance if document is not None else None
@@ -923,6 +1100,7 @@ class MainWindow(QMainWindow):
         status_bar.showMessage(f"Edits saved to {target.name}", 5000)
         assert self._edits is not None  # guarded above
         self._saved_applied = self._edits.applied
+        self._saved_base_lyrics = self._edits.base_lyrics
         return True
 
     # -- export (Phase H) ---------------------------------------------------
@@ -983,6 +1161,59 @@ class MainWindow(QMainWindow):
         status_bar.showMessage(f"Exported {fmt} to {written.name}", 5000)
         return True
 
+    # -- external lyrics (Phase F) -----------------------------------------
+
+    def load_lyrics_dialog(self) -> bool:
+        """Ask for a timed-text file and make it this song's lyric base.
+
+        The open dialog filters for ``.lrc``/``.srt`` (the alignment
+        package's formats); a cancelled dialog changes nothing.
+        """
+        if self._session.path is None or not self._session.is_open:
+            return False
+        chosen, _selected = QFileDialog.getOpenFileName(
+            self,
+            "Load lyrics from file",
+            "",
+            LYRICS_FILTER,
+        )
+        if not chosen:
+            return False
+        return self.load_lyrics_from(Path(chosen))
+
+    def load_lyrics_from(self, source: Path) -> bool:
+        """Parse ``source`` and swap the lyric base (the dialog pre-answered).
+
+        The aligned lines replace the engine-transcribed base - the file
+        wins, the same rule ``songlab analyze --lyrics-from`` applies - and
+        the lyric edits of the old tape go out with it (each one addressed
+        the old base by display index). Chord work stays undoable. Loading
+        is not an undoable command: it swaps the base the tape works over,
+        like opening a song does, and counts as unsaved work until Ctrl+S
+        writes the new base to the sidecar.
+
+        Returns:
+            ``True`` when the lyrics were loaded; ``False`` when there is no
+            song or the parse failed (already reported).
+        """
+        edits = self._edits
+        if edits is None or not self._session.is_open:
+            return False
+        try:
+            lines = parse_timed_text(source)
+        except SongLabError as error:
+            self._report(error)
+            return False
+        self._edits = with_lyric_base(edits, lines)
+        self._populate_timeline()
+        self._populate_lyrics()
+        self._update_actions()
+        self.refresh()
+        status_bar = self.statusBar()
+        assert status_bar is not None  # QMainWindow always creates one on demand
+        status_bar.showMessage(f"Lyrics loaded from {source.name} ({len(lines)} lines)", 5000)
+        return True
+
     def _restore_saved_edits(self, path: Path) -> None:
         """Replay the sidecar over the freshly analysed engine layer, if any.
 
@@ -1011,7 +1242,9 @@ class MainWindow(QMainWindow):
         which is how "the chord follows the playhead" is asserted without
         sleeping.
         """
-        if not self._session.is_open:
+        if self._loading is not None or not self._session.is_open:
+            # While an analysis runs the worker owns the session: the window
+            # reads nothing from it until the new song is there (Phase K).
             return None
         snapshot = self._session.snapshot()
         frame = frame_from(snapshot)
@@ -1048,7 +1281,20 @@ class MainWindow(QMainWindow):
         "Unsaved" means the tape differs from what was last written or
         restored, so undoing back to the saved state closes silently - the
         answer is exact, not a dirty flag that lies.
+
+        A close asked for during an analysis is *deferred*, not refused: an
+        engine call cannot be interrupted, and destroying the session a live
+        worker thread is using would crash the process. The window closes by
+        itself the moment the analysis ends.
         """
+        if self._analysis.is_running and not self._close_pending:
+            self._close_pending = True
+            status_bar = self.statusBar()
+            assert status_bar is not None
+            status_bar.showMessage("Closing when the analysis finishes...")
+            if event is not None:
+                event.ignore()
+            return
         if self._unsaved_edits() and not self._confirm_close():
             if event is not None:
                 event.ignore()
@@ -1058,14 +1304,19 @@ class MainWindow(QMainWindow):
         super().closeEvent(event)
 
     def _unsaved_edits(self) -> bool:
-        """Whether the tape differs from the last save/restore.
+        """Whether the tape or the lyric base differs from the last save/restore.
 
         Commands are frozen dataclasses, so tuple equality is exact: undoing
         back to the saved state counts as saved, and a redo counts as unsaved.
+        The same holds for the lyric base after a Phase F swap - the sidecar
+        persists it, so an unsaved swap must keep the close prompt honest.
         """
         if self._edits is None:
             return False
-        return self._edits.applied != self._saved_applied
+        return (
+            self._edits.applied != self._saved_applied
+            or self._edits.base_lyrics != self._saved_base_lyrics
+        )
 
     def _confirm_close(self) -> bool:
         """Ask what to do about unsaved edits; ``True`` closes the window."""
@@ -1111,6 +1362,9 @@ def launch(
     window = MainWindow(engines=engines, input_hash=input_hash)
     window.show()
     if audio is not None and not window.open_file(audio):
+        # The analysis is asynchronous, so this only covers a file that cannot
+        # be opened at all (missing, a directory, empty). A decoder or engine
+        # failure is reported in the window, which stays open.
         window.close()
         return 1
     return int(app.exec())

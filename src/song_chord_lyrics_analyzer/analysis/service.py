@@ -28,14 +28,20 @@ from __future__ import annotations
 
 import platform
 import sys
-from collections.abc import Mapping
-from dataclasses import dataclass
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any
 
 from song_chord_lyrics_analyzer import __version__
+from song_chord_lyrics_analyzer.alignment import parse_timed_text
+from song_chord_lyrics_analyzer.analysis.chunking import (
+    DEFAULT_CHORD_CHUNK_SECONDS,
+    analyze_chords_in_windows,
+)
+from song_chord_lyrics_analyzer.analysis.progress import ProgressEvent
 from song_chord_lyrics_analyzer.audio.probe import compute_file_hash, probe_audio
 from song_chord_lyrics_analyzer.engines.base import (
     ChordAnalysisOptions,
@@ -50,16 +56,20 @@ from song_chord_lyrics_analyzer.models.analysis import (
     Provenance,
     RunStatus,
 )
-from song_chord_lyrics_analyzer.utils.errors import DependencyError, SongLabError
+from song_chord_lyrics_analyzer.utils.errors import DependencyError, InputError, SongLabError
 from song_chord_lyrics_analyzer.utils.logging import get_logger
 from song_chord_lyrics_analyzer.utils.text import pluralize
 
 __all__ = [
+    "DEFAULT_CHORD_CHUNK_SECONDS",
     "SUPPORTED_KINDS",
     "AnalysisOutcome",
+    "ProgressEvent",
     "StepOutcome",
     "StepStatus",
     "run_analysis",
+    "validate_windowing_options",
+    "with_lyrics_from_timed_text",
 ]
 
 _logger = get_logger("analysis")
@@ -138,7 +148,9 @@ def _call(engine: Any, kind: EngineKind, audio_path: Path) -> EngineResult:
 def _describe(kind: EngineKind, result: EngineResult) -> str:
     """A one-line summary of what an engine produced."""
     if kind is EngineKind.CHORDS:
-        return f"{len(result.chords)} chords"
+        windows = result.metadata.get("windows")
+        windowed = f", {windows} windows" if isinstance(windows, int) else ""
+        return f"{len(result.chords)} chords{windowed}"
     if kind is EngineKind.LYRICS:
         words = sum(len(segment.words) for segment in result.lyrics)
         if not result.lyrics:
@@ -165,6 +177,70 @@ def _merge(target: AnalysisResult, kind: EngineKind, result: EngineResult) -> No
         target.raw[result.engine] = result.raw
 
 
+def _notify(callback: Callable[[ProgressEvent], None] | None, event: ProgressEvent) -> None:
+    """Report one progress event; a missing callback is a no-op, never a guess."""
+    if callback is not None:
+        callback(event)
+
+
+def _window_reporter(
+    kind: EngineKind,
+    engine_name: str,
+    on_progress: Callable[[ProgressEvent], None] | None,
+) -> Callable[[int, int, Any], None] | None:
+    """A per-window progress reporter, or ``None`` when nobody is listening."""
+    if on_progress is None:
+        return None
+
+    def report(index: int, total: int, _chunk: Any) -> None:
+        on_progress(
+            ProgressEvent(kind.value, engine_name, index, total, f"window {index} of {total}")
+        )
+
+    return report
+
+
+def validate_windowing_options(
+    chord_chunk_seconds: float | None, chord_overlap_seconds: float
+) -> None:
+    """Reject impossible windowing options before any engine is called.
+
+    Public so a front end that decodes before it analyses - ``songlab play``
+    opens the audio first - can report a typo in the flags without paying for
+    the decode.
+
+    Raises:
+        InputError: When the window length is not positive, or when the overlap
+            is negative or as long as the window itself.
+    """
+    if chord_chunk_seconds is None:
+        if chord_overlap_seconds:
+            raise InputError(
+                "A chord overlap needs a window length to overlap within.",
+                hint="Pass the window length too, for example --chord-chunk-seconds 120.",
+            )
+        return
+    if chord_chunk_seconds <= 0.0:
+        raise InputError(
+            f"The chord window length must be positive, got {chord_chunk_seconds!r}",
+            hint="Pass a window length in seconds, for example --chord-chunk-seconds 120.",
+        )
+    if chord_overlap_seconds < 0.0:
+        raise InputError(
+            f"The chord window overlap must not be negative, got {chord_overlap_seconds!r}"
+        )
+    if chord_overlap_seconds >= chord_chunk_seconds:
+        raise InputError(
+            "The chord window overlap must be smaller than the window length.",
+            hint="An overlap as long as the window would never advance.",
+        )
+
+
+def _seconds_label(value: float) -> str:
+    """A window length as provenance records it: ``120`` rather than ``120.0``."""
+    return f"{value:g}"
+
+
 def _status(steps: list[StepOutcome]) -> RunStatus:
     """``partial`` when some step did not deliver, ``failed`` when none did."""
     ok = [step for step in steps if step.status is StepStatus.OK]
@@ -175,12 +251,71 @@ def _status(steps: list[StepOutcome]) -> RunStatus:
     return RunStatus.FAILED
 
 
+def with_lyrics_from_timed_text(outcome: AnalysisOutcome, source: Path) -> AnalysisOutcome:
+    """Layer ``result.lyrics`` from an external timed-text file over the run..
+
+    The file wins over any engine-transcribed lyric layer: the user asked for
+    these lyrics explicitly, and the alignment rules live in
+    :mod:`song_chord_lyrics_analyzer.alignment`. The step summary and the
+    provenance configuration record the file as the lyric source, so nothing
+    in the document claims an engine provenance it does not have, and the run
+    status is recomputed from the resulting steps. A read or parse error
+    raises before anything is changed - the engine outcome stays intact.
+
+    Raises:
+        :class:`~song_chord_lyrics_analyzer.utils.errors.InputError`: The file
+            cannot be read or parsed as ``.lrc``/``.srt``.
+    """
+    lines = parse_timed_text(source)
+    detail = f"{pluralize(len(lines), 'lyric segment')} from {Path(source).name}"
+    steps: list[StepOutcome] = []
+    replaced = False
+    for step in outcome.steps:
+        if step.kind == "lyrics":
+            steps.append(
+                replace(
+                    step,
+                    engine="timed-text",
+                    status=StepStatus.OK,
+                    detail=detail,
+                    processing_time_seconds=None,
+                )
+            )
+            replaced = True
+        else:
+            steps.append(step)
+    if not replaced:  # the lyrics layer never ran: the file is the step now
+        steps.append(
+            StepOutcome(
+                "lyrics",
+                "timed-text",
+                StepStatus.OK,
+                detail,
+                processing_time_seconds=None,
+            )
+        )
+    document = replace(
+        outcome.result,
+        lyrics=list(lines),
+        warnings=list(outcome.result.warnings),
+    )
+    configuration = dict(document.provenance.configuration)
+    configuration["lyrics_from"] = str(source)
+    provenance = replace(document.provenance, configuration=configuration)
+    document = replace(document, provenance=provenance)
+    document = replace(document, run=replace(document.run, status=_status(steps)))
+    return AnalysisOutcome(result=document, steps=tuple(steps))
+
+
 def run_analysis(
     audio_path: Path,
     *,
     registry: Any | None = None,
     engines: Mapping[str, str] | None = None,
     input_hash: bool = True,
+    chord_chunk_seconds: float | None = None,
+    chord_overlap_seconds: float = 0.0,
+    on_progress: Callable[[ProgressEvent], None] | None = None,
 ) -> AnalysisOutcome:
     """Analyse ``audio_path`` and return the canonical document.
 
@@ -191,15 +326,33 @@ def run_analysis(
             ``{"chords": "chroma-baseline"}``. An unknown name raises
             :class:`~song_chord_lyrics_analyzer.utils.errors.EngineNotFoundError`.
         input_hash: Whether to record the SHA-256 of the input in provenance.
+        chord_chunk_seconds: Analyse chords in windows of this length instead
+            of one whole-file pass (roadmap Phase K: long songs). ``None`` -
+            the default - keeps the one-pass behaviour every accuracy number in
+            ``docs/ENGINE_COMPARISON.md`` was measured with. The windowing and
+            its seam rules live in :mod:`song_chord_lyrics_analyzer.analysis.chunking`;
+            only the chord layer is windowed, because the key and tempo
+            engines need the whole song to answer at all and the lyrics engine
+            chunks internally.
+        chord_overlap_seconds: How much neighbouring chord windows share.
+        on_progress: Called with a :class:`ProgressEvent` when a step starts
+            and, for a windowed run, once per window. The callback runs on this
+            thread and is never swallowed.
 
     Raises:
         AudioFileNotFoundError: When the file does not exist.
         UnsupportedAudioError: When it cannot be decoded as audio.
         DependencyError: When no engine at all can run in this environment.
         EngineNotFoundError: When an override names an unregistered engine.
+        InputError: When the windowing options are impossible (raised before
+            any engine runs). A chord engine that ignores the time range a
+            window was analysed with fails its step instead - a warning and a
+            partial run, like any other engine failure, never a duplicated
+            timeline.
     """
     audio_path = Path(audio_path)
     selected = dict(engines or {})
+    validate_windowing_options(chord_chunk_seconds, chord_overlap_seconds)
     engine_registry = registry if registry is not None else create_default_registry()
 
     document = probe_audio(audio_path)
@@ -221,6 +374,7 @@ def run_analysis(
             warnings.append(f"No {kind.value} engine is registered; that layer is missing.")
             continue
         configuration[kind.value] = engine.name
+        _notify(on_progress, ProgressEvent(kind.value, engine.name, 0, 1))
         try:
             available = bool(engine.is_available())
         except Exception as error:  # availability must never crash the run
@@ -233,7 +387,20 @@ def run_analysis(
             )
             continue
         try:
-            engine_result = _call(engine, kind, audio_path)
+            if kind is EngineKind.CHORDS and chord_chunk_seconds is not None:
+                engine_result = analyze_chords_in_windows(
+                    engine,
+                    audio_path,
+                    duration=document.duration,
+                    chunk_seconds=chord_chunk_seconds,
+                    overlap_seconds=chord_overlap_seconds,
+                    on_window=_window_reporter(kind, engine.name, on_progress),
+                )
+                configuration["chords_chunk_seconds"] = _seconds_label(chord_chunk_seconds)
+                if chord_overlap_seconds:
+                    configuration["chords_overlap_seconds"] = _seconds_label(chord_overlap_seconds)
+            else:
+                engine_result = _call(engine, kind, audio_path)
         except SongLabError as error:
             steps.append(StepOutcome(kind.value, engine.name, StepStatus.FAILED, str(error)))
             warnings.append(f"{kind.value}: {error}")

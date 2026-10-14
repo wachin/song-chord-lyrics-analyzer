@@ -75,13 +75,22 @@ def fake_engine() -> type[FakeEngine]:
     return FakeEngine
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def qt_app() -> object:
     """A ``QApplication`` on the offscreen platform, or skip without PyQt6.
 
     The GUI is tested through its widgets, never through a screen: the offscreen
     platform plugin draws into memory, so ``render()`` and ``paintEvent`` run on
     a CI machine with no display and the core install (no Qt) simply skips.
+
+    The fixture is **session-scoped on purpose**. Qt owns a per-process
+    application object, and widgets stay alive in the interpreter well after the
+    test that made them (sip keeps them reachable), so an application that the
+    garbage collector frees between two tests leaves those widgets parented to
+    nothing: the next test that runs an event loop - anything that paints - then
+    crashes Qt. Creating it once and keeping it for the whole session is what
+    makes the tests that drive a real event loop (the Phase K analysis worker)
+    deterministic instead of occasionally segfaulting.
     """
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     widgets = pytest.importorskip("PyQt6.QtWidgets", reason="PyQt6 is not installed")

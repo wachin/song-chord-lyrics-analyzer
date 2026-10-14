@@ -371,6 +371,20 @@ class TestTheChordFollowsThePlayhead:
 
         assert drawn == {"C", "G", "N", "F"}, drawn
 
+    def test_the_chord_label_offers_that_chords_confidence(self, window: MainWindow) -> None:
+        """The engine's score travels with the chord the label is showing."""
+        assert window.chord_label.toolTip() == "confidence unknown"  # the fake
+
+        window.seek(1.5)  # G: this engine reports no confidence either
+        window.refresh()
+        assert window.chord_label.text() == "G"
+        assert window.chord_label.toolTip() == "confidence unknown"
+
+        window.seek(DURATION)  # no chord claimed: no confidence to offer
+        window.refresh()
+        assert window.chord_label.text() == "--"
+        assert window.chord_label.toolTip() == ""
+
     def test_pausing_freezes_the_playhead_and_the_label(self, window: MainWindow) -> None:
         window.toggle_play()
         _advance(window, 1.0)

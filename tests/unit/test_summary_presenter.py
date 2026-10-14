@@ -8,12 +8,14 @@ that was skipped is reported as skipped - never as a layer that produced nothing
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import replace
 from pathlib import Path
 
-from fixtures.fake_analysis import STEPS, analysis_outcome
+from fixtures.fake_analysis import EVENTS, STEPS, analysis_outcome
 from song_chord_lyrics_analyzer.analysis.service import StepOutcome, StepStatus
 from song_chord_lyrics_analyzer.app.summary import SummaryRow, summarize
 from song_chord_lyrics_analyzer.models.analysis import AnalysisResult
+from song_chord_lyrics_analyzer.models.confidence import ConfidenceScore
 from song_chord_lyrics_analyzer.models.music import TempoEstimate
 
 
@@ -69,12 +71,12 @@ class TestRows:
 
         assert rows["Input SHA-256"] == "aaaaaaaaaaaa..."
 
-    def test_the_number_of_warnings_is_shown_when_there_are_any(self) -> None:
+    def test_the_warnings_themselves_are_shown_when_there_are_any(self) -> None:
         quiet = _rows(analysis_outcome("song.wav").result)
         noisy = _rows(analysis_outcome("song.wav", warnings=["one", "two"]).result)
 
         assert "Warnings" not in quiet
-        assert noisy["Warnings"] == "2"
+        assert noisy["Warnings"] == "one; two"
 
 
 class TestMissingEvidence:
@@ -82,6 +84,46 @@ class TestMissingEvidence:
         rows = _rows(analysis_outcome("song.wav", chords=[]).result)
 
         assert rows["Chords"] == "none detected"
+
+    def test_no_chords_leaves_the_confidence_row_out(self) -> None:
+        rows = _rows(analysis_outcome("song.wav", chords=[]).result)
+
+        assert "Chord confidence" not in rows
+
+    def test_an_engine_that_reports_no_confidence_says_unknown(self) -> None:
+        rows = _rows(analysis_outcome("song.wav").result)
+
+        assert rows["Chord confidence"] == "unknown"  # never "0"
+
+    def test_a_named_unknown_confidence_names_the_engine(self) -> None:
+        chords = [
+            replace(event, confidence=ConfidenceScore.unknown("chroma-baseline"))
+            for event in EVENTS
+        ]
+
+        rows = _rows(analysis_outcome("song.wav", chords=chords).result)
+
+        assert rows["Chord confidence"] == "unknown (chroma-baseline)"
+
+    def test_reported_confidences_are_averaged_over_the_chords(self) -> None:
+        chords = [
+            replace(EVENTS[0], confidence=ConfidenceScore.from_value(0.8)),
+            replace(EVENTS[1], confidence=ConfidenceScore.from_value(0.6)),
+        ]
+
+        rows = _rows(analysis_outcome("song.wav", chords=chords).result)
+
+        assert rows["Chord confidence"] == "0.70 average"
+
+    def test_partial_coverage_counts_the_events_without_a_value(self) -> None:
+        chords = [
+            replace(EVENTS[0], confidence=ConfidenceScore.from_value(0.8)),
+            replace(EVENTS[1], confidence=ConfidenceScore.unknown()),
+        ]
+
+        rows = _rows(analysis_outcome("song.wav", chords=chords).result)
+
+        assert rows["Chord confidence"] == "0.80 average over 1 of 2 events (1 unknown)"
 
     def test_no_key_guess_is_reported_as_unknown(self) -> None:
         outcome = analysis_outcome("song.wav")

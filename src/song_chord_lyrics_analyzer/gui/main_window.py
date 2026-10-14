@@ -1256,6 +1256,10 @@ class MainWindow(QMainWindow):
                 frame = replace(frame, chord=edited)
         self._frame = frame
         self._chord_label.setText(frame.chord_text)
+        # The confidence the engine reported for *that* chord - the effective
+        # one, like the label itself. An engine that reports none honestly
+        # offers "unknown"; where no chord is claimed there is no tooltip.
+        self._chord_label.setToolTip(frame.chord_confidence_text)
         self._time_label.setText(frame.time_text)
         self._state_label.setText(frame.state.value)
         self._play_action.setText("Pause" if frame.state is PlaybackState.PLAYING else "Play")

@@ -79,6 +79,18 @@ class DisplayFrame:
         return self.chord.to_label() if self.chord is not None else NO_CHORD_TEXT
 
     @property
+    def chord_confidence_text(self) -> str:
+        """The confidence of the chord under the playhead, or ``""``.
+
+        The engine's own score, rendered honestly: ``unknown`` stays the word
+        ``unknown`` (it is not ``0``), and where no chord is claimed there is
+        no confidence to offer at all.
+        """
+        if self.chord is None:
+            return ""
+        return f"confidence {self.chord.confidence}"
+
+    @property
     def progress(self) -> float:
         """How far into the track the playhead is, clamped to ``[0.0, 1.0]``."""
         if self.duration <= 0.0:

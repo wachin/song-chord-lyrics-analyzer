@@ -89,6 +89,28 @@ def _count(count: int, noun: str) -> str:
     return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
 
 
+def _describe_confidence(document: AnalysisResult) -> str | None:
+    """How confident the chord layer is, never inventing a number.
+
+    A chord engine that reports no per-chord confidence (the baseline engine
+    reports none) is named as ``unknown``: unknown is not zero, and the row
+    never pretends the run was sure. Where some events carry a value the
+    average is over those, and the rest are counted as unknown.
+    """
+    chords = document.chords
+    if not chords:
+        return None
+    known = [value for event in chords if (value := event.confidence.value) is not None]
+    if not known:
+        sources = sorted({event.confidence.source for event in chords if event.confidence.source})
+        return f"unknown ({', '.join(sources)})" if sources else "unknown"
+    average = sum(known) / len(known)
+    if len(known) == len(chords):
+        return f"{average:.2f} average"
+    unknown = len(chords) - len(known)
+    return f"{average:.2f} average over {len(known)} of {len(chords)} events ({unknown} unknown)"
+
+
 def lyrics_label(document: AnalysisResult) -> str | None:
     """How much of the lyrics layer the document carries, or ``None`` for none.
 
@@ -127,6 +149,9 @@ def summarize(
         if audio.duration:
             rows.append(SummaryRow("Duration", format_timestamp(float(audio.duration))))
     rows.append(SummaryRow("Chords", _describe_chords(document)))
+    confidence = _describe_confidence(document)
+    if confidence is not None:
+        rows.append(SummaryRow("Chord confidence", confidence))
     lyrics = lyrics_label(document)
     if lyrics is not None:
         rows.append(SummaryRow("Lyrics", lyrics))
@@ -157,5 +182,7 @@ def summarize(
     if provenance.input_hash:
         rows.append(SummaryRow("Input SHA-256", f"{provenance.input_hash[:_HASH_PREFIX]}..."))
     if document.warnings:
-        rows.append(SummaryRow("Warnings", str(len(document.warnings))))
+        # The warnings themselves, not their count: a count says something
+        # happened, the text says what.
+        rows.append(SummaryRow("Warnings", "; ".join(document.warnings)))
     return tuple(rows)

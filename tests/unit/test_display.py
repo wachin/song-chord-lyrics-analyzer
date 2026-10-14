@@ -35,6 +35,7 @@ from song_chord_lyrics_analyzer.models.analysis import (
     RunStatus,
 )
 from song_chord_lyrics_analyzer.models.audio import AudioDocument
+from song_chord_lyrics_analyzer.models.confidence import ConfidenceScore
 from song_chord_lyrics_analyzer.models.music import ChordEvent, ChordQuality
 from song_chord_lyrics_analyzer.utils.errors import InputError
 
@@ -133,6 +134,35 @@ class TestFrameFrom:
         session, _player, _clock = _session(tmp_path)
         session.seek(3.5)
         assert frame_from(session.snapshot()).chord_text == "?"
+
+
+class TestTheChordConfidence:
+    def test_an_engine_that_reports_none_offers_unknown_not_a_number(self, tmp_path: Path) -> None:
+        session, _player, _clock = _session(tmp_path)
+
+        frame = frame_from(session.snapshot())
+
+        assert frame.chord_confidence_text == "confidence unknown"
+
+    def test_where_no_chord_is_claimed_there_is_nothing_to_be_confident_about(
+        self, tmp_path: Path
+    ) -> None:
+        session, _player, _clock = _session(tmp_path)
+        session.seek(DURATION)
+
+        assert frame_from(session.snapshot()).chord_confidence_text == ""
+
+    def test_a_reported_value_is_shown_with_its_band(self) -> None:
+        chord = ChordEvent(
+            start=0.0,
+            end=1.0,
+            root="C",
+            quality=ChordQuality.MAJOR,
+            confidence=ConfidenceScore(value=0.72),
+        )
+        frame = DisplayFrame(position=0.1, duration=1.0, state=PlaybackState.PLAYING, chord=chord)
+
+        assert frame.chord_confidence_text == "confidence 0.72 (high)"
 
 
 class TestFrameMeasurements:

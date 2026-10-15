@@ -8,8 +8,8 @@ under test here is the honesty of the wiring as much as the mechanics:
   actually installed - a planned language in a dict is not an installed
   language,
 * a load failure raises instead of silently keeping English,
-* the checkout ships the Spanish *source* catalogue for a translator, and
-  deliberately no compiled Spanish catalogue for a user.
+* the checkout ships no catalogue at all while the English interface is still
+  changing (docs/INTERNATIONALIZATION.md), so the window offers only English.
 """
 
 from __future__ import annotations
@@ -78,11 +78,18 @@ class TestDiscovery:
         assert default_catalogue_dir().name == "translations"
         assert default_catalogue_dir().is_dir()
 
-    def test_the_shipped_spanish_is_a_source_file_and_not_a_translation(self) -> None:
-        """The policy: the .ts ships as the translator's start; no .qm ships."""
+    def test_no_catalogue_ships_before_the_english_interface_is_frozen(self) -> None:
+        """The policy: extraction starts after the freeze, so nothing is here yet.
+
+        A planner's ``.ts`` path in the docs is a plan, not a shipped file: this
+        checkout carries neither a translator's source catalogue nor a compiled
+        one, which is exactly why the window offers only the source language.
+        """
         root = default_catalogue_dir()
-        assert (root / "song_chord_lyrics_analyzer_es.ts").is_file()
-        assert not (root / "song_chord_lyrics_analyzer_es.qm").exists()
+        assert root.is_dir()
+        assert list(root.glob("*.ts")) == []
+        assert list(root.glob("*.qm")) == []
+        assert available_languages(root) == ()
 
 
 class TestLoading:

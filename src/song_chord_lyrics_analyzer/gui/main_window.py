@@ -466,8 +466,9 @@ class MainWindow(QMainWindow):
         group = QActionGroup(self)
         group.setExclusive(True)
         self._language_group = group
-        installed = (SOURCE_LANGUAGE, SOURCE_LANGUAGE_NAME), *available_languages(
-            self._translations_dir
+        installed = (
+            (SOURCE_LANGUAGE, SOURCE_LANGUAGE_NAME),
+            *available_languages(self._translations_dir),
         )
         for code, name in installed:
             action = group.addAction(name)
@@ -509,9 +510,7 @@ class MainWindow(QMainWindow):
         translator = None
         if code != SOURCE_LANGUAGE:
             try:
-                translator = install_translator(
-                    application, code, directory=self._translations_dir
-                )
+                translator = install_translator(application, code, directory=self._translations_dir)
             except SongLabError as error:
                 self._report(error)
                 return False
@@ -547,7 +546,6 @@ class MainWindow(QMainWindow):
         self._export_action.setText(self.tr("Export document..."))
         self._lyrics_load_action.setText(self.tr("Load lyrics from file..."))
         self._timeline.retranslate()
-        self._lyrics.retranslate()
 
     # -- opening a song ----------------------------------------------------
 
@@ -589,8 +587,7 @@ class MainWindow(QMainWindow):
             status_bar = self.statusBar()
             assert status_bar is not None
             status_bar.showMessage(
-                self.tr("An analysis is still running; the window holds one song at a time."),
-                5000
+                self.tr("An analysis is still running; the window holds one song at a time."), 5000
             )
             return False
         self._timer.stop()
@@ -890,9 +887,7 @@ class MainWindow(QMainWindow):
                 label, accepted = QInputDialog.getText(
                     self,
                     self.tr("Insert chord"),
-                    self.tr("Chord label from {start:.2f} s (open-ended):").format(
-                        start=position
-                    ),
+                    self.tr("Chord label from {start:.2f} s (open-ended):").format(start=position),
                 )
                 if not accepted:
                     return False
@@ -996,7 +991,7 @@ class MainWindow(QMainWindow):
         return True
 
     def transpose_chords(self) -> bool:
-        """The Transpose action: ask for the semitones, push the command."""
+        """Show the semitones dialog; a cancelled dialog changes nothing."""
         semitones, accepted = QInputDialog.getInt(
             self,
             self.tr("Transpose chords"),
@@ -1080,9 +1075,7 @@ class MainWindow(QMainWindow):
                 text, accepted = QInputDialog.getText(
                     self,
                     self.tr("Edit lyric line"),
-                    self.tr("Line {index} of {total}:").format(
-                        index=index + 1, total=len(lines)
-                    ),
+                    self.tr("Line {index} of {total}:").format(index=index + 1, total=len(lines)),
                     text=line.text,
                 )
                 if not accepted:
@@ -1300,9 +1293,7 @@ class MainWindow(QMainWindow):
         except OSError as error:
             self._report(
                 SongLabError(
-                    self.tr("Could not write {path}: {error}").format(
-                        path=target, error=error
-                    ),
+                    self.tr("Could not write {path}: {error}").format(path=target, error=error),
                     hint=self.tr("Choose a location this user can write to."),
                 )
             )

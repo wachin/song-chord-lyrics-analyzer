@@ -36,7 +36,11 @@ from song_chord_lyrics_analyzer.models.lyrics import LyricSegment, LyricSegmentK
 __all__ = ["LyricsWidget"]
 
 #: Shown when the open document carries no lyrics at all.
-EMPTY_TEXT = "No lyrics for this song"
+EMPTY_TEXT = "No lyrics for this song"  # English placeholder; tests pin this literal
+
+#: The English reference the placeholder renders: every change to the literal
+#: here must be reflected by the test in ``tests/unit/test_gui_lyrics_view.py``.
+EMPTY_PLACEHOLDER = "No lyrics for this song"
 
 
 class LyricsWidget(QWidget):

@@ -1328,7 +1328,9 @@ class TestDrawing:
         }
         assert len(colours) > 1, "the timeline painted nothing"
 
-    def test_the_timeline_shows_its_english_placeholder_if_untranslated(self, window: MainWindow) -> None:  # noqa: E501
+    def test_the_timeline_shows_its_english_placeholder_if_untranslated(
+        self, window: MainWindow
+    ) -> None:
         """The source catalogue never loses the English placeholder: the
         property the paint uses is exactly ``TimelineWidget.EMPTY_TEXT``,
         an English reference that a test pins, so a reopened catalogue that

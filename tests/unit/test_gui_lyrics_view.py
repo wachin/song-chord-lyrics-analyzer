@@ -73,6 +73,7 @@ class TestTheDocument:
         view = LyricsWidget()
         assert view._placeholder.text() == LyricsWidget.EMPTY_PLACEHOLDER
 
+
 class TestTheClock:
     """The caller decides what is active; the widget only draws it.
 

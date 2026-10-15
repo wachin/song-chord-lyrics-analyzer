@@ -50,6 +50,8 @@ class LyricsWidget(QWidget):
     test) hands it the document once and then feeds it positions.
     """
 
+    EMPTY_PLACEHOLDER = "No lyrics for this song"
+
     #: A right-click on a line: the display index of the line under the
     #: pointer. The window turns that into the lyric commands' menu, exactly
     #: as the timeline turns its clicks into chord commands.

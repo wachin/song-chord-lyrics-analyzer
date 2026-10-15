@@ -35,13 +35,6 @@ from song_chord_lyrics_analyzer.models.lyrics import LyricSegment, LyricSegmentK
 
 __all__ = ["LyricsWidget"]
 
-#: Shown when the open document carries no lyrics at all.
-EMPTY_TEXT = "No lyrics for this song"  # English placeholder; tests pin this literal
-
-#: The English reference the placeholder renders: every change to the literal
-#: here must be reflected by the test in ``tests/unit/test_gui_lyrics_view.py``.
-EMPTY_PLACEHOLDER = "No lyrics for this song"
-
 
 class LyricsWidget(QWidget):
     """Scrollable lyric lines over the document, with the current one active.
@@ -50,7 +43,10 @@ class LyricsWidget(QWidget):
     test) hands it the document once and then feeds it positions.
     """
 
-    EMPTY_PLACEHOLDER = "No lyrics for this song"
+    #: Shown when the open document carries no lyrics at all. The English
+    #: reference, like :attr:`TimelineWidget.EMPTY_TEXT`: a test pins the
+    #: widget's rendered placeholder against this literal.
+    EMPTY_TEXT = "No lyrics for this song"
 
     #: A right-click on a line: the display index of the line under the
     #: pointer. The window turns that into the lyric commands' menu, exactly
@@ -68,7 +64,7 @@ class LyricsWidget(QWidget):
         self._view.setFrameShape(QTextBrowser.Shape.NoFrame)
         self._view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._view.customContextMenuRequested.connect(self._request_line_menu)
-        self._placeholder = QLabel(EMPTY_TEXT, self)
+        self._placeholder = QLabel(self.EMPTY_TEXT, self)
         self._placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         layout = QVBoxLayout(self)

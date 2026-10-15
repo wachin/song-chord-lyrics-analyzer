@@ -539,6 +539,67 @@ class TestEditingTheChordLayer:
             ("F", 3.0, 4.0),
         ]
 
+    def test_one_menu_choice_is_dispatched_exactly_once(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The context menu routes a picked row to one handler, not two.
+
+        Phase H added the transform rows to the same menu. A second,
+        unconditional ``apply_edit_choice`` call after the transform branch
+        would run a chord command twice for one click (a delete applied twice,
+        an edit dialog opened twice), so the assertion is on the dispatch
+        itself: one row, one call.
+        """
+        dispatched: list[str] = []
+        apply_edit = window.apply_edit_choice
+
+        def _spy(choice: str, position: float) -> bool:
+            dispatched.append(choice)
+            return apply_edit(choice, position)
+
+        monkeypatch.setattr(window, "apply_edit_choice", _spy)
+        monkeypatch.setattr(
+            QtWidgets.QMenu,
+            "exec",
+            lambda menu, *args, **kwargs: next(
+                (action for action in menu.actions() if action.text() == "Delete chord"),
+                None,
+            ),
+        )
+
+        before = self._labels(window)
+        window._show_edit_menu(QtCore.QPoint(window.timeline.width() // 2, 10))
+
+        assert dispatched == ["delete"]
+        after = self._labels(window)
+        assert len(after) == len(before) - 1, after
+        assert set(after).issubset(before)
+
+    def test_a_transform_row_never_reaches_the_chord_commands(
+        self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The same menu carries the Phase H transforms; they are not edits."""
+        dispatched: list[str] = []
+
+        def _spy(choice: str, position: float) -> bool:
+            dispatched.append(choice)
+            return False
+
+        monkeypatch.setattr(window, "apply_edit_choice", _spy)
+        monkeypatch.setattr(
+            QtWidgets.QMenu,
+            "exec",
+            lambda menu, *args, **kwargs: next(
+                (action for action in menu.actions() if action.text() == "Simplify all chords"),
+                None,
+            ),
+        )
+
+        window._show_edit_menu(QtCore.QPoint(window.timeline.width() // 2, 10))
+
+        assert dispatched == []
+        assert window.edits is not None and len(window.edits) == 1
+
     def test_the_engines_layer_survives_every_edit(
         self, window: MainWindow, monkeypatch: pytest.MonkeyPatch
     ) -> None:

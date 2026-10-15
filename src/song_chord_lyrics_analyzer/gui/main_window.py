@@ -928,17 +928,19 @@ class MainWindow(QMainWindow):
         menu.addAction(self._undo_action)
         menu.addAction(self._redo_action)
         chosen = menu.exec(self._timeline.mapToGlobal(pos))
-        if chosen is not None:
-            picked = choices.get(chosen)
-            if picked is not None:
-                if picked in ("transpose", "simplify"):
-                    self.apply_transform_choice(picked)
-                else:
-                    self.apply_edit_choice(picked, position)
-        if chosen is not None:
-            picked = choices.get(chosen)
-            if picked is not None:
-                self.apply_edit_choice(picked, position)
+        if chosen is None:  # dismissed without picking a row
+            return
+        picked = choices.get(chosen)
+        if picked is None:  # one of the shared undo/redo actions
+            return
+        # Exactly one handler per row: a chord command goes to
+        # ``apply_edit_choice`` and the Phase H transforms to
+        # ``apply_transform_choice``, never both - a second unconditional
+        # dispatch would apply a delete twice or open the edit dialog twice.
+        if picked in ("transpose", "simplify"):
+            self.apply_transform_choice(picked)
+        else:
+            self.apply_edit_choice(picked, position)
 
     # -- document-level transforms (Phase H) -------------------------------
 

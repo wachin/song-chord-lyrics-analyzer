@@ -68,10 +68,10 @@ class TestTheDocument:
         assert view.active_index is None
 
     def test_the_placeholder_is_its_english_reference(self, qt_app: object) -> None:
-        """The widget shows exactly what EMPTY_TEXT says; a catalogue that
+        """The widget shows exactly what the constant says; a catalogue that
         dropped, reordered or renamed the placeholder literal fails."""
         view = LyricsWidget()
-        assert view._placeholder.text() == LyricsWidget.EMPTY_PLACEHOLDER
+        assert view._placeholder.text() == LyricsWidget.EMPTY_TEXT
 
 
 class TestTheClock:

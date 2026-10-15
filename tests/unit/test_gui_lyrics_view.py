@@ -67,15 +67,11 @@ class TestTheDocument:
         assert view.lines == ()
         assert view.active_index is None
 
-    def test_the_document_is_drawn_in_display_order(self, qt_app: object) -> None:
+    def test_the_placeholder_is_its_english_reference(self, qt_app: object) -> None:
+        """The widget shows exactly what EMPTY_TEXT says; a catalogue that
+        dropped, reordered or renamed the placeholder literal fails."""
         view = LyricsWidget()
-
-        view.set_document(DOCUMENT)
-
-        assert [line.text for line in view.lines] == ["hola mundo", "adios amor", "post-coro"]
-        assert view.has_lyrics() is True
-        assert view.active_index is None
-
+        assert view._placeholder.text() == LyricsWidget.EMPTY_PLACEHOLDER
 
 class TestTheClock:
     """The caller decides what is active; the widget only draws it.

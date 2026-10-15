@@ -26,8 +26,8 @@ from collections.abc import Mapping
 from dataclasses import replace
 from pathlib import Path
 
-from PyQt6.QtCore import QPoint, Qt, QTimer
-from PyQt6.QtGui import QAction, QCloseEvent, QCursor, QKeySequence, QResizeEvent
+from PyQt6.QtCore import QPoint, Qt, QTimer, QTranslator
+from PyQt6.QtGui import QAction, QActionGroup, QCloseEvent, QCursor, QKeySequence, QResizeEvent
 from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -90,6 +90,12 @@ from song_chord_lyrics_analyzer.gui.analysis_worker import (
 )
 from song_chord_lyrics_analyzer.gui.lyrics_view import LyricsWidget
 from song_chord_lyrics_analyzer.gui.timeline import TimelineWidget
+from song_chord_lyrics_analyzer.i18n import (
+    SOURCE_LANGUAGE,
+    SOURCE_LANGUAGE_NAME,
+    available_languages,
+    install_translator,
+)
 from song_chord_lyrics_analyzer.models.analysis import AnalysisResult
 from song_chord_lyrics_analyzer.models.lyrics import LyricSegment
 from song_chord_lyrics_analyzer.utils.errors import SongLabError
@@ -173,6 +179,8 @@ class MainWindow(QMainWindow):
             analysed; a test injects the immediate runner so the state after
             ``open_file()`` is already final.
         parent: Qt parent, for embedding.
+        translations_dir: Where the compiled ``*.qm`` catalogues live;
+            defaults to the checkout's ``translations/`` directory.
     """
 
     def __init__(
@@ -184,6 +192,7 @@ class MainWindow(QMainWindow):
         interval: float = DEFAULT_REFRESH_INTERVAL,
         analysis: AnalysisRunner | None = None,
         parent: QWidget | None = None,
+        translations_dir: Path | None = None,
     ) -> None:
         super().__init__(parent)
         self._session = session if session is not None else SongSession()
@@ -213,7 +222,16 @@ class MainWindow(QMainWindow):
         #: a base swapped for an external file is unsaved work too (Phase F).
         self._saved_base_lyrics: tuple[LyricSegment, ...] = ()
 
-        self.setWindowTitle("Song Chord Lyrics Analyzer")
+        #: The window's language: English (the source) until the user picks
+        #: an installed catalogue from the Language menu. Never guessed from
+        #: the environment - the menu is the only thing that changes it.
+        self._language = SOURCE_LANGUAGE
+        self._translations_dir = translations_dir
+        #: Kept alive on purpose: Qt drops a translation the moment its
+        #: translator is collected, mid-sentence if it must.
+        self._translator: QTranslator | None = None
+
+        self.setWindowTitle(self.tr("Song Chord Lyrics Analyzer"))
         self.resize(960, 560)
         self._build_actions()
         self._build_widgets()
@@ -224,6 +242,10 @@ class MainWindow(QMainWindow):
         self._timer = QTimer(self)
         self._timer.setInterval(max(1, int(interval * 1000)))
         self._timer.timeout.connect(self.refresh)
+        # Like Qt's retranslateUi: every string is applied once here, and
+        # again on each language change, in the same place.
+        self._build_language_menu()
+        self.retranslate()
         self._ready = True
 
     # -- public state ------------------------------------------------------
@@ -274,6 +296,16 @@ class MainWindow(QMainWindow):
         return self._progress
 
     @property
+    def language(self) -> str:
+        """The code of the language the window currently speaks (``"en"`` = source)."""
+        return self._language
+
+    @property
+    def installed_languages(self) -> tuple[tuple[str, str], ...]:
+        """The ``(code, name)`` pairs the Language menu offers, in menu order."""
+        return tuple((code, action.text()) for code, action in self._language_actions.items())
+
+    @property
     def analysis_running(self) -> bool:
         """Whether a song is being analysed right now."""
         return self._analysis.is_running
@@ -281,64 +313,64 @@ class MainWindow(QMainWindow):
     # -- construction ------------------------------------------------------
 
     def _build_actions(self) -> None:
-        self._open_action = QAction("Open...", self)
+        self._open_action = QAction(self.tr("Open..."), self)
         self._open_action.setShortcut(QKeySequence.StandardKey.Open)
         self._open_action.triggered.connect(self.choose_file)
 
-        self._play_action = QAction("Play", self)
+        self._play_action = QAction(self.tr("Play"), self)
         self._play_action.setShortcut(QKeySequence("Space"))
         self._play_action.triggered.connect(self.toggle_play)
 
-        self._stop_action = QAction("Stop", self)
+        self._stop_action = QAction(self.tr("Stop"), self)
         self._stop_action.triggered.connect(self.stop)
 
-        self._back_action = QAction("Back", self)
+        self._back_action = QAction(self.tr("Back"), self)
         self._back_action.setShortcut(QKeySequence("Left"))
         self._back_action.triggered.connect(lambda: self.seek_by(-SEEK_STEP))
 
-        self._forward_action = QAction("Forward", self)
+        self._forward_action = QAction(self.tr("Forward"), self)
         self._forward_action.setShortcut(QKeySequence("Right"))
         self._forward_action.triggered.connect(lambda: self.seek_by(SEEK_STEP))
 
         # Ctrl+S persists the edit tape to the sidecar next to the audio, so
         # reopening the song (or the machine) finds the corrections again.
-        self._save_action = QAction("Save Edits", self)
+        self._save_action = QAction(self.tr("Save Edits"), self)
         self._save_action.setShortcut(QKeySequence.StandardKey.Save)
         self._save_action.triggered.connect(self.save_edits_sidecar)
 
         # Phase G: edit the chord under a clicked band; Ctrl+Z/Ctrl+Shift+Z
         # undo and redo the edits the same way every editor does.
-        self._undo_action = QAction("Undo", self)
+        self._undo_action = QAction(self.tr("Undo"), self)
         self._undo_action.setShortcut(QKeySequence.StandardKey.Undo)
         self._undo_action.triggered.connect(self.undo_edit)
 
-        self._redo_action = QAction("Redo", self)
+        self._redo_action = QAction(self.tr("Redo"), self)
         self._redo_action.setShortcut(QKeySequence.StandardKey.Redo)
         self._redo_action.triggered.connect(self.redo_edit)
 
         # Phase H: the whole-document transforms ride the same tape as the
         # per-chord edits - one Ctrl+Z takes a transpose back like any other
         # edit, and Ctrl+S persists it to the sidecar.
-        self._transpose_action = QAction("Transpose chords...", self)
+        self._transpose_action = QAction(self.tr("Transpose chords..."), self)
         self._transpose_action.triggered.connect(self.transpose_chords)
 
-        self._simplify_action = QAction("Simplify chords", self)
+        self._simplify_action = QAction(self.tr("Simplify chords"), self)
         self._simplify_action.triggered.connect(self.simplify_chords)
 
         # Phase H: the same exporters `songlab export` uses, offered from the
         # window - the dialog only picks a file and a format, the write goes
         # through the identical seam so the two surfaces cannot drift.
-        self._export_action = QAction("Export document...", self)
+        self._export_action = QAction(self.tr("Export document..."), self)
         self._export_action.setShortcut(QKeySequence("Ctrl+Shift+E"))
         self._export_action.triggered.connect(self.export_file_dialog)
 
         # Phase F: an external .lrc/.srt file becomes the lyric base - the
         # same alignment rules songlab analyze --lyrics-from applies.
-        self._lyrics_load_action = QAction("Load lyrics from file...", self)
+        self._lyrics_load_action = QAction(self.tr("Load lyrics from file..."), self)
         self._lyrics_load_action.setShortcut(QKeySequence("Ctrl+L"))
         self._lyrics_load_action.triggered.connect(self.load_lyrics_dialog)
 
-        toolbar = self.addToolBar("Transport")
+        toolbar = self.addToolBar(self.tr("Transport"))
         assert toolbar is not None  # always created by QMainWindow
         toolbar.setMovable(False)
         for action in (
@@ -352,7 +384,7 @@ class MainWindow(QMainWindow):
         ):
             toolbar.addAction(action)
 
-        edit_menu = self.addToolBar("Edit")
+        edit_menu = self.addToolBar(self.tr("Edit"))
         assert edit_menu is not None
         edit_menu.setMovable(False)
         edit_menu.addAction(self._transpose_action)
@@ -415,12 +447,114 @@ class MainWindow(QMainWindow):
         assert status_bar is not None  # QMainWindow always creates one on demand
         status_bar.addPermanentWidget(self._progress)
 
+    # -- language (i18n) ---------------------------------------------------
+
+    def _build_language_menu(self) -> None:
+        """The Language menu: the source language plus installed catalogues.
+
+        Only what is actually installed on disk is offered, each catalogue in
+        its own language's name; English is always there and always the
+        default. Nothing here - or in :mod:`~song_chord_lyrics_analyzer.i18n` -
+        guesses a language from the environment.
+        """
+        menu_bar = self.menuBar()
+        assert menu_bar is not None  # always created by QMainWindow
+        menu = menu_bar.addMenu(self.tr("Language"))
+        assert menu is not None
+        self._language_menu = menu
+        self._language_actions: dict[str, QAction] = {}
+        group = QActionGroup(self)
+        group.setExclusive(True)
+        self._language_group = group
+        installed = (SOURCE_LANGUAGE, SOURCE_LANGUAGE_NAME), *available_languages(
+            self._translations_dir
+        )
+        for code, name in installed:
+            action = group.addAction(name)
+            assert action is not None
+            action.setCheckable(True)
+            action.setData(code)
+            menu.addAction(action)
+            self._language_actions[code] = action
+        group.triggered.connect(self._on_language_chosen)
+        current = self._language_actions.get(self._language)
+        if current is not None:
+            current.setChecked(True)
+
+    def _on_language_chosen(self, action: QAction) -> None:
+        """Switch to the picked language, or keep the old one honestly."""
+        if not self.set_language(str(action.data())):
+            previous = self._language_actions.get(self._language)
+            if previous is not None:
+                previous.setChecked(True)
+
+    def set_language(self, code: str) -> bool:
+        """Switch the window's language; ``False`` when the catalogue fails.
+
+        English (the source) needs no catalogue. Any other language must have
+        its compiled ``.qm`` installed: a load failure is reported and the
+        window keeps the language it had - it never claims a language it
+        cannot show.
+
+        Args:
+            code: A language code, e.g. ``"es"``.
+
+        Returns:
+            ``True`` when the window now speaks ``code``.
+        """
+        if code == self._language:
+            return True
+        application = QApplication.instance()
+        assert isinstance(application, QApplication)  # a window needs an app
+        translator = None
+        if code != SOURCE_LANGUAGE:
+            try:
+                translator = install_translator(
+                    application, code, directory=self._translations_dir
+                )
+            except SongLabError as error:
+                self._report(error)
+                return False
+        if self._translator is not None:
+            application.removeTranslator(self._translator)
+        self._translator = translator
+        self._language = code
+        action = self._language_actions.get(code)
+        if action is not None:
+            action.setChecked(True)
+        self.retranslate()
+        return True
+
+    def retranslate(self) -> None:
+        """Re-apply every translatable string, like Qt's ``retranslateUi``.
+
+        Called once while the window is built and again on every language
+        change. In the source language it restores exactly the English texts
+        the window was built with, so switching back is a real switch-back.
+        """
+        self.setWindowTitle(self.tr("Song Chord Lyrics Analyzer"))
+        self._open_action.setText(self.tr("Open..."))
+        playing = self._frame is not None and self._frame.state is PlaybackState.PLAYING
+        self._play_action.setText(self.tr("Pause") if playing else self.tr("Play"))
+        self._stop_action.setText(self.tr("Stop"))
+        self._back_action.setText(self.tr("Back"))
+        self._forward_action.setText(self.tr("Forward"))
+        self._save_action.setText(self.tr("Save Edits"))
+        self._undo_action.setText(self.tr("Undo"))
+        self._redo_action.setText(self.tr("Redo"))
+        self._transpose_action.setText(self.tr("Transpose chords..."))
+        self._simplify_action.setText(self.tr("Simplify chords"))
+        self._export_action.setText(self.tr("Export document..."))
+        self._lyrics_load_action.setText(self.tr("Load lyrics from file..."))
+        self._timeline.retranslate()
+        self._lyrics.retranslate()
+
     # -- opening a song ----------------------------------------------------
 
     def choose_file(self) -> None:
         """Ask for a file and open it."""
         chosen, _selected = QFileDialog.getOpenFileName(
-            self, "Open an audio file", "", AUDIO_FILTER
+            self, self.tr("Open an audio file"), "", AUDIO_FILTER
         )
         if chosen:
             self.open_file(Path(chosen))
@@ -455,7 +589,8 @@ class MainWindow(QMainWindow):
             status_bar = self.statusBar()
             assert status_bar is not None
             status_bar.showMessage(
-                "An analysis is still running; the window holds one song at a time.", 5000
+                self.tr("An analysis is still running; the window holds one song at a time."),
+                5000
             )
             return False
         self._timer.stop()
@@ -486,7 +621,7 @@ class MainWindow(QMainWindow):
         bar.setVisible(path is not None)
         if path is not None:
             bar.setRange(0, 0)  # busy until the service reports a fraction
-            status_bar.showMessage(f"Analysing {path.name}...")
+            status_bar.showMessage(self.tr("Analysing {name}...").format(name=path.name))
         else:
             bar.setRange(0, 1)
             bar.setValue(0)
@@ -501,7 +636,11 @@ class MainWindow(QMainWindow):
         """
         status_bar = self.statusBar()
         assert status_bar is not None
-        status_bar.showMessage(f"Analysing {event.kind}: {event.detail or event.engine}")
+        status_bar.showMessage(
+            self.tr("Analysing {kind}: {detail}").format(
+                kind=event.kind, detail=event.detail or event.engine
+            )
+        )
         bar = self._progress
         if event.total > 1:
             bar.setRange(0, event.total)
@@ -546,8 +685,10 @@ class MainWindow(QMainWindow):
         else:
             QMessageBox.critical(
                 self,
-                "Song Chord Lyrics Analyzer",
-                f"Unexpected error: {type(error).__name__}: {error}",
+                self.tr("Song Chord Lyrics Analyzer"),
+                self.tr("Unexpected error: {kind}: {error}").format(
+                    kind=type(error).__name__, error=error
+                ),
             )
         self._honour_pending_close()
 
@@ -665,8 +806,10 @@ class MainWindow(QMainWindow):
             return False
         label, accepted = QInputDialog.getText(
             self,
-            "Edit chord",
-            f"New label for the chord at {event.start:.2f} s (now {event.to_label()}):",
+            self.tr("Edit chord"),
+            self.tr("New label for the chord at {start:.2f} s (now {label}):").format(
+                start=event.start, label=event.to_label()
+            ),
             text=event.label if event.label != "?" else "",
         )
         if not accepted:
@@ -698,13 +841,13 @@ class MainWindow(QMainWindow):
             one.start > event.start for one in self._edits.effective
         )
         return (
-            ("Edit chord here...", "edit", event is not None),
-            ("Split here", "split", split_ok),
-            ("Trim start to here", "trim-start", trim_start_ok),
-            ("Trim end to here", "trim-end", trim_end_ok),
-            ("Merge with next chord", "merge-next", merge_ok),
-            ("Delete chord", "delete", event is not None),
-            ("Insert chord here...", "insert", event is None),
+            (self.tr("Edit chord here..."), "edit", event is not None),
+            (self.tr("Split here"), "split", split_ok),
+            (self.tr("Trim start to here"), "trim-start", trim_start_ok),
+            (self.tr("Trim end to here"), "trim-end", trim_end_ok),
+            (self.tr("Merge with next chord"), "merge-next", merge_ok),
+            (self.tr("Delete chord"), "delete", event is not None),
+            (self.tr("Insert chord here..."), "insert", event is None),
         )
 
     def apply_edit_choice(self, choice: str, position: float) -> bool:
@@ -746,8 +889,10 @@ class MainWindow(QMainWindow):
             elif choice == "insert":
                 label, accepted = QInputDialog.getText(
                     self,
-                    "Insert chord",
-                    f"Chord label from {position:.2f} s (open-ended):",
+                    self.tr("Insert chord"),
+                    self.tr("Chord label from {start:.2f} s (open-ended):").format(
+                        start=position
+                    ),
                 )
                 if not accepted:
                     return False
@@ -814,8 +959,8 @@ class MainWindow(QMainWindow):
         if self._edits is None:
             return ()
         return (
-            ("Transpose all chords...", "transpose", True),
-            ("Simplify all chords", "simplify", True),
+            (self.tr("Transpose all chords..."), "transpose", True),
+            (self.tr("Simplify all chords"), "simplify", True),
         )
 
     def apply_transform_choice(self, choice: str) -> bool:
@@ -854,8 +999,8 @@ class MainWindow(QMainWindow):
         """The Transpose action: ask for the semitones, push the command."""
         semitones, accepted = QInputDialog.getInt(
             self,
-            "Transpose chords",
-            "Semitones to transpose every chord by (-11..+11):",
+            self.tr("Transpose chords"),
+            self.tr("Semitones to transpose every chord by (-11..+11):"),
             value=0,
             min=-11,
             max=11,
@@ -902,11 +1047,11 @@ class MainWindow(QMainWindow):
             return ()
         line = lines[index]
         return (
-            ("Edit text...", "text", True),
-            ("Set start...", "set-start", True),
-            ("Set end...", "set-end", line.start is not None),
-            ("Insert line...", "insert", True),
-            ("Delete line", "delete", True),
+            (self.tr("Edit text..."), "text", True),
+            (self.tr("Set start..."), "set-start", True),
+            (self.tr("Set end..."), "set-end", line.start is not None),
+            (self.tr("Insert line..."), "insert", True),
+            (self.tr("Delete line"), "delete", True),
         )
 
     def apply_lyric_choice(self, choice: str, index: int) -> bool:
@@ -934,8 +1079,10 @@ class MainWindow(QMainWindow):
             if choice == "text":
                 text, accepted = QInputDialog.getText(
                     self,
-                    "Edit lyric line",
-                    f"Line {index + 1} of {len(lines)}:",
+                    self.tr("Edit lyric line"),
+                    self.tr("Line {index} of {total}:").format(
+                        index=index + 1, total=len(lines)
+                    ),
                     text=line.text,
                 )
                 if not accepted:
@@ -944,8 +1091,8 @@ class MainWindow(QMainWindow):
             elif choice == "set-start":
                 value, accepted = QInputDialog.getDouble(
                     self,
-                    "Set line start",
-                    "Start (seconds):",
+                    self.tr("Set line start"),
+                    self.tr("Start (seconds):"),
                     value=0.0 if line.start is None else line.start,
                     min=0.0,
                     max=1e9,
@@ -957,8 +1104,8 @@ class MainWindow(QMainWindow):
             elif choice == "set-end" and line.start is not None:
                 value, accepted = QInputDialog.getDouble(
                     self,
-                    "Set line end",
-                    "End (seconds):",
+                    self.tr("Set line end"),
+                    self.tr("End (seconds):"),
                     value=(line.start + 1.0) if line.end is None else line.end,
                     min=0.0,
                     max=1e9,
@@ -968,7 +1115,9 @@ class MainWindow(QMainWindow):
                     return False
                 command = SetLyricTiming(index, new_end=value)
             elif choice == "insert":
-                text, accepted = QInputDialog.getText(self, "Insert lyric line", "Line text:")
+                text, accepted = QInputDialog.getText(
+                    self, self.tr("Insert lyric line"), self.tr("Line text:")
+                )
                 if not accepted:
                     return False
                 command = InsertLyric(text)
@@ -1097,7 +1246,7 @@ class MainWindow(QMainWindow):
             return False
         status_bar = self.statusBar()
         assert status_bar is not None  # QMainWindow always creates one on demand
-        status_bar.showMessage(f"Edits saved to {target.name}", 5000)
+        status_bar.showMessage(self.tr("Edits saved to {name}").format(name=target.name), 5000)
         assert self._edits is not None  # guarded above
         self._saved_applied = self._edits.applied
         self._saved_base_lyrics = self._edits.base_lyrics
@@ -1119,7 +1268,7 @@ class MainWindow(QMainWindow):
         proposed = path.with_suffix(".chordpro")
         chosen, selected = QFileDialog.getSaveFileName(
             self,
-            "Export document",
+            self.tr("Export document"),
             str(proposed),
             EXPORT_FILTER,
         )
@@ -1151,14 +1300,18 @@ class MainWindow(QMainWindow):
         except OSError as error:
             self._report(
                 SongLabError(
-                    f"Could not write {target}: {error}",
-                    hint="Choose a location this user can write to.",
+                    self.tr("Could not write {path}: {error}").format(
+                        path=target, error=error
+                    ),
+                    hint=self.tr("Choose a location this user can write to."),
                 )
             )
             return False
         status_bar = self.statusBar()
         assert status_bar is not None  # QMainWindow always creates one on demand
-        status_bar.showMessage(f"Exported {fmt} to {written.name}", 5000)
+        status_bar.showMessage(
+            self.tr("Exported {fmt} to {name}").format(fmt=fmt, name=written.name), 5000
+        )
         return True
 
     # -- external lyrics (Phase F) -----------------------------------------
@@ -1173,7 +1326,7 @@ class MainWindow(QMainWindow):
             return False
         chosen, _selected = QFileDialog.getOpenFileName(
             self,
-            "Load lyrics from file",
+            self.tr("Load lyrics from file"),
             "",
             LYRICS_FILTER,
         )
@@ -1211,7 +1364,12 @@ class MainWindow(QMainWindow):
         self.refresh()
         status_bar = self.statusBar()
         assert status_bar is not None  # QMainWindow always creates one on demand
-        status_bar.showMessage(f"Lyrics loaded from {source.name} ({len(lines)} lines)", 5000)
+        status_bar.showMessage(
+            self.tr("Lyrics loaded from {name} ({count} lines)").format(
+                name=source.name, count=len(lines)
+            ),
+            5000,
+        )
         return True
 
     def _restore_saved_edits(self, path: Path) -> None:
@@ -1262,7 +1420,9 @@ class MainWindow(QMainWindow):
         self._chord_label.setToolTip(frame.chord_confidence_text)
         self._time_label.setText(frame.time_text)
         self._state_label.setText(frame.state.value)
-        self._play_action.setText("Pause" if frame.state is PlaybackState.PLAYING else "Play")
+        self._play_action.setText(
+            self.tr("Pause") if frame.state is PlaybackState.PLAYING else self.tr("Play")
+        )
         self._timeline.set_playhead(frame.position, frame.duration)
         # Same snapshot, same clock - and the *effective* lyric layer, like the
         # chord label: after an edit the view shows what the user made, and the
@@ -1277,7 +1437,7 @@ class MainWindow(QMainWindow):
         text = error.message
         if error.hint:
             text = f"{text}\n\n{error.hint}"
-        QMessageBox.warning(self, "Song Chord Lyrics Analyzer", text)
+        QMessageBox.warning(self, self.tr("Song Chord Lyrics Analyzer"), text)
 
     def closeEvent(self, event: QCloseEvent | None) -> None:
         """Offer to save unsaved edits, stop the timer, release the device.
@@ -1295,7 +1455,7 @@ class MainWindow(QMainWindow):
             self._close_pending = True
             status_bar = self.statusBar()
             assert status_bar is not None
-            status_bar.showMessage("Closing when the analysis finishes...")
+            status_bar.showMessage(self.tr("Closing when the analysis finishes..."))
             if event is not None:
                 event.ignore()
             return
@@ -1326,8 +1486,8 @@ class MainWindow(QMainWindow):
         """Ask what to do about unsaved edits; ``True`` closes the window."""
         answer = QMessageBox.question(
             self,
-            "Unsaved chord edits",
-            "The chord edits have not been saved. Save them before closing?",
+            self.tr("Unsaved chord edits"),
+            self.tr("The chord edits have not been saved. Save them before closing?"),
             QMessageBox.StandardButton.Save
             | QMessageBox.StandardButton.Discard
             | QMessageBox.StandardButton.Cancel,

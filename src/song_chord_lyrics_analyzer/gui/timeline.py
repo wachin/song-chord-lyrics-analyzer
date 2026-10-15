@@ -44,7 +44,7 @@ class TimelineWidget(QWidget):
     #: Height of the chord strip under the waveform, in pixels.
     STRIP_HEIGHT = 24
 
-    #: Shown before a song is open.
+    #: Shown before a song is open (English source; see :meth:`retranslate`).
     EMPTY_TEXT = "Open a song to see its waveform, its chords and the playhead"
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -56,7 +56,25 @@ class TimelineWidget(QWidget):
         self.setMinimumHeight(120)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setToolTip("Click or drag to seek")
+        self.retranslate()
+
+    def retranslate(self) -> None:
+        """Apply this widget's strings in the window's current language.
+
+        Called once while the window is built and again on every language
+        change (the window owns that menu), so the placeholder and the hint
+        follow the rest of the interface. The placeholder's literal lives
+        here, inside ``tr()``, so the source catalogue can extract it;
+        :attr:`EMPTY_TEXT` stays the English reference and a test pins the
+        two together.
+        """
+        self._empty_text = self.tr("Open a song to see its waveform, its chords and the playhead")
+        self.setToolTip(self.tr("Click or drag to seek"))
+
+    @property
+    def empty_text(self) -> str:
+        """The placeholder the widget draws before a song is open."""
+        return self._empty_text
 
     # -- what to draw ------------------------------------------------------
 
@@ -140,7 +158,7 @@ class TimelineWidget(QWidget):
         painter.fillRect(self.rect(), self.palette().base())
         if self._duration <= 0.0:
             painter.setPen(self.palette().mid().color())
-            painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, self.EMPTY_TEXT)
+            painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, self._empty_text)
             painter.end()
             return
 

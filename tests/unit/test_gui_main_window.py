@@ -1328,6 +1328,15 @@ class TestDrawing:
         }
         assert len(colours) > 1, "the timeline painted nothing"
 
+    def test_the_timeline_shows_its_english_placeholder_if_untranslated(self, window: MainWindow) -> None:  # noqa: E501
+        """The source catalogue never loses the English placeholder: the
+        property the paint uses is exactly ``TimelineWidget.EMPTY_TEXT``,
+        an English reference that a test pins, so a reopened catalogue that
+        dropped, reordered or renamed the placeholder literal fails."""
+        timeline = window.timeline
+        assert timeline.empty_text == timeline.EMPTY_TEXT
+        assert timeline.empty_text == "Open a song to see its waveform, its chords and the playhead"
+
     def test_the_window_renders_as_a_whole(self, window: MainWindow) -> None:
         image = QtGui.QImage(window.size(), QtGui.QImage.Format.Format_ARGB32)
         image.fill(0)

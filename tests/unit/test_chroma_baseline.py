@@ -291,6 +291,29 @@ class TestFullAnalysis:
         )
         assert all(event.source == "chroma-baseline" for event in result.chords)
 
+    def test_the_audio_comes_from_the_shared_decode_service(self, tmp_path, monkeypatch) -> None:
+        """One decode owner, and the window the options describe (Phase A)."""
+        wav = write_sine_wav(tmp_path / "tone.wav", seconds=1.0, channels=1)
+        calls: list[dict[str, object]] = []
+        decode = baseline.decode_audio
+
+        def _recording_decode(path, **options):
+            calls.append({"path": str(path), **options})
+            return decode(path, **options)
+
+        monkeypatch.setattr(baseline, "decode_audio", _recording_decode)
+        ENGINE.analyze(wav, ChordAnalysisOptions(start=0.25, end=0.75))
+
+        assert calls == [
+            {
+                "path": str(wav),
+                "sample_rate": baseline.SAMPLE_RATE,
+                "mono": True,
+                "offset": 0.25,
+                "duration": pytest.approx(0.5),
+            }
+        ]
+
     def test_run_cost_is_measured_not_estimated(self, tmp_path) -> None:
         wav = write_sine_wav(tmp_path / "tone.wav", seconds=2.0, channels=1)
         result = ENGINE.analyze(wav, ChordAnalysisOptions())

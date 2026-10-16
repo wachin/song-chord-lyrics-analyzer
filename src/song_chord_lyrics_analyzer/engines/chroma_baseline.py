@@ -4,7 +4,8 @@ The first concrete engine behind the
 :class:`~song_chord_lyrics_analyzer.engines.base.ChordEngine` protocol. It is
 deliberately simple and fully inspectable:
 
-1. decode the audio to mono 22.05 kHz (librosa);
+1. decode the audio to mono 22.05 kHz through the shared decode service
+   (:func:`~song_chord_lyrics_analyzer.audio.decode.decode_audio`);
 2. compute per-frame CQT chroma;
 3. match every frame against the 24 phase-1 triad templates (12 major, 12
    minor) by cosine similarity, reporting ``N`` when no template fits;
@@ -34,6 +35,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
+from song_chord_lyrics_analyzer.audio.decode import decode_audio
 from song_chord_lyrics_analyzer.engines.base import ChordAnalysisOptions, EngineKind
 from song_chord_lyrics_analyzer.engines.decoding import viterbi_decode
 from song_chord_lyrics_analyzer.models.analysis import EngineInfo, EngineResult
@@ -428,18 +430,20 @@ class ChromaBaselineEngine:
         try:
             offset = float(options.start) if options.start is not None else 0.0
             window = float(options.end) - offset if options.end is not None else None
-            samples, sample_rate = librosa.load(
-                str(audio_path),
-                sr=SAMPLE_RATE,
+            decoded = decode_audio(
+                audio_path,
+                sample_rate=SAMPLE_RATE,
                 mono=True,
                 offset=offset,
                 duration=window,
             )
-            audio_seconds = float(len(samples)) / float(sample_rate)
+            samples = _numpy.asarray(decoded.samples)
+            sample_rate = decoded.sample_rate
+            audio_seconds = decoded.duration
             probe.audio_seconds = audio_seconds
 
             chroma = librosa.feature.chroma_cqt(
-                y=_numpy.asarray(samples),
+                y=samples,
                 sr=int(sample_rate),
                 hop_length=HOP_LENGTH,
             )

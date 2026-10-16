@@ -123,6 +123,21 @@ class TestEngineContract:
 class TestFullAnalysis:
     """End-to-end runs; executed only where the optional front end exists."""
 
+    def test_the_audio_comes_from_the_shared_decode_service(self, tmp_path, monkeypatch) -> None:
+        """One decode owner: the engine asks decode_audio, not librosa (Phase A)."""
+        wav = write_chord_wav(tmp_path / "tone.wav", chords=[(0, 4, 7)], seconds_per_chord=0.5)
+        calls: list[dict[str, object]] = []
+        decode = key_module.decode_audio
+
+        def _recording_decode(path, **options):
+            calls.append({"path": str(path), **options})
+            return decode(path, **options)
+
+        monkeypatch.setattr(key_module, "decode_audio", _recording_decode)
+        ENGINE.detect_key(wav, {})
+
+        assert calls == [{"path": str(wav), "sample_rate": key_module.SAMPLE_RATE, "mono": True}]
+
     def test_a_c_major_progression_is_read_as_c_major(self, tmp_path) -> None:
         wav = write_chord_wav(
             tmp_path / "progression.wav",

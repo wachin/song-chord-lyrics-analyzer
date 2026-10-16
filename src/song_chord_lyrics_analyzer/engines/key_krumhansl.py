@@ -2,7 +2,8 @@
 
 The first key engine. It is deliberately simple and fully inspectable:
 
-1. decode the audio to mono 22.05 kHz (librosa);
+1. decode the audio to mono 22.05 kHz through the shared decode service
+   (:func:`~song_chord_lyrics_analyzer.audio.decode.decode_audio`);
 2. average a per-frame CQT chromagram into one pitch-class profile;
 3. correlate that profile against the Krumhansl-Kessler major and minor
    profiles at all twelve rotations, and take the best;
@@ -26,6 +27,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from song_chord_lyrics_analyzer.audio.decode import decode_audio
 from song_chord_lyrics_analyzer.engines.base import EngineKind
 from song_chord_lyrics_analyzer.models.analysis import EngineInfo, EngineResult
 from song_chord_lyrics_analyzer.models.confidence import ConfidenceScore
@@ -218,8 +220,10 @@ class KrumhanslKeyEngine:
         probe = PerformanceProbe(startup_time_seconds=startup_seconds, device="cpu")
         probe.start()
         try:
-            samples, sample_rate = librosa.load(str(audio_path), sr=SAMPLE_RATE, mono=True)
-            audio_seconds = float(len(samples)) / float(sample_rate)
+            decoded = decode_audio(audio_path, sample_rate=SAMPLE_RATE, mono=True)
+            samples = numpy.asarray(decoded.samples)
+            sample_rate = decoded.sample_rate
+            audio_seconds = decoded.duration
             if audio_seconds <= 0.0:
                 raise InputError(
                     f"Engine {self.name!r} decoded no audio from {audio_path.name!r}.",
@@ -228,7 +232,7 @@ class KrumhanslKeyEngine:
             probe.audio_seconds = audio_seconds
 
             chroma = librosa.feature.chroma_cqt(
-                y=numpy.asarray(samples),
+                y=samples,
                 sr=int(sample_rate),
                 hop_length=HOP_LENGTH,
             )

@@ -72,6 +72,21 @@ class TestEngineContract:
 class TestFullAnalysis:
     """End-to-end runs; executed only where the optional front end exists."""
 
+    def test_the_audio_comes_from_the_shared_decode_service(self, tmp_path, monkeypatch) -> None:
+        """One decode owner: the engine asks decode_audio, not librosa (Phase A)."""
+        wav = write_click_wav(tmp_path / "clicks.wav", bpm=120.0, beats=4)
+        calls: list[dict[str, object]] = []
+        decode = tempo_module.decode_audio
+
+        def _recording_decode(path, **options):
+            calls.append({"path": str(path), **options})
+            return decode(path, **options)
+
+        monkeypatch.setattr(tempo_module, "decode_audio", _recording_decode)
+        ENGINE.detect_tempo(wav, {})
+
+        assert calls == [{"path": str(wav), "sample_rate": tempo_module.SAMPLE_RATE, "mono": True}]
+
     def test_a_click_track_is_tracked_within_a_few_bpm(self, tmp_path) -> None:
         wav = write_click_wav(tmp_path / "clicks.wav", bpm=120.0, beats=24)
 

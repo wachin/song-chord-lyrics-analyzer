@@ -148,9 +148,10 @@ Phase C display work landed **2026-10-07**, the Phase D window landed
 
 ### Partially implemented
 
-- **Decoding**: the shared service exists, but the DSP engines still call
-  `librosa.load` themselves and are not yet switched over to it (roadmap
-  Phase A).
+- **Decoding**: closed on 2026-10-16 — `chroma_baseline`, `key_krumhansl`,
+  `tempo_librosa` and `lyrics_parakeet` all decode through `decode_audio()`,
+  as do the player and the session's waveform fallback, so nothing owns
+  decoding privately any more (roadmap Phase A, now `[x]`).
 - **Synchronized display**: `songlab play` (terminal) and `songlab gui`
   (window) both render the same `DisplayFrame`; what the window does **not**
   have yet is its remaining `[F]` depth - the confidence/engine panels and

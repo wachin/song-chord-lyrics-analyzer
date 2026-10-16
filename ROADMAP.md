@@ -133,12 +133,27 @@ clean, `ruff format --check` 118 files, `mypy` 71 files, `pytest` **1340 passed
 also installs the optional `gui` extra, so the window's tests run there on the
 offscreen platform plugin, plus the real-device playback/follow tests).
 
+Gate re-run after the playback playhead fix and the decode integration
+(2026-10-16, same machine, Python 3.13.5): `ruff check` clean,
+`ruff format --check` 150 files clean, `mypy` 87 files clean, `pytest` **1883
+passed / 11 skipped** (`.venv` - on this machine it has the DSP and GUI extras
+installed as well, so it is *not* the dependency-free core of the CI matrix)
+and **1891 passed / 3 skipped** (`.venv-chords`: numpy 2.5.3, librosa 1.0.0,
+sounddevice 0.5.6, real output device). The DSP suite was run a second time
+under contention and gave **1891 passed / 3 skipped in 887 s** with eight
+competing CPU processes (load average ~12 on 4 cores); `tests/integration/
+test_display_integration.py` alone was run six times back to back, **3 passed
+every time**, where the full-suite run of the same day *before* the fix failed
+it with `AssertionError: the playhead must never go backwards` (positions
+0.0503198 then 0.0385552) and both `.venv-chords` full-suite runs after the fix
+passed it (`.venv` skips that test: no output device there).
+
 ### The product path, link by link
 
 | # | Link | Status | Evidence |
 | --- | --- | --- | --- |
 | 1 | Real audio file input | `[x]` | `audio/validation.py` + `audio/probe.py` (ffprobe; WAV via stdlib). Verified on a real song file (296.8 s, MP3, 324 kbit/s). |
-| 2 | Decoding to samples | `[~]` | Shared service landed (`audio/decode.py` → `decode_audio()`: librosa/soundfile backend plus a stdlib WAV backend, mono/interleaved floats + sample rate), tested on a real compressed transcode. The DSP engines still call `librosa.load` themselves, and the service is not yet wired into playback. |
+| 2 | Decoding to samples | `[x]` | One decode owner: `audio/decode.py` → `decode_audio()` (librosa/soundfile backend plus a stdlib WAV backend, mono/interleaved floats + sample rate) is asked by the chords, key, tempo and lyrics engines for the window they need, by `SoundDevicePlayer.load` for playback, and by `SongSession` for the waveform fallback; no component calls `librosa.load` privately any more. Verified 2026-10-16 on `samples/vocadito_6.wav` and `samples/vocadito_16.wav`: the three DSP engines return the same chord events (start/end/label), key and tempo before and after the switch, both whole-file and with a time window, plus a real compressed transcode through the service (`tests/integration/test_decode_integration.py`). |
 | 3 | Chord engine on real audio | `[x]` | `ChromaBaselineEngine` registered, tested, measured (CSR 0.4260 with Viterbi 0.80 on 180 GuitarSet takes — `docs/ENGINE_COMPARISON.md`). Ran on a real song during the audit. |
 | 4 | Timestamped ChordEvent sequence | `[x]` | `songlab chords` printed 76 events with `start`/`end`/`label` on a real song; `songlab analyze --json` emitted the same inside the canonical document with provenance (schema version 1, `schema/codec.py`). |
 | 5 | Audio playback | `[x]` | `audio/playback.py`: `SoundDevicePlayer` streams decoded samples through PortAudio (`sounddevice`, optional `playback` extra), with `load`/`play`/`pause`/`stop`/`seek`/`close`. Verified on a real device on 2026-10-06; skipped honestly where no output device exists. |
@@ -218,11 +233,19 @@ Phase D and the later phases, not a missing foundation.
   simplify/export-dialog work through 2026-10-13 are in; confidence/engine
   panels and translations remain), lyrics engine, beats engine, stem
   separation, alignment, fusion, packaging.
-* Empty packages (placeholders only, `__init__.py`): `export/`, `alignment/`,
-  `fusion/`, `i18n/`.
+* Empty package (placeholder only, `__init__.py`): `fusion/`. The packages that
+  used to be placeholders hold real code now: `export/` (JSON / ChordPro /
+  Markdown renderers), `alignment/` (`.lrc` and `.srt` parsing) and `i18n/`
+  (catalogue discovery and the `QTranslator` wiring behind the window's
+  Language menu).
 
 ### Known documentation drift (fix opportunistically, not a phase)
 
+* Resolved on 2026-10-16: §1 claimed `export/`, `alignment/` and `i18n/` were
+  empty packages (they have implementations), the link-2 row still said the DSP
+  engines decode themselves, and `docs/GUI_REQUIREMENTS.md` did not record the
+  window's Language menu. `AGENT_HANDOFF.md`'s "Partially implemented" entry
+  for decoding said the same, and was corrected with it.
 * Resolved on 2026-10-08: the "no Qt code in `src/`" claims in `README.md`,
   `AGENT_HANDOFF.md`, `docs/GUI_REQUIREMENTS.md` and `docs/ARCHITECTURE.md`
   (the window exists now), the stale `README.md` test badge again, and the
@@ -242,23 +265,27 @@ Phase D and the later phases, not a missing foundation.
 **Objective:** load an audio file, decode it to samples, play it, and answer
 "what is the current playback position?" — the substrate for everything after.
 
-**Current status:** `[~]`
+**Current status:** `[x]` — the two `[~]` tasks below (one decode owner) were
+closed on 2026-10-16, which is what the acceptance criteria were waiting on.
 
 ### Tasks
 
 - [x] Input validation and safe path handling (`audio/validation.py`)
 - [x] Metadata probing: ffprobe + WAV fallback (`audio/probe.py`)
 - [x] FFmpeg discovery, no-shell invocation, install hints (`audio/ffmpeg.py`)
-- [~] Decoding to samples for **analysis** — works, but only inside each engine
-  via `librosa.load`; the shared service exists (below) but the engines have not
-  been switched over to it yet
-- [~] Shared application-level decode service (path → mono/stereo samples +
+- [x] Decoding to samples for **analysis** — every DSP engine decodes through
+  the shared service below: `chroma_baseline.py`, `key_krumhansl.py` and
+  `tempo_librosa.py` were switched over on 2026-10-16 (each keeps its own
+  sample rate, mono downmix, offset/duration window and output; verified by
+  comparing engine output before and after on real sample files)
+- [x] Shared application-level decode service (path → mono/stereo samples +
   sample rate): `audio/decode.py` exposes `decode_audio()` with a librosa/soundfile
   backend and a dependency-free stdlib WAV backend, and returns one flat
   interleaved float buffer plus its sample rate. Tests: `tests/unit/test_decode.py`
   (WAV half runs in the core venv) and `tests/integration/test_decode_integration.py`
-  (a real compressed transcode). **Remaining:** engines and playback must call it
-  so engines stop owning decoding
+  (a real compressed transcode). It is the only decode path: the four engines,
+  the player and the session's waveform fallback all call it, and each engine's
+  unit suite pins the call it makes (`test_the_audio_comes_from_the_shared_decode_service`)
 - [x] Playback abstraction: player interface with `load`, `play`, `pause`,
   `seek`, `position()`, `duration()`, `state` callbacks (no Qt types in it).
   `audio/playback.py`: a `Player` Protocol, a pure `PlaybackTimeline` (position

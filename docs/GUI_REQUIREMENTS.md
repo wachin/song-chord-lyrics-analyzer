@@ -1,9 +1,11 @@
 # GUI Requirements — the window Phase D implemented
 
 > Status: **implemented** (roadmap Phase D, 2026-10-08; lyrics view
-> 2026-10-09; chord and lyric editing with persistence 2026-10-10..12). The
-> window exists, is verified offscreen and on real audio, and exposes the full
-> arrangement below for the features that follow.
+> 2026-10-09; chord and lyric editing with persistence 2026-10-10..12;
+> transpose/simplify/export 2026-10-13; analysis off the UI thread and the
+> language menu 2026-10-14..15). The window exists, is verified offscreen and
+> on real audio, and exposes the full arrangement below for the features that
+> follow.
 
 ## What exists today
 
@@ -25,6 +27,9 @@
   window's entry point. Qt is imported **only when the window starts**, never
   when the package is imported, so `songlab play` and `songlab info` stay
   Qt-free and the core matrix stays clean.
+* the window's menus — the transport toolbar above plus Edit (chord and lyric
+  editing, transpose, simplify, "Load lyrics from file..."), Export and
+  **Language**, the last one built by `i18n/` (next section).
 
 ## Architecture (unchanged from the pre-window design)
 
@@ -149,8 +154,19 @@ CLI, the engine or the session.
    now shows the warnings themselves instead of their count. No engine
    changed: an engine that starts reporting per-chord confidence appears in
    these surfaces without further UI work.
-7. **Translations** — the `i18n/` package (phase 17) feeding a language menu;
-   nothing here guesses a language.
+7. **Translations** — **half delivered 2026-10-14/15**: `i18n/` (phase 17) owns
+   the catalogue story and the window's Language menu is built from it —
+   `available_languages()` lists only compiled catalogues that are actually
+   installed next to the checkout, `install_translator()` loads one onto the
+   `QApplication`, and the translator is held by the window because Qt drops a
+   translation the moment its translator is collected; a catalogue that is
+   missing or unreadable is an error, never a silent fall back to English.
+   Nothing guesses a language from the environment: English (the source
+   strings in the code) is the default and the only entry until a catalogue
+   ships. **Open:** no catalogue is shipped (`translations/` holds only its
+   `README.md`), so no language can actually be selected yet — the menu is
+   wiring, not translation. The `.ts`/`lrelease` workflow is recorded in
+   `docs/INTERNATIONALIZATION.md`.
 
 ## Testing constraint
 

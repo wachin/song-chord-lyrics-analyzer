@@ -183,17 +183,19 @@ Phase D and the later phases, not a missing foundation.
   AnalysisResult, Provenance, AnalysisRun).
 * `[x]` Canonical JSON codec with `SCHEMA_VERSION = 1` (`schema/codec.py`).
 * `[x]` Engine protocols + registry (`engines/base.py`, `engines/registry.py`).
-  Registered engines: **chords** `chroma-baseline`, **key** `krumhansl`,
-  **tempo** `librosa-tempo`. Kinds `LYRICS`, `BEATS`, `STEMS`, `NOTES` have **no**
-  registered engine.
+  Registered engines: **chords** `chroma-baseline`, **lyrics** `parakeet-onnx`,
+  **key** `krumhansl`, **tempo** `librosa-tempo` (verified through
+  `create_default_registry()` on 2026-10-16). Kinds `BEATS`, `STEMS`, `NOTES`
+  have **no** registered engine.
 * `[x]` Chord engine: CQT chroma → 24 triad templates → majority or Viterbi
   decoding (`engines/chroma_baseline.py`, `engines/decoding.py`), with the
   change penalty measured (0.80) on GuitarSet.
 * `[x]` Application service `run_analysis()` (`analysis/service.py`): runs
   chords/key/tempo, skips unavailable engines honestly, assembles provenance
   (version, SHA-256, python, platform, engines, configuration).
-* `[x]` CLI: `songlab info`, `doctor`, `chords`, `analyze` (incl. `--json`),
-  `play`, `gui`, `benchmark`.
+* `[x]` CLI: `songlab info`, `doctor`, `chords`, `lyrics`, `analyze` (incl.
+  `--json`), `export`, `play`, `gui`, `benchmark` (the command list of
+  `songlab --help`, checked 2026-10-16).
 * `[x]` Audio metadata probing, FFmpeg discovery with platform install hints,
   input validation (`audio/`).
 * `[x]` Playback and the two displays: `audio/playback.py` (tested player with a
@@ -203,9 +205,10 @@ Phase D and the later phases, not a missing foundation.
 * `[x]` Metrics as library code: chord (CSR, boundary/change, timing), key,
   tempo (half/double kept), lyrics WER/CER (`metrics/`, `evaluation/`).
 * `[x]` Benchmark infrastructure, kind-agnostic runner (`benchmark/`).
-* `[x]` Tests: 1340 with the core venv + 1395 with the optional DSP/GUI stack,
-  fixtures with annotation-only GuitarSet oracles, CI workflow (the DSP job also
-  runs the window offscreen).
+* `[x]` Tests: **1883 passed / 11 skipped** and **1891 passed / 3 skipped**
+  (gate re-run dated 2026-10-16 above; the two local venvs differ by the eight
+  tests that need an audio output device), fixtures with annotation-only
+  GuitarSet oracles, CI workflow (the DSP job also runs the window offscreen).
 * `[x]` Documentation of decisions: `docs/ARCHITECTURE.md`,
   `DEPENDENCY_MATRIX.md`, `LICENSE_AUDIT.md`, `DATASET.md`,
   `ENGINE_COMPARISON.md`, `BENCHMARK.md`, `TROUBLESHOOTING.md`.
@@ -216,9 +219,10 @@ Phase D and the later phases, not a missing foundation.
   deterministic generated WAV and, with FFmpeg, over its MP3 transcode, and
   asserts timestamped chord events cover the file. It skips without the
   optional DSP stack.
-* `[~]` Transposition: `transpose_chord_label()` /
-  `transpose_note_name()` exist and are tested as library functions; there is
-  no user-facing transpose workflow (CLI or GUI).
+* `[x]` Transposition: `transpose_chord_label()` /
+  `transpose_note_name()` as tested library functions, plus the user-facing
+  workflow since 2026-10-13 (Phase H): the window's "Transpose all chords..."
+  dialog and `songlab export --transpose N`.
 * `[x]` Playback foundation: `audio/playback.py` (`Player` protocol, timeline,
   `sounddevice` backend) and the shared decode service `audio/decode.py` it uses.
 * `[x]` Synchronized chord display (terminal): `app/display.py` (pure
@@ -229,10 +233,11 @@ Phase D and the later phases, not a missing foundation.
   optional `gui` extra, with the waveform timeline, the chord strip, the
   seekable playhead and the analysis panel.
 * `[~]` GUI editing/undo-redo/exports/translations (`docs/GUI_REQUIREMENTS.md`
-  `[F]` list: the lyrics view 2026-10-09 and the editing/undo-redo/transpose/
-  simplify/export-dialog work through 2026-10-13 are in; confidence/engine
-  panels and translations remain), lyrics engine, beats engine, stem
-  separation, alignment, fusion, packaging.
+  `[F]` list: the lyrics view 2026-10-09, the editing/undo-redo/transpose/
+  simplify/export-dialog work through 2026-10-13 and the confidence/engine
+  panels 2026-10-14 are in; translations remain - the Language menu ships but
+  no catalogue does), beats engine, stem separation, alignment, fusion,
+  packaging.
 * Empty package (placeholder only, `__init__.py`): `fusion/`. The packages that
   used to be placeholders hold real code now: `export/` (JSON / ChordPro /
   Markdown renderers), `alignment/` (`.lrc` and `.srt` parsing) and `i18n/`
@@ -243,9 +248,16 @@ Phase D and the later phases, not a missing foundation.
 
 * Resolved on 2026-10-16: §1 claimed `export/`, `alignment/` and `i18n/` were
   empty packages (they have implementations), the link-2 row still said the DSP
-  engines decode themselves, and `docs/GUI_REQUIREMENTS.md` did not record the
-  window's Language menu. `AGENT_HANDOFF.md`'s "Partially implemented" entry
-  for decoding said the same, and was corrected with it.
+  engines decode themselves, the registry bullet said `LYRICS` had no engine
+  (`parakeet-onnx` is registered), the CLI bullet omitted `lyrics` and `export`,
+  the transposition bullet still said there was no user-facing workflow, the
+  same bullet still listed a lyrics engine as remaining work although Phases E
+  and F are `[x]`, the test counts carried no date, and
+  `docs/GUI_REQUIREMENTS.md` did not record
+  the window's Language menu. `AGENT_HANDOFF.md`'s "Partially implemented"
+  entry for decoding said the same, and was corrected with it. The `AGENTS.md`
+  line about the registered engines is now stale in the same way (it predates
+  the lyrics engine) and was left alone as the instruction file.
 * Resolved on 2026-10-08: the "no Qt code in `src/`" claims in `README.md`,
   `AGENT_HANDOFF.md`, `docs/GUI_REQUIREMENTS.md` and `docs/ARCHITECTURE.md`
   (the window exists now), the stale `README.md` test badge again, and the

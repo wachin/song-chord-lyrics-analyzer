@@ -258,6 +258,13 @@ class SongSession:
     def snapshot(self) -> SessionSnapshot:
         """The playback timeline model at this instant, for a display to render.
 
+        The playhead is read *once*: the chord in the snapshot is the chord
+        claimed for the position in the same snapshot, never the chord of an
+        instant a fraction of a second later. A display renders both together,
+        so one read is the difference between a frame that is internally
+        consistent and a frame that can show the previous chord next to a
+        position that already crossed the boundary.
+
         Raises:
             InputError: When no song is open.
         """
@@ -266,12 +273,13 @@ class SongSession:
                 "No song is open.",
                 hint="Call session.open(path) before reading a snapshot.",
             )
+        position = self.position()
         return SessionSnapshot(
             path=self._path,
             duration=self.duration(),
-            position=self.position(),
+            position=position,
             state=self.state,
-            chord=self.current_chord(),
+            chord=self.chord_at(position),
         )
 
     # -- playback ----------------------------------------------------------

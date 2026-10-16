@@ -2,8 +2,8 @@
 
 Two layers, tested apart:
 
-* :class:`PlaybackTimeline` is pure Python, so position/state/seek/end are pinned
-  with a :class:`FakeClock` - no sleeping, no device, no flakiness.
+* :class:`PlaybackTimeline` is pure Python, so position/state/seek/report/end
+  are pinned with a :class:`FakeClock` - no sleeping, no device, no flakiness.
 * :class:`SoundDevicePlayer` is driven against a fake ``sounddevice`` module, so
   block feeding, cursor movement, pause/resume, seek and end-of-stream are all
   verified without an audio device. ``load``, ``seek``, ``position`` and
@@ -115,6 +115,55 @@ class TestPlaybackTimeline:
         timeline.seek(2.0)
         clock.advance(0.5)
         assert timeline.position == pytest.approx(2.5)
+
+    def test_a_device_report_moves_the_playhead_forward(self) -> None:
+        clock = FakeClock()
+        timeline = PlaybackTimeline(10.0, clock=clock)
+        timeline.start()
+        clock.advance(0.25)
+
+        timeline.sync(0.5)
+
+        assert timeline.position == pytest.approx(0.5)
+        clock.advance(0.25)
+        assert timeline.position == pytest.approx(0.75)
+
+    def test_a_device_report_never_moves_the_playhead_backwards(self) -> None:
+        """A late device report must not drag the playhead back (link 7)."""
+        clock = FakeClock()
+        timeline = PlaybackTimeline(10.0, clock=clock)
+        timeline.start()
+        clock.advance(0.05)
+
+        # The device was starved: it reports the frames it really delivered,
+        # which are behind the clock the timeline has already been counting.
+        timeline.sync(0.0386)
+
+        assert timeline.position == pytest.approx(0.05)
+        clock.advance(0.05)
+        assert timeline.position == pytest.approx(0.1)
+
+    def test_a_device_report_is_clamped_to_the_track(self) -> None:
+        clock = FakeClock()
+        timeline = PlaybackTimeline(4.0, clock=clock)
+        timeline.start()
+
+        timeline.sync(100.0)
+
+        assert timeline.position == pytest.approx(4.0)
+
+    def test_a_device_report_is_ignored_when_not_playing(self) -> None:
+        """A callback still in flight must not undo a pause or a stop."""
+        clock = FakeClock()
+        timeline = PlaybackTimeline(10.0, clock=clock)
+        timeline.start()
+        clock.advance(1.0)
+        timeline.stop()
+
+        timeline.sync(1.0)
+
+        assert timeline.state is PlaybackState.STOPPED
+        assert timeline.position == 0.0
 
     def test_stop_returns_to_the_start(self) -> None:
         clock = FakeClock()
@@ -360,6 +409,25 @@ class TestPlayerStream:
         assert [float(value) for value in block[:, 0]] == pytest.approx(
             expected[22050:22550], abs=1e-6
         )
+
+    def test_a_late_device_report_does_not_drag_the_position_backwards(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A starved callback thread must not make the displayed chord jump back."""
+        clock = FakeClock()
+        fake = install(monkeypatch, NUMPY)
+        player = SoundDevicePlayer(blocksize=500, clock=clock)
+        player.load(_mono_wav(tmp_path))
+        player.play()
+
+        # 50 ms of wall clock, then a block of only 500 frames (11.3 ms): the
+        # device is behind the clock, and the report must not correct downwards.
+        clock.advance(0.05)
+        fake.last_stream.pull(500)
+        assert player.position() == pytest.approx(0.05)
+
+        clock.advance(0.25)
+        assert player.position() == pytest.approx(0.3)
 
     def test_the_state_callback_is_notified(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

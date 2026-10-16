@@ -108,6 +108,19 @@ def _outcome_with_lyrics(
     return AnalysisOutcome(result=rebuilt, steps=outcome.steps)
 
 
+class _MovingPlayer(FakePlayer):
+    """A player whose playhead moves between two reads, as a real one does."""
+
+    def __init__(self, clock: FakeClock, *, step: float) -> None:
+        super().__init__(clock=clock)
+        self.step = step
+        self.reads = 0
+
+    def position(self) -> float:
+        self.reads += 1
+        return (self.reads - 1) * self.step
+
+
 class _Recorder:
     """An ``analyze`` stand-in that records how the session called it."""
 
@@ -410,6 +423,20 @@ class TestSynchronization:
         session.stop()
         # open() starts by releasing whatever was open before, hence the close.
         assert player.calls == ["close", "load", "play", "pause", "seek", "stop"]
+
+    def test_the_chord_in_a_snapshot_belongs_to_the_position_in_it(self, tmp_path: Path) -> None:
+        """One read of the playhead, or the frame can show the previous chord."""
+        player = _MovingPlayer(FakeClock(), step=1.0)
+        session = SongSession(player=player, analyze=_Recorder())
+        session.open(_wav(tmp_path))
+        session.play()
+
+        snapshot = session.snapshot()
+
+        assert snapshot.chord is session.chord_at(snapshot.position)
+        assert snapshot.chord is not None
+        assert snapshot.chord.label == "C"
+        assert player.reads == 1
 
     def test_a_snapshot_carries_the_timeline(self, tmp_path: Path) -> None:
         session, player, _clock, _recorder = _session(tmp_path)

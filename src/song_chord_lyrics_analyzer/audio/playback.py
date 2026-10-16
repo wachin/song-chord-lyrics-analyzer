@@ -8,7 +8,8 @@ The module is split so the interesting part is testable without any hardware:
 
 * :class:`PlaybackTimeline` is pure Python - a duration, a state and a playhead
   driven by an injectable clock. Pause, resume, seek and end-of-track are
-  decided here, deterministically, with a fake clock in the tests.
+  decided here, deterministically, with a fake clock in the tests, and the
+  playhead is guaranteed never to move backwards while the track is playing.
 * :class:`SoundDevicePlayer` is the only backend today: it decodes through
   :func:`~song_chord_lyrics_analyzer.audio.decode.decode_audio` and streams
   blocks to PortAudio with ``sounddevice``. That dependency is optional and
@@ -126,6 +127,32 @@ class PlaybackTimeline:
         self._position = min(max(float(position), 0.0), self._duration)
         if self._state is PlaybackState.PLAYING:
             self._anchor = self._clock()
+
+    def sync(self, position: float) -> None:
+        """Adopt the playhead a device reports, moving it *forward* only.
+
+        The device is the component that knows which frames really left the
+        sound card, so its report is the truth; but between two reports the
+        clock has been *extrapolating* from the previous anchor, and a report
+        that lands behind that extrapolation - a late callback, a starved
+        device thread - would drag the playhead backwards. A playhead that goes
+        backwards is a broken display: the chord under it would jump back to
+        the previous one while the song keeps playing. So while the track is
+        playing a report can only move the playhead forward.
+
+        The opposite decision - an explicit move in either direction - is
+        :meth:`seek`, which is what a user dragging a timeline asks for. A
+        report that arrives when the track is not playing is ignored, so a
+        callback still in flight cannot undo a pause or a stop.
+
+        Args:
+            position: Where the device says the track is, in seconds.
+        """
+        if self._state is not PlaybackState.PLAYING:
+            return
+        measured = min(max(float(position), 0.0), self._duration)
+        self._position = max(self.position, measured)
+        self._anchor = self._clock()
 
     def mark_finished(self) -> None:
         """Park the playhead at the end after the stream ran out."""
@@ -455,9 +482,13 @@ class SoundDevicePlayer:
             outdata[take:].fill(0.0)
         self._cursor += take
         # Re-anchor the clock to the frames that actually played, so the reported
-        # position stays true instead of drifting with the device buffer.
+        # position stays true instead of drifting with the device buffer. The
+        # report only ever moves the playhead forward: the wall clock may have
+        # run ahead of the device (a late callback starts the first block after
+        # the timeline was already counting), and correcting that downwards
+        # would make the displayed chord jump back.
         if self._timeline is not None:
-            self._timeline.seek(self._cursor / audio.sample_rate)
+            self._timeline.sync(self._cursor / audio.sample_rate)
 
     def _notify(self) -> None:
         if self._on_state_change is not None:

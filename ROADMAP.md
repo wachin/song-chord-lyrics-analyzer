@@ -185,7 +185,7 @@ and no real song).
 | --- | --- | --- | --- |
 | 1 | Real audio file input | `[x]` | `audio/validation.py` + `audio/probe.py` (ffprobe; WAV via stdlib). Verified on a real song file (296.8 s, MP3, 324 kbit/s). |
 | 2 | Decoding to samples | `[x]` | One decode owner: `audio/decode.py` → `decode_audio()` (librosa/soundfile backend plus a stdlib WAV backend, mono/interleaved floats + sample rate) is asked by the chords, key, tempo and lyrics engines for the window they need, by `SoundDevicePlayer.load` for playback, and by `SongSession` for the waveform fallback; no component calls `librosa.load` privately any more. Verified 2026-10-16 on `samples/vocadito_6.wav` and `samples/vocadito_16.wav`: the three DSP engines return the same chord events (start/end/label), key and tempo before and after the switch, both whole-file and with a time window, plus a real compressed transcode through the service (`tests/integration/test_decode_integration.py`). |
-| 3 | Chord engine on real audio | `[x]` | `ChromaBaselineEngine` registered, tested, measured (CSR 0.4260 with Viterbi 0.80 on 180 GuitarSet takes — `docs/ENGINE_COMPARISON.md`). Ran on a real song during the audit. |
+| 3 | Chord engine on real audio | `[x]` | `ChromaBaselineEngine` registered, tested, measured (CSR 0.6029 with Viterbi 0.80 on 180 GuitarSet comping takes, instructed lead sheet, 2026-10-19 — `docs/ENGINE_COMPARISON.md` §2, reproducible with `scripts/chord_benchmark.py`). Ran on a real song during the audit. |
 | 4 | Timestamped ChordEvent sequence | `[x]` | `songlab chords` printed 76 events with `start`/`end`/`label` on a real song; `songlab analyze --json` emitted the same inside the canonical document with provenance (schema version 1, `schema/codec.py`). |
 | 5 | Audio playback | `[x]` | `audio/playback.py`: `SoundDevicePlayer` streams decoded samples through PortAudio (`sounddevice`, optional `playback` extra), with `load`/`play`/`pause`/`stop`/`seek`/`close`. Verified on a real device on 2026-10-06; skipped honestly where no output device exists. |
 | 6 | Lyrics engine (roadmap Phase E) | `[x]` | `ParakeetLyricsEngine` via `onnx-asr` (MIT runtime, CC-BY-4.0 weights), `songlab lyrics`, `run_analysis()` lyrics step. Chunked at 20 s; words carry `unknown` confidence. Verified on `samples/vocadito_6.wav` (real weights and real voice, offscreen) and structurally everywhere else. Model pulls (CC-BY-4.0) are fetched on first use and never committed. |
@@ -240,6 +240,8 @@ Phase D and the later phases, not a missing foundation.
   (gate re-run dated 2026-10-16 above; the two local venvs differ by the eight
   tests that need an audio output device), fixtures with annotation-only
   GuitarSet oracles, CI workflow (the DSP job also runs the window offscreen).
+  The chord-harness work on 2026-10-19 adds 27 tests; the gate then reported
+  **1910 passed / 11 skipped** (same machine, `ruff` and `mypy` clean).
 * `[x]` Documentation of decisions: `docs/ARCHITECTURE.md`,
   `DEPENDENCY_MATRIX.md`, `LICENSE_AUDIT.md`, `DATASET.md`,
   `ENGINE_COMPARISON.md`, `BENCHMARK.md`, `TROUBLESHOOTING.md`.
@@ -921,11 +923,15 @@ documented, tested rule table.
 **Objective:** improve chord recognition **after** the vertical slice works,
 and only where measurement justifies it.
 
-**Current status:** `[~]` — baseline measured (CSR 0.4260, change-F1 0.6202 on
-180 GuitarSet takes); no second chord engine registered. A read-only audit of
-the implementation was completed on **2026-10-18** and its prioritized plan is
-[`docs/CHORD_DETECTION_AUDIT.md`](docs/CHORD_DETECTION_AUDIT.md); none of the
-proposals has been implemented.
+**Current status:** `[~]` — baseline measured on 2026-10-19 with the committed
+harness: CSR 0.6029 (instructed lead sheet), segment overlap 0.8298, change-F1
+0.8270 on 180 GuitarSet comping takes (`docs/ENGINE_COMPARISON.md` §2); the
+previously cited 0.4260 did not reproduce and is retired. No second chord engine
+is registered. A read-only audit of the implementation was completed on
+**2026-10-18** and its prioritized plan is
+[`docs/CHORD_DETECTION_AUDIT.md`](docs/CHORD_DETECTION_AUDIT.md); P1 (the
+measurement harness) is now implemented, and none of the accuracy proposals
+(P2–P8) has been.
 
 ### Tasks
 
@@ -933,8 +939,14 @@ proposals has been implemented.
   decode → CQT chroma → 24 triad templates → Viterbi → segments → GUI, mapped
   the tests, and recorded evidence-based proposals without changing code
   (`docs/CHORD_DETECTION_AUDIT.md`)
-- [ ] P1 — reproducible comparison harness and fixed reference set, so every
-  later chord change reports before/after on the same audio (audit §10 P1)
+- [x] P1 — reproducible comparison harness and fixed reference set, so every
+  later chord change reports before/after on the same audio (audit §10 P1):
+  `scripts/chord_benchmark.py` + the SHA-256-pinned
+  `tests/fixtures/guitarset_comp_manifest.json` (180 comp takes) + the scoring
+  and corpus modules `evaluation/guitarset.py`, with the full audit §11 vector
+  written to `per_take.jsonl` / `aggregate.json` / `aggregate.md`; the
+  generated-fixture and synthetic-corpus paths are tested offline in
+  `tests/unit/test_chord_benchmark_harness.py`
 - [ ] P2 — per-chord confidence from the score margin (the Phase B open task),
   exposed in the existing panel/tooltip without inventing a probability
   (audit §10 P2)
@@ -954,10 +966,12 @@ proposals has been implemented.
 - [ ] P8 — evaluate an alternative engine behind `ChordEngine` only after
   P1–P3 and a licence audit (audit §10 P8)
 
-- [ ] Keep `docs/ENGINE_COMPARISON.md` as the measurement record; every
+- [x] Keep `docs/ENGINE_COMPARISON.md` as the measurement record; every
   accuracy claim states environment + date. **Traceability gap found by the
-  2026-10-18 audit:** the current file begins at section 4, so the chord
-  measurement's method table is missing; restore it with the next measurement
+  2026-10-18 audit** (the file began at section 4, so the chord measurement's
+  method table was missing): sections 1–3 were restored on 2026-10-19 together
+  with the method table, the three measured runs and the note that retired the
+  0.4260
 - [ ] Baseline improvements with measured deltas (confidence margins, bass
   templates, phase-2 vocabulary) — each behind the existing engine interface
 - [ ] Candidate engines (Chordino via Sonic Annotator, madmom, Guitariz-style

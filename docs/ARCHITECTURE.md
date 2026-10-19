@@ -234,7 +234,7 @@ Only WAV files can be inspected without FFmpeg.
 | --- | --- |
 | Model, codec, registry, audio metadata, CLI | implemented; the canonical model, the engine protocols and the commands `info`, `doctor`, `chords`, `analyze`, `play` and `gui` all run |
 | Audio decoding and playback | implemented as a shared service (`audio/decode.py`), a tested `Player` with a real `sounddevice` backend (`audio/playback.py`) and waveform peaks (`audio/peaks.py`, min/max per bucket, no numpy import). **Still open:** the DSP engines call `librosa.load` themselves instead of the shared decoder |
-| Chord engine | `chroma-baseline` registered, tested and measured (CSR 0.4260, 180 GuitarSet takes); per-chord confidence still reports `unknown` |
+| Chord engine | `chroma-baseline` registered, tested and measured (CSR 0.6029 on 180 GuitarSet comping takes against the instructed lead sheet, 2026-10-19, reproducible with `scripts/chord_benchmark.py`; per-chord confidence still reports `unknown`) |
 | Key and tempo engines | `krumhansl` and `librosa-tempo` registered, tested and measured; an engine for beats does not exist |
 | Product slice (open → analyze → play → synchronized chord) | **reached** on 2026-10-07 as `songlab play` + `app/display.py`, and reachable through a window since 2026-10-08 (`songlab gui`) |
 | GUI | **minimal window implemented** (2026-10-08): `gui/main_window.py`, `gui/timeline.py` (waveform + chord bands + playhead, click/drag to seek), `gui/analysis_panel.py`; PyQt6 behind the optional `gui` extra, tested offscreen. Editing, lyrics, exports and translations are `[F]` work and not started |

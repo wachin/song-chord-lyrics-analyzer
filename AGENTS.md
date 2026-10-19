@@ -18,9 +18,12 @@ advances. Registered engines: chords `chroma-baseline`, key `krumhansl`, tempo
 
 Two claims are allowed and no more: what was **measured** (always with its
 environment and date) and what was **verified by running it**. Chord accuracy is
-*measured but low* (CSR 0.4260 on 180 GuitarSet takes), lyrics are still research
-with no engine registered, and the display is a terminal line — so the project is
-not yet a Chordify-style desktop application, and it must not be described as one.
+*measured* (CSR 0.6029 on 180 GuitarSet comping takes against the instructed lead
+sheet, 2026-10-19, reproducible with `scripts/chord_benchmark.py`; the older
+0.4260 did not reproduce and is retired — `docs/ENGINE_COMPARISON.md` §2), lyrics
+are research with a registered engine but no accuracy claim, and the display is a
+terminal line plus a minimal window — so the project is not yet a Chordify-style
+desktop application, and it must not be described as one.
 The authoritative status is the marker table in [`ROADMAP.md`](ROADMAP.md) §1.
 
 | Path | What it is |

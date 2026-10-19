@@ -340,7 +340,11 @@ Do **not** repeat these; they are measured and recorded:
 - **Lyrics ASR comparison** — Parakeet vs faster-whisper numbers, chunking
   requirement, stems conclusion (see Current State).
 - **Chord decoding** — Viterbi change penalty 0.80 measured on 180 GuitarSet
-  takes (CSR 0.4260 vs 0.3676 majority; change-F1 0.6202 vs 0.3144).
+  comping takes (2026-10-19, `scripts/chord_benchmark.py`): CSR 0.6029 vs 0.5300
+  for the majority smoother; change-F1 0.8270 vs 0.4033. The previously cited
+  0.4260 did not reproduce and is retired (`docs/ENGINE_COMPARISON.md` §2 has the
+  traceability note). Do not measure it again — measure the *next* change against
+  this vector.
 - **Key** — Krumhansl: 0.4278 exact / 0.1333 relative over 360 takes.
 - **Tempo** — librosa: 22.63 BPM mean error; octave readings kept, not hidden.
 - **Candidate engines/tools** — Chordino, madmom, beat_this, basic-pitch, etc.

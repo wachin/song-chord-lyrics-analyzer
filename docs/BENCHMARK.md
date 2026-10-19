@@ -107,6 +107,25 @@ decoder replaced the earlier majority smoother, which reported 55 chords on the 
 excerpt; see `docs/ENGINE_COMPARISON.md`.) No case or number from it is committed;
 reproduce it by pointing `--engine` at a case directory with audio.
 
+## Full-corpus accuracy runs (developer harness)
+
+`songlab benchmark` scores a case directory. The accuracy number cited for the chord
+engine comes from a sibling tool, because it runs the same engine over a whole fixed
+corpus and reports the audit §11 vector instead of the report columns:
+
+```bash
+python scripts/chord_benchmark.py --limit 180 --out .cache/chords/benchmark-viterbi-180
+```
+
+It reads `tests/fixtures/guitarset_comp_manifest.json` — 180 GuitarSet comping takes,
+each pinned by the SHA-256 of its audio and JAMS — verifies every file, runs the
+registered engine through `analyze()`, and scores the reference with
+`evaluation/guitarset.py:score_take`. `scripts/` is developer tooling: nothing in it is
+installed or reachable from `songlab`, and it needs the downloaded corpus
+(`--corpus-dir`, default `.cache/chords/guitarset`). The method, the measured tables and
+the environment are in `docs/ENGINE_COMPARISON.md` §1–3; the generated-fixture and
+synthetic-corpus paths are covered by `tests/unit/test_chord_benchmark_harness.py`.
+
 ## Metrics (roadmap section 44)
 
 Chord metrics: exact chord accuracy, root accuracy, quality accuracy, segment

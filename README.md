@@ -31,8 +31,9 @@ and key** — with confidence and provenance attached to every inference.
   *depth* of that window — editing, lyrics, exports, translations, the `[F]`
   work listed in [`docs/GUI_REQUIREMENTS.md`](docs/GUI_REQUIREMENTS.md). Accuracy
   work (Phase I) comes after that foundation; the measurements behind it (lyrics
-  ASR, chord decoding, key, tempo) were produced by a temporary, gitignored
-  harness and are recorded in
+  ASR, key, tempo) came from temporary, gitignored harnesses, and the chord
+  measurement now has a committed one (`scripts/chord_benchmark.py`); all are
+  recorded in
   [`docs/ENGINE_COMPARISON.md`](docs/ENGINE_COMPARISON.md) and
   [`docs/DEPENDENCY_MATRIX.md`](docs/DEPENDENCY_MATRIX.md).
 
@@ -155,8 +156,8 @@ units, so a file of a few kilobytes shows as the 4 KiB block it occupies.
 | `chords/guitarset-<take>/` | 61 MiB (24 dirs) | The 24-take sample run: a copy of one take's audio, its `features/original.npz`, `results/original.json` with the detected key and decoded chord segments, and `csr.json` with that take's per-view CSR rows. |
 | `chords/<song>/` | 127 MiB (5 dirs) | One directory per user-supplied song — `abre-mis-ojos`, `a-quien-ire`, `gracia-sublime`, `levanto-mis-manos`, `palabras-de-vida-eterna`: `chart.json` (hand-written chord chart), `original.wav`, `features/*.npz`, `results/*.json` per stem condition, and the score files `csr.json` (agreement mode), `metrics.json`, `variants.json`, `transitions.json`, `robust.json` and `summary.json`. `gracia-sublime` also keeps its `lrclib.json` lyrics lookup. |
 | `chords/stems/htdemucs/` | 985 MiB | Demucs four-stem separations (`drums`, `bass`, `other`, `vocals`) of those five songs — the material behind the "does separation help chords?" comparison. |
-| `chords/*.py`, `*.json`, `*.log` | ~5 MiB | The throwaway harness: `chords.py` (the original decoder), `measure_decoders.py`, `measure_key.py`, `measure_tempo.py`, `guitarset_*.py`, `fit_*.py`, `sweep_v3.py`, `winner_sweep.py`, and `gen_key_oracle.py`, `gen_metrics_oracle.py`, `make_fixture.py` and `validate_oracle.py`, which generated the committed fixtures. Their JSON, JSONL and log outputs sit next to them. |
-| `choco/` | 504 MiB | ChoCo v1.0.0 as downloaded (178 MiB zip) and extracted: `jams/` with 20,086 chord annotations, `meta.csv` and `LICENSE.md`. Annotation-only — no audio. It is the permissively licensed timed source the search settled on: its `meta.csv` showed it shares no song with the five charts, and its Harte-seconds JAMS are what the harness's `csr --ref` loader was validated on. |
+| `chords/*.py`, `*.json`, `*.log` | ~5 MiB | The historical throwaway harness: `chords.py` (the original decoder), `measure_decoders.py`, `measure_key.py`, `measure_tempo.py`, `guitarset_*.py`, `fit_*.py`, `sweep_v3.py`, `winner_sweep.py`, and `gen_key_oracle.py`, `gen_metrics_oracle.py`, `make_fixture.py` and `validate_oracle.py`, which generated the committed fixtures. Their JSON, JSONL and log outputs sit next to them. Since 2026-10-19 the reproducible chord harness is committed at `scripts/chord_benchmark.py`; these files are what it replaced. |
+| `choco/` | 504 MiB | ChoCo v1.0.0 as downloaded (178 MiB zip) and extracted: `jams/` with 20,086 chord annotations, `meta.csv` and `LICENSE.md`. Annotation-only — no audio. It is the permissively licensed timed source the search settled on: its `meta.csv` showed it shares no song with the five charts, and its Harte-seconds JAMS are what `evaluation.guitarset.read_jams_chords` was validated on. |
 | `benchmark-e2e/`, `benchmark-e2e-key/`, `benchmark-e2e-tempo/` | 100 KiB | Three stored `songlab benchmark` runs (chords on 2026-10-04, key and tempo on 2026-10-05): `cases/case.json` plus a symlink to the GuitarSet take being scored, and `reports/benchmark.{json,csv,md}`. `benchmark-e2e/make_case.py` regenerates the chord case from the JAMS. |
 | `huggingface/` | 1.2 GiB | A Hugging Face download cache (`hub/` plus `xet/` logs) holding the four repositories the experiments pulled: HTDemucs (81 MiB of weights), faster-whisper-small (462 MiB), Parakeet TDT 0.6B ONNX (622 MiB encoder) and Silero VAD (2.3 MiB). No registered engine loads these, so the application never touches them. |
 | `lyrics-asr-investigation/` | 281 MiB | The Whisper-versus-Parakeet comparison: `probe.py`, three driver scripts, `data/` (Vocadito excerpts and zip, six synthetic mix/stem conditions, Demucs output), `results/` (one JSONL plus metadata per engine and condition, and `summary.json`) and the run logs. |
@@ -191,12 +192,13 @@ repository root**, not in the package and not in this repository's history:
 .cache/chords/guitarset/
 ```
 
-Nothing in `src/` reads this path. The application never opens it: it is the
-input of the *measurement* work behind the recorded chord number — CSR 0.4260 on
-180 takes, traced in
-[`docs/CHORD_DETECTION_AUDIT.md`](docs/CHORD_DETECTION_AUDIT.md) — and the
-harness that scores it is still gitignored scratch code under `.cache/chords/`
-(the committed fixtures above are what the tests actually read).
+The application never opens this path. It is the input of the *measurement* work
+behind the recorded chord number — CSR 0.6029 on 180 comping takes against the
+instructed lead sheet, recorded with its environment and date in
+[`docs/ENGINE_COMPARISON.md`](docs/ENGINE_COMPARISON.md) §2 — and the harness that
+scores it is committed at `scripts/chord_benchmark.py`, driven by the committed
+manifest [`tests/fixtures/guitarset_comp_manifest.json`](tests/fixtures/guitarset_comp_manifest.json).
+Only that manifest is in the repository; the audio never is.
 
 #### Why your file manager cannot find it
 
@@ -604,9 +606,12 @@ To start a parallel research effort with your own agent:
    findings go to [`docs/DEPENDENCY_MATRIX.md`](docs/DEPENDENCY_MATRIX.md) and
    [`docs/LICENSE_AUDIT.md`](docs/LICENSE_AUDIT.md); the roadmap marker is set in
    the same change.
-6. **Measure, never invent.** Reproduce experiments in a throw-away, gitignored
-   harness and commit only annotation-only fixtures and the numbers they pin,
-   each with its environment and date.
+6. **Measure, never invent.** Reproduce scratch experiments in a throw-away,
+   gitignored harness, but commit the harness and a fixed manifest whenever the
+   result is an accuracy claim that later work will be compared against
+   (`scripts/chord_benchmark.py` + `tests/fixtures/guitarset_comp_manifest.json`
+   are the pattern). Commit only annotation-only fixtures and the numbers they
+   pin, each with its environment and date.
 
 A good first instruction to hand your agent:
 

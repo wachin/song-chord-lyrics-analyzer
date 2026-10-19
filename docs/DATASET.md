@@ -34,8 +34,8 @@ timestamps + a permissive licence.
 | Source | Timed annotations | Audio | Licence (verified) | Verdict |
 | --- | --- | --- | --- | --- |
 | **GuitarSet** (Zenodo 10.5281/zenodo.3371780, v1.1.0) | **yes** — every excerpt ships a JAMS with 17 annotations (recounted 2026-10-18): chord (instructed lead sheet *and* performed voicings), beats, tempo, key, and per-string pitch contours and note MIDI | **yes** — 360 real acoustic-guitar excerpts (hexaphonic, pickup mix and reference-mic mono), 14–46 s each | **CC BY 4.0** (Zenodo record metadata; MD5s verified on download) | **adopted for local measurement (2026-09-29)** — the only source found that carries real audio *and* timed chord boundaries under a permissive licence. Audio + annotations stay in the gitignored `.cache/chords/guitarset/`; the licence would allow a committed `samples/` excerpt if one is ever wanted. First results in `docs/ENGINE_COMPARISON.md`, "Chords". |
-| **CASD** (Chordify Annotator Subjectivity Dataset, mounted read-only at `external/chordify-org/CASD/`) | **yes, verified locally**: 50 `jams/*.jams` files, 4 annotator chord annotations each, real `time`/`duration` per Harte chord observation, song duration in `file_metadata` | **none** — only a `youtube_url` per song in `file_metadata.identifiers` | **CC BY-NC-SA 4.0** (`LICENSE.md`, read) | timestamps and format are exactly what the harness's `csr --ref` loader reads, but non-commercial + share-alike bars committing any of it into this GPL-3 repository (the same pattern that rejected madmom's and Essentia's weights, `docs/DEPENDENCY_MATRIX.md` §3.1), and the audio must come from the listener's own copy. Context + pending-licence evaluation candidate; never bundled, never committed. |
-| **ChoCo** (`github.com/smashub/choco`, paper: Scientific Data 2023, DOI 10.1038/s41597-023-02896-3) | **yes**: 20,080 JAMS files — 2,283 from audio partitions (Isophonics 300, Billboard 890, CASD 50×4, Uspop 195, RWC-Pop 100, JAAH 113, Robbie Williams 61 …) — human-made, Harte notation, seconds for audio, with provenance metadata | **none** (annotations only) | **CC BY 4.0** for most partitions; CASD/JAAH/Mozart partitions re-licensed BY-NC-SA | the best index of timed ground truth under a GPL-compatible licence, and its Harte seconds are the format `csr --ref` already accepts. Still needs audio paired from a copy the user owns. |
+| **CASD** (Chordify Annotator Subjectivity Dataset, mounted read-only at `external/chordify-org/CASD/`) | **yes, verified locally**: 50 `jams/*.jams` files, 4 annotator chord annotations each, real `time`/`duration` per Harte chord observation, song duration in `file_metadata` | **none** — only a `youtube_url` per song in `file_metadata.identifiers` | **CC BY-NC-SA 4.0** (`LICENSE.md`, read) | timestamps and format are exactly what `evaluation.guitarset.read_jams_chords` reads, but non-commercial + share-alike bars committing any of it into this GPL-3 repository (the same pattern that rejected madmom's and Essentia's weights, `docs/DEPENDENCY_MATRIX.md` §3.1), and the audio must come from the listener's own copy. Context + pending-licence evaluation candidate; never bundled, never committed. |
+| **ChoCo** (`github.com/smashub/choco`, paper: Scientific Data 2023, DOI 10.1038/s41597-023-02896-3) | **yes**: 20,080 JAMS files — 2,283 from audio partitions (Isophonics 300, Billboard 890, CASD 50×4, Uspop 195, RWC-Pop 100, JAAH 113, Robbie Williams 61 …) — human-made, Harte notation, seconds for audio, with provenance metadata | **none** (annotations only) | **CC BY 4.0** for most partitions; CASD/JAAH/Mozart partitions re-licensed BY-NC-SA | the best index of timed ground truth under a GPL-compatible licence, and its Harte seconds are the format `evaluation.guitarset.read_jams_chords` accepts. Still needs audio paired from a copy the user owns. |
 | Isophonics / MIREX / `billboard-parser` | yes | **not distributed** (original CDs, purchase or research agreement) | mixed/restrictive | annotations without audio cannot feed the CSR's accuracy mode, which scores audio. |
 
 **What was downloaded and checked (2026-09-29).**
@@ -56,6 +56,12 @@ timestamps + a permissive licence.
   provenance are recorded inside the fixture's own `provenance` field; re-derivation
   from the downloaded source is documented in the fixture and in the harness that
   generated it.
+  A **second derived fixture is committed** (2026-10-19):
+  `tests/fixtures/guitarset_comp_manifest.json` fixes the measurement corpus — the
+  180 comping takes, their file names and the SHA-256 of both the audio and the JAMS
+  (62 KiB of JSON; the 461.3 MiB of audio stays in the cache).
+  `scripts/chord_benchmark.py` verifies those digests before it measures, and the
+  results are recorded in `docs/ENGINE_COMPARISON.md` §1–3.
 * **ChoCo** — the `v1.0.0` release zip (179 MB; JAMS only, the knowledge graph was
   skipped). 20,086 JAMS files, 2,283 of them in the audio partitions. Intersecting its
   `meta.csv` titles/artists with the user's five charts gave **zero matches** (its audio
@@ -74,10 +80,13 @@ permissively licensed timed chart (ChoCo) with an audio recording the user owns 
 that is not one of the five; or hand-annotate chord boundaries on one of our own charts
 and record the provenance in its sidecar (roadmap 43 explicitly allows `chord boundaries`
 as ground truth *when stored with provenance*; what is forbidden is inventing them). The
-harness reads the interchange format for both: `csr --ref song.jams [--ref-index N]`
-takes the `N`-th `chord`-namespace annotation (GuitarSet's 0 = instructed, 1 = performed)
-and converts Harte labels (`Bb:min`, `F#:7/5`) to the canonical form, fixture-tested
-alongside the metric itself.
+committed harness reads the interchange format for both:
+`evaluation.guitarset.read_jams_chords(song.jams, index=N)` takes the `N`-th
+`chord`-namespace annotation (GuitarSet's 0 = instructed, 1 = performed) and converts
+Harte labels (`Bb:min`, `F#:7/5`) to the canonical form, fixture-tested alongside the
+metric itself. The end-to-end run is
+`python scripts/chord_benchmark.py --reference instructed` over the committed
+[`tests/fixtures/guitarset_comp_manifest.json`](../tests/fixtures/guitarset_comp_manifest.json).
 
 ## Guitar-dataset inventory (registered 2026-10-04)
 
@@ -154,4 +163,5 @@ from "silence", exactly as in the canonical model.
 The `chords label + start + end` rows are the same tuple the JAMS `chord` namespace
 stores (CASD, ChoCo and Isophonics all publish timed chords that way), so the planned
 sidecar can be generated from — or exported to — JAMS without a format decision; the
-gitignored harness's `csr --ref` loader already reads that form today.
+`evaluation.guitarset.read_jams_chords` reads that form today, and
+`scripts/chord_benchmark.py` scores a whole manifest with it.

@@ -417,6 +417,16 @@ can claim a gain.
 
 ## 9. Measurement status and traceability
 
+> **Addendum (2026-10-19).** The gap this section describes is closed by P1:
+> `scripts/chord_benchmark.py` plus the committed manifest
+> `tests/fixtures/guitarset_comp_manifest.json` re-measured the registered engine
+> on the 180 comping takes — **CSR 0.6029** against the instructed lead sheet,
+> segment overlap 0.8298, change F1 0.8270 (`docs/ENGINE_COMPARISON.md` §2). The
+> 0.4260 did not reproduce: it belongs to a hypothesis set the shipped front end
+> does not produce (17.06 chords per take in the 2026-10-05 record, 12.89 today),
+> so it is retired as the engine's accuracy figure. The rest of this audit's plan
+> (P2–P8) is unchanged.
+
 * The recorded chord number is **CSR 0.4260** on 180 GuitarSet takes, with
   change-detection F1 0.6202, compared with 0.3676 / 0.3144 for the majority
   smoother. It is cited in `ROADMAP.md` §1 and §10, `AGENTS.md`, `CHANGELOG.md`

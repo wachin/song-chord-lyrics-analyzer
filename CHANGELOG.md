@@ -8,6 +8,43 @@ the project uses [semantic versioning](https://semver.org/).
 
 ### Added
 
+* **Reproducible chord benchmark harness (roadmap Phase I P1, 2026-10-19).**
+  The chord accuracy number can now be reproduced from the repository instead of
+  coming from a gitignored script, and it was re-measured.
+  * `scripts/chord_benchmark.py` — developer tooling (never shipped): runs the
+    registered engine through `analyze()` over a fixed corpus, scores the whole
+    audit §11 vector (duration CSR raw and triad-reduced, segment overlap,
+    change P/R/F1, median boundary error in both directions, chord counts, wall
+    time, peak RSS), records engine/decoder settings, environment, commit and
+    date, and writes `per_take.jsonl` + `aggregate.json` + `aggregate.md`.
+    It refuses a corpus whose bytes do not match the manifest, aborts on a
+    missing take, supports a resumable budget, and `--write-manifest` pins a
+    downloaded corpus.
+  * `evaluation/guitarset.py` — the shipped half, with no new dependency:
+    manifest model and validation, JAMS `chord`-namespace reader (Harte → the
+    canonical labels), SHA-256 file verification, `score_take()` and
+    `aggregate_scores()` composed from the existing metrics.
+  * `tests/fixtures/guitarset_comp_manifest.json` — the fixed reference set:
+    180 GuitarSet comping takes, 461.3 MiB of audio pinned by SHA-256, 62 KiB
+    committed. The audio and the full JAMS stay in the gitignored cache.
+  * Tests: `tests/unit/test_guitarset_corpus.py` (manifest validation, JAMS
+    reading, hash refusal, the scoring vector) and
+    `tests/unit/test_chord_benchmark_harness.py` (a synthetic one-take corpus
+    driven through the real script; a deliberately broken hypothesis must score
+    lower).
+  * Measurement (2026-10-19, Linux x86_64, CPython 3.13.5, numpy 2.5.3,
+    librosa 1.0.0, commit `53ebb60`, 180 takes, instructed lead sheet): CSR
+    **0.6029** (0.6091 triad-reduced), segment overlap 0.8298, change F1 0.8270,
+    median boundary error 0.178 s. The Viterbi decoder beats the majority
+    smoother on CSR, overlap and change F1 (0.5300 / 0.5428 / 0.4033),
+    reproducing the recorded direction of that comparison.
+  * The previously cited **CSR 0.4260 did not reproduce** and is retired rather
+    than restated: the surviving 2026-09-29 sweep and the 2026-10-05 comparison
+    describe hypothesis sets the shipped front end does not produce (10.62 and
+    17.06 chords per take against 12.89 today).
+    `docs/ENGINE_COMPARISON.md` §§1–3 were restored with the method table, the
+    three measured runs and the traceability note; `docs/DATASET.md` no longer
+    points at the non-existent `csr --ref` command.
 * **The minimal desktop window (roadmap Phase D, 2026-10-08).** `songlab gui`
   opens the smallest usable desktop application around the Phase C slice: open
   an audio file, see its waveform timeline with the detected chords, play/pause,

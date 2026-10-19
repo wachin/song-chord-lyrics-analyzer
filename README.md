@@ -101,6 +101,87 @@ provenance recorded inside the fixture itself:
 No audio is committed; only annotations and measured numbers. The full policy is
 in [`docs/DATASET.md`](docs/DATASET.md).
 
+### What else is in `.cache/` (the local scratch space)
+
+`.cache/chords/guitarset/` is only the largest tenant of a **gitignored scratch
+directory at the repository root**. Everything the research and measurement work
+downloads or generates lives under `.cache/`, and none of it belongs to the
+package:
+
+* **It is not the runtime cache.** That one is `SONGLAB_CACHE_DIR` or the
+  platform default that `songlab doctor` prints — `~/.cache/songlab` on Linux,
+  `~/Library/Caches/songlab` on macOS, `%LOCALAPPDATA%\songlab\Cache` on Windows.
+  No module in `src/` opens `.cache/`.
+* **It is not in the history.** `.gitignore` line 58 ignores the whole directory,
+  so a fresh clone simply starts without it.
+* **It is not needed to run or test.** The tests read the committed annotation
+  fixtures in [`tests/fixtures/`](tests/fixtures/), never the audio.
+
+Measured in this checkout on 2026-10-18: **5.5 GiB**. The directory maps the
+research that produced the numbers quoted in the docs:
+
+```mermaid
+flowchart LR
+    cache[".cache/ — gitignored scratch, 5.5 GiB"]
+
+    cache --> chords["chords/ · 3.3 GiB<br/>GuitarSet, five songs, stems, harness"]
+    cache --> choco["choco/ · 504 MiB<br/>ChoCo v1.0.0 · 20,086 chord JAMS, no audio"]
+    cache --> bench["benchmark-e2e*/ · 100 KiB<br/>three stored songlab benchmark runs"]
+    cache --> hf["huggingface/ · 1.2 GiB<br/>HTDemucs · Whisper · Parakeet · Silero VAD"]
+    cache --> asr["lyrics-asr-investigation/ · 281 MiB<br/>Vocadito + synthetic mixes"]
+    cache --> real["real-song/ · 279 MiB<br/>one full-length song, all variants"]
+
+    chords --> gs["guitarset/<br/>360 JAMS + 360 reference-mic WAV"]
+    chords --> songs["5 per-song directories<br/>chart, audio, features, scores"]
+    chords --> stems["stems/htdemucs/<br/>drums, bass, other, vocals"]
+    chords --> harness["22 harness scripts<br/>+ their JSON and logs"]
+```
+
+Each tenant answers one question: `chords/` the chord accuracy, `choco/` the
+annotation index and `--ref` loader checks, the `huggingface/` weights plus
+`lyrics-asr-investigation/` and `real-song/` the lyrics comparison, and
+`benchmark-e2e*/` the `songlab benchmark` command itself. The outcomes are what
+[`docs/CHORD_DETECTION_AUDIT.md`](docs/CHORD_DETECTION_AUDIT.md),
+[`docs/ENGINE_COMPARISON.md`](docs/ENGINE_COMPARISON.md) and
+[`docs/DATASET.md`](docs/DATASET.md) record.
+
+The same layout as a table: sizes are the `du` figures on 2026-10-18 in binary
+units, so a file of a few kilobytes shows as the 4 KiB block it occupies.
+
+| Path | Size | What it holds |
+| --- | --- | --- |
+| `chords/guitarset/` | 2.1 GiB | The measurement dataset: 360 takes (`.jams` + `_mic.wav`), 24 lead sheets and the two Zenodo zips. Detailed in the next subsection. |
+| `chords/guitarset-features/` | 4.6 MiB | One `original.npz` per take, the cached feature matrix, so re-scoring does not decode the audio again. |
+| `chords/guitarset-<take>/` | 61 MiB (24 dirs) | The 24-take sample run: a copy of one take's audio, its `features/original.npz`, `results/original.json` with the detected key and decoded chord segments, and `csr.json` with that take's per-view CSR rows. |
+| `chords/<song>/` | 127 MiB (5 dirs) | One directory per user-supplied song — `abre-mis-ojos`, `a-quien-ire`, `gracia-sublime`, `levanto-mis-manos`, `palabras-de-vida-eterna`: `chart.json` (hand-written chord chart), `original.wav`, `features/*.npz`, `results/*.json` per stem condition, and the score files `csr.json` (agreement mode), `metrics.json`, `variants.json`, `transitions.json`, `robust.json` and `summary.json`. `gracia-sublime` also keeps its `lrclib.json` lyrics lookup. |
+| `chords/stems/htdemucs/` | 985 MiB | Demucs four-stem separations (`drums`, `bass`, `other`, `vocals`) of those five songs — the material behind the "does separation help chords?" comparison. |
+| `chords/*.py`, `*.json`, `*.log` | ~5 MiB | The throwaway harness: `chords.py` (the original decoder), `measure_decoders.py`, `measure_key.py`, `measure_tempo.py`, `guitarset_*.py`, `fit_*.py`, `sweep_v3.py`, `winner_sweep.py`, and `gen_key_oracle.py`, `gen_metrics_oracle.py`, `make_fixture.py` and `validate_oracle.py`, which generated the committed fixtures. Their JSON, JSONL and log outputs sit next to them. |
+| `choco/` | 504 MiB | ChoCo v1.0.0 as downloaded (178 MiB zip) and extracted: `jams/` with 20,086 chord annotations, `meta.csv` and `LICENSE.md`. Annotation-only — no audio. It is the permissively licensed timed source the search settled on: its `meta.csv` showed it shares no song with the five charts, and its Harte-seconds JAMS are what the harness's `csr --ref` loader was validated on. |
+| `benchmark-e2e/`, `benchmark-e2e-key/`, `benchmark-e2e-tempo/` | 100 KiB | Three stored `songlab benchmark` runs (chords on 2026-10-04, key and tempo on 2026-10-05): `cases/case.json` plus a symlink to the GuitarSet take being scored, and `reports/benchmark.{json,csv,md}`. `benchmark-e2e/make_case.py` regenerates the chord case from the JAMS. |
+| `huggingface/` | 1.2 GiB | A Hugging Face download cache (`hub/` plus `xet/` logs) holding the four repositories the experiments pulled: HTDemucs (81 MiB of weights), faster-whisper-small (462 MiB), Parakeet TDT 0.6B ONNX (622 MiB encoder) and Silero VAD (2.3 MiB). No registered engine loads these, so the application never touches them. |
+| `lyrics-asr-investigation/` | 281 MiB | The Whisper-versus-Parakeet comparison: `probe.py`, three driver scripts, `data/` (Vocadito excerpts and zip, six synthetic mix/stem conditions, Demucs output), `results/` (one JSONL plus metadata per engine and condition, and `summary.json`) and the run logs. |
+| `real-song/` | 279 MiB | One full-length commercial song (272.04 s) taken end to end: `original.wav` and a 16 kHz copy, `stems/htdemucs/`, `results/` per engine, `diagnostics/`, the lyric reference and `summary.json`. |
+| `lyrics/gen_lyrics_oracle.py` | 8 KiB | Generator for `tests/fixtures/lyrics_oracle.json`: deterministic perturbations of the committed references, scored by `jiwer`. |
+| `chordify-initial-data.json` | 20 KiB | A saved Chordify page payload (Next.js `__NEXT_DATA__`) for one song, research evidence for "what does Chordify actually output?". Nothing reads it. |
+| `cache.txt` | 1.2 MiB | A `tree` dump of this directory, 22,376 lines. A snapshot, not an input: delete and regenerate it when it goes stale. |
+| `chords_venv_build.log` | 0 B | Empty leftover of the throwaway harness virtualenv build. |
+
+To see the layout yourself:
+
+```bash
+du -sh .cache/* | sort -h     # what is large
+find .cache -maxdepth 1 -mindepth 1 -type d -exec du -sh {} +
+tree -a -L 2 .cache           # needs the `tree` package
+```
+
+All of it is reproducible from its source (the two Zenodo zips, the ChoCo
+`v1.0.0` release, the Hugging Face repositories, or the harness scripts) except
+the audio of the five songs and of `real-song/`: that is commercial material
+supplied by the user, gitignored, never committed and never redistributed, and
+this project cannot download it again. Deleting `.cache/` therefore loses those
+local checks and the cached features, not anything the package needs. The next
+subsection covers the GuitarSet part in detail.
+
 ### The GuitarSet copy on disk (`.cache/chords/guitarset/`)
 
 When GuitarSet is used locally, it lives in the **gitignored cache at the
@@ -190,6 +271,10 @@ package:
   per-reference CSR rows.
 * `guitarset-features/` — per-take feature dumps. The working directories and
   the feature dumps together take 66 MB.
+
+The other tenants of `.cache/` — the five song directories, their stems, ChoCo,
+the model downloads and the stored benchmark runs — are listed in the overview
+above.
 
 GuitarSet is **CC BY 4.0**: the audio may be kept and measured locally, but it is
 never committed or redistributed here. Deleting `.cache/chords/guitarset/` only

@@ -279,10 +279,67 @@ offscreen, with one assertion that every frame it draws carries exactly the chor
 a generated song the real engine analysed and, where the machine has an output
 device, during real playback.
 
-What it deliberately does **not** do yet: edit chords or lyrics, undo/redo,
-transpose, simplify, export, show per-chord confidence in a panel, or translate
-its UI. Those are the `[F]` items in
-[`docs/GUI_REQUIREMENTS.md`](docs/GUI_REQUIREMENTS.md).
+What is still open in the window is the `[F]` list in
+[`docs/GUI_REQUIREMENTS.md`](docs/GUI_REQUIREMENTS.md); today that is the
+translations (the Language menu ships, but no catalogue does). Editing, undo and
+redo, the lyrics view, transpose, simplify, the export dialog and the
+confidence/engine rows have landed since the minimal window.
+
+### Launching it by hand (MX Linux 25)
+
+The commands below are the launch a user performed on **MX Linux 25** (Debian 13
+based) with this repository's `.venv-chords` virtual environment (Python 3.13.5,
+PyQt6 installed). They are run from a terminal, in the project directory; the
+window needs the `gui`, `dsp` and `playback` extras already installed in that
+environment.
+
+```bash
+cd /home/wachin/Dev3/song-chord-lyrics-analyzer
+source .venv-chords/bin/activate
+songlab gui
+```
+
+![Song Chord Lyrics Analyzer early GUI screenshot](images/01-song-chord-lyrics-analizer-early.png)
+
+* `cd` changes to the repository directory. The absolute path above is an
+  **example from one machine**; replace it with your own checkout's path if it
+  differs.
+* `source .venv-chords/bin/activate` activates the `.venv-chords` virtual
+  environment, which is where `songlab` and its optional analysis/GUI libraries
+  live. (A fresh install can use the `.venv` from the section above; activate
+  whichever one holds the extras.)
+* `songlab gui` starts the graphical application. The window opens with an
+  empty timeline; use **Open...** to pick a song (or pass the file as an
+  argument: `songlab gui song.wav`). The analysis runs before the waveform and
+  chords appear, so a long song takes a moment.
+
+In that manual session the user opened an MP3 file and, after processing,
+reported seeing the waveform, a lyrics panel and the audio information on the
+right, working playback with the position advancing along the waveform, and
+chord names displayed and changing during playback. The user estimated that
+about **75% of the chords were correct**, judged by listening and looking at
+the display.
+
+That figure is a **user-reported manual observation, not a benchmark or a
+measured accuracy result**. It came from one song, with no reference
+annotations and no repeatable procedure, so it must not be quoted as a
+scientifically validated 75% chord-detection accuracy. An objective number
+needs audio with timed reference chords and a fixed evaluation procedure; the
+project's candidate is GuitarSet (CC BY 4.0), the metric definitions are in
+[`docs/BENCHMARK.md`](docs/BENCHMARK.md), and the current engine's limits are
+traced in [`docs/CHORD_DETECTION_AUDIT.md`](docs/CHORD_DETECTION_AUDIT.md).
+
+When you have finished with the application, close the window and leave the
+virtual environment in that terminal session with:
+
+```bash
+deactivate
+```
+
+`deactivate` is a shell command, run at the end of the session. It only ends
+the virtual environment for that terminal; it does not delete the environment
+and does not uninstall any package. Do not run it before launching the
+application — a new terminal needs `source .venv-chords/bin/activate` again.
 
 Planned commands, added phase by phase:
 
@@ -399,6 +456,7 @@ temporary WAVs).
 | [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) | exit codes, FFmpeg, caches |
 | [`docs/INTERNATIONALIZATION.md`](docs/INTERNATIONALIZATION.md) | English-first policy and Qt Linguist plan |
 | [`docs/GUI_REQUIREMENTS.md`](docs/GUI_REQUIREMENTS.md) | the window that exists, and the `[F]` GUI work that does not |
+| [`docs/CHORD_DETECTION_AUDIT.md`](docs/CHORD_DETECTION_AUDIT.md) | the chord path as it runs today, its test coverage, confirmed limits and the prioritized improvement plan (read-only audit) |
 
 ## Contributing
 

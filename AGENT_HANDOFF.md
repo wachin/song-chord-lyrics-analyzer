@@ -169,6 +169,46 @@ Phase C display work landed **2026-10-07**, the Phase D window landed
   included, `--transpose`/`--simplify` applied last so the flags reflect the
   same workflow the GUI uses.
 
+### Chord-detection audit (2026-10-18, read-only)
+
+A full audit of the chord path is in
+[`docs/CHORD_DETECTION_AUDIT.md`](docs/CHORD_DETECTION_AUDIT.md). It changed no
+code. The findings another session must not re-derive:
+
+- **The real path:** `SongSession.open()` → `run_analysis()` →
+  `ChromaBaselineEngine.analyze()` → `decode_audio()` (mono 22.05 kHz) →
+  `librosa.feature.chroma_cqt(hop_length=2048)` → cosine similarity against 24
+  root-position triad templates + a constant no-chord score →
+  `viterbi_decode()` (flat 0.80 change penalty) → `segments_from_labels()` →
+  `ChordEvent`. The GUI only renders `chord_at()` through `app/` presenters.
+- **Vocabulary is phase 1 only:** the engine emits major, minor or `N`. The
+  model/parser support sevenths, sus, dim/aug, add9/6/9 and slash basses, but
+  the engine never produces them and refuses `vocabulary_phase > 1`.
+- **Not modelled:** key conditioning, bass/inversions, tuning estimation,
+  harmonic-percussive separation, onsets/beats, instrument changes, per-chord
+  confidence. Boundaries are frame-grid only (2048/22050 ≈ 92.9 ms).
+- **Test gap:** no committed test asserts label correctness on audio. The E2E
+  test (`tests/integration/test_analysis_e2e.py`) checks timestamp coverage,
+  vocabulary and provenance only; `tests/fixtures/csr_oracle.json` pins metric
+  semantics with stored hypotheses. The audit ran 381 chord-related tests in
+  `.venv-chords` on 2026-10-18: all passed.
+- **Small defects found:** the Viterbi path ignores `match_threshold` but
+  records it in metadata; `raw.frame_labels` is the majority-decoder output even
+  on Viterbi runs; `analysis/chunking.py`'s seam comment says a frame is ~23 ms
+  while the chord hop is ~92.9 ms; `docs/ENGINE_COMPARISON.md` begins at section
+  4, so the chord-measurement method table is missing from the current tree.
+- **Manual GUI check:** the user launched the window on MX Linux 25 in
+  `.venv-chords` and reported waveform, lyrics panel, analysis info, working
+  playback, moving playhead, changing chords, and an estimated ~75 % correct.
+  This is a user observation, **not** a benchmark; do not cite it as measured
+  accuracy. The README records the commands and screenshot.
+
+**Next accuracy work, in order (audit §10):** P1 comparison harness and fixed
+reference set first; then P2 confidence margin, P3 front-end A/B (tuning, HPSS,
+energy, CENS), P4 bass/slash chords, P5 duration/metrical model, P6 vocabulary
+phase 2, P7 shared decode/chroma, P8 alternative engine last. No proposal is
+implemented, and each needs before/after numbers on the same audio.
+
 ### Research only (measured, recorded, NOT wired into the product)
 
 - Lyrics ASR: Parakeet-1B-v3 via `onnx-asr` (WER 0.3722) vs faster-whisper
@@ -402,6 +442,12 @@ The gate for this work is known and unforgiving (same as every phase):
 must exit 1. Nothing extra lands between the code and the commit: the
 `ROADMAP.md` markers move in the same change, the docs update together and
 then the signed commit goes out.
+
+**The next accuracy work is now specified:** see
+[`docs/CHORD_DETECTION_AUDIT.md`](docs/CHORD_DETECTION_AUDIT.md) §10–§12. The
+first task there is P1, the comparison harness and fixed reference set; every
+other chord proposal is unverifiable until it exists. Nothing in that plan has
+been implemented, and no accuracy improvement has been demonstrated.
 
 **What remains open (and what is not the next task):**
 

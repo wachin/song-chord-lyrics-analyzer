@@ -148,6 +148,37 @@ it with `AssertionError: the playhead must never go backwards` (positions
 0.0503198 then 0.0385552) and both `.venv-chords` full-suite runs after the fix
 passed it (`.venv` skips that test: no output device there).
 
+### Manual GUI verification — user-reported (2026-10-18)
+
+The window was launched **by hand on MX Linux 25** (Debian 13 based) in this
+repository's `.venv-chords` environment (CPython 3.13.5, PyQt6 installed), from
+the repository root:
+
+```bash
+source .venv-chords/bin/activate
+songlab gui
+```
+
+The **user** — not an automated test — opened an MP3 file, waited for the
+analysis, and reported: the waveform appeared; a lyrics panel and the audio
+information appeared on the right; playback worked; the position advanced along
+the waveform; and chord names were displayed and changed during playback. The
+same user estimated that roughly **75 % of the detected chords were correct**,
+from listening and watching.
+
+This is a **user-reported manual observation, not a benchmark**: one song, no
+reference annotations, no defined matching rule, no repeatable procedure. It
+must not be quoted as a validated 75 % chord-detection accuracy; an objective
+figure needs a reference dataset with timed chords and a fixed evaluation
+procedure (GuitarSet + `docs/BENCHMARK.md`). The launch steps, the screenshot
+and the virtual-environment shutdown are documented in the README section
+"Launching it by hand (MX Linux 25)". The read-only code audit that this
+observation prompted is [`docs/CHORD_DETECTION_AUDIT.md`](docs/CHORD_DETECTION_AUDIT.md).
+
+Separate from that manual session, the audit's own run on 2026-10-18 executed
+the chord-related unit suites in `.venv-chords` and got **381 passed** (no GUI
+and no real song).
+
 ### The product path, link by link
 
 | # | Link | Status | Evidence |
@@ -531,6 +562,11 @@ the chord `chord_at()` claims for that position - on a real device too
   `gui` extra in the DSP job and runs them offscreen; the core matrix stays
   Qt-free
 
+- [x] Manual launch verified by the user on MX Linux 25 (2026-10-18): the
+  window opened an MP3, drew the waveform, the lyrics panel, the analysis
+  information and the changing chords during playback (user-reported; see §1).
+  The launch commands and screenshot are in the README.
+
 ### Files / modules
 
 New `src/song_chord_lyrics_analyzer/gui/` (`main_window.py`, `timeline.py`,
@@ -886,12 +922,42 @@ documented, tested rule table.
 and only where measurement justifies it.
 
 **Current status:** `[~]` — baseline measured (CSR 0.4260, change-F1 0.6202 on
-180 GuitarSet takes); no second chord engine registered.
+180 GuitarSet takes); no second chord engine registered. A read-only audit of
+the implementation was completed on **2026-10-18** and its prioritized plan is
+[`docs/CHORD_DETECTION_AUDIT.md`](docs/CHORD_DETECTION_AUDIT.md); none of the
+proposals has been implemented.
 
 ### Tasks
 
+- [x] Read-only chord-detection audit (2026-10-18): traced the real path from
+  decode → CQT chroma → 24 triad templates → Viterbi → segments → GUI, mapped
+  the tests, and recorded evidence-based proposals without changing code
+  (`docs/CHORD_DETECTION_AUDIT.md`)
+- [ ] P1 — reproducible comparison harness and fixed reference set, so every
+  later chord change reports before/after on the same audio (audit §10 P1)
+- [ ] P2 — per-chord confidence from the score margin (the Phase B open task),
+  exposed in the existing panel/tooltip without inventing a probability
+  (audit §10 P2)
+- [ ] P3 — front-end robustness measured one variable at a time (tuning, HPSS,
+  energy gate, CENS); no change is adopted without the P1 numbers
+  (audit §10 P3)
+- [ ] P4 — bass-aware feature and slash-chord output, reported separately from
+  the triad label (audit §10 P4)
+- [ ] P5 — duration-aware transition model (and metrical alignment once a beat
+  engine exists), scored on boundary error and change F1 as well as CSR
+  (audit §10 P5)
+- [ ] P6 — vocabulary phase 2 (sevenths, suspensions, diminished/augmented)
+  only after the triad baseline is measured; accept only if the triad-reduced
+  view does not regress (audit §10 P6)
+- [ ] P7 — share decode/chroma work between the chord and key engines; output
+  equality first, latency/memory second (audit §10 P7)
+- [ ] P8 — evaluate an alternative engine behind `ChordEngine` only after
+  P1–P3 and a licence audit (audit §10 P8)
+
 - [ ] Keep `docs/ENGINE_COMPARISON.md` as the measurement record; every
-  accuracy claim states environment + date
+  accuracy claim states environment + date. **Traceability gap found by the
+  2026-10-18 audit:** the current file begins at section 4, so the chord
+  measurement's method table is missing; restore it with the next measurement
 - [ ] Baseline improvements with measured deltas (confidence margins, bass
   templates, phase-2 vocabulary) — each behind the existing engine interface
 - [ ] Candidate engines (Chordino via Sonic Annotator, madmom, Guitariz-style

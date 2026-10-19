@@ -92,6 +92,16 @@ songlab doctor    # prints cache, data, models, exports and temp directories
 Override them with `SONGLAB_CACHE_DIR`, `SONGLAB_DATA_DIR` and
 `SONGLAB_TEMP_DIR`. No path is ever hard-coded per operating system.
 
+## I cannot find `.cache/chords/guitarset/`
+
+That directory is not a runtime cache and `songlab doctor` will not print it. It
+is the local dataset copy used by the measurement work, and it lives **inside the
+repository, relative to its root** — not under your home directory. It also starts
+with a dot, so file managers hide it: press `Ctrl+H` (Thunar, Dolphin, Nautilus)
+or `Cmd+Shift+.` (Finder), or use `Ctrl+L` and paste the absolute path. The full
+layout, file counts and take-name scheme are documented in the README section
+"The GuitarSet copy on disk" ([`README.md`](../README.md)).
+
 ## Reporting a problem
 
 Include the output of `songlab doctor`, the exact command, the exit code and the

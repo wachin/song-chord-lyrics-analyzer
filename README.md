@@ -101,6 +101,101 @@ provenance recorded inside the fixture itself:
 No audio is committed; only annotations and measured numbers. The full policy is
 in [`docs/DATASET.md`](docs/DATASET.md).
 
+### The GuitarSet copy on disk (`.cache/chords/guitarset/`)
+
+When GuitarSet is used locally, it lives in the **gitignored cache at the
+repository root**, not in the package and not in this repository's history:
+
+```text
+.cache/chords/guitarset/
+```
+
+Nothing in `src/` reads this path. The application never opens it: it is the
+input of the *measurement* work behind the recorded chord number — CSR 0.4260 on
+180 takes, traced in
+[`docs/CHORD_DETECTION_AUDIT.md`](docs/CHORD_DETECTION_AUDIT.md) — and the
+harness that scores it is still gitignored scratch code under `.cache/chords/`
+(the committed fixtures above are what the tests actually read).
+
+#### Why your file manager cannot find it
+
+Two ordinary reasons, neither of them a missing download:
+
+* **The path starts with a dot.** `.cache` is a *hidden* directory, and file
+  managers hide names beginning with `.` by default. In Thunar (the MX Linux
+  default) press `Ctrl+H` or choose **View → Show Hidden Files**; Dolphin and
+  Nautilus use the same shortcut. Nothing is missing — it is filtered out of the
+  listing.
+* **It sits in the repository, not in your home directory.** The path is relative
+  to the clone, so it is *not* `~/.cache/...`. With a clone at
+  `/home/user/Dev3/song-chord-lyrics-analyzer` (machine-specific example) the
+  absolute path is
+  `/home/user/Dev3/song-chord-lyrics-analyzer/.cache/chords/guitarset/`.
+  Use `Ctrl+L` and paste the path, or from a terminal:
+
+```bash
+cd /path/to/song-chord-lyrics-analyzer/.cache/chords/guitarset
+ls -lh | head          # the extracted files
+```
+
+#### What is inside
+
+The directory is **flat — no subdirectories**. Counts and sizes below were
+measured on 2026-10-18 in this checkout: **746 files, 2.1 GiB** (sizes in MiB, as
+`du` reports them).
+
+```text
+.cache/chords/guitarset/
+├── annotation.zip              37 MiB   original Zenodo annotation download (39.1 MB published)
+├── audio_mono-mic.zip         627 MiB   original Zenodo audio download (656.9 MB published)
+├── <take>.jams                360 files, 543 MiB   annotations, one per take
+├── <take>_mic.wav             360 files, 923 MiB   audio, one per take
+└── <take>.chart.txt            24 files, <100 KB  plain-text instructed lead sheets
+```
+
+| Entry | What it is |
+| --- | --- |
+| `annotation.zip` | The untouched `annotation.zip` from [Zenodo 10.5281/zenodo.3371780](https://zenodo.org/records/3371780): 39.1 MB / 37.3 MiB, the size the record publishes. MD5-verified against the record on 2026-09-29. Kept only as the original; the extracted `.jams` are what gets read. |
+| `audio_mono-mic.zip` | The untouched `audio_mono-mic.zip` from the same record: 656.9 MB / 626.5 MiB, also as published. Same provenance and MD5 check. The extracted `.wav` files are what gets read, so the two zips (664 MiB together) are redundant once extraction has happened. |
+| `<take>.jams` | JAMS annotation per take — JSON text, 0.24–6.1 MB (1.5 MB average). Each holds **17 annotations** (recounted 2026-10-18): two `chord` namespaces (index 0 = instructed lead sheet, index 1 = performed, semi-automatic transcription with manual verification), `key_mode`, `tempo`, `beat_position`, and six `pitch_contour` plus six `note_midi` (one per string). Excerpts run **14.40 s to 45.71 s** (median 29.69 s). |
+| `<take>_mic.wav` | The reference-microphone mono mix the decoder analyses: **44.1 kHz, 16-bit PCM, one channel**, 1.2–3.8 MB each. GuitarSet also ships hexaphonic and pickup audio; those zips were not downloaded. |
+| `<take>.chart.txt` | The instructed chord sheet in plain text for a 24-take subset (all `comp` takes), e.g. `[instructed lead sheet]` followed by one chord per line. Small enough to read in an editor. |
+
+#### The take names
+
+Every extracted file is named `<player>_<style><progression>-<bpm>-<key>_<comp|solo>`,
+so `00_BN1-129-Eb_comp_mic.wav` is player `00`, style `BN` (bossa nova),
+progression 1, 129 BPM, E♭ major, comping, reference-mic audio:
+
+| Part | Meaning |
+| --- | --- |
+| `<player>` | `00`–`05`, the six GuitarSet players, 60 files each. |
+| `<style>` | `BN` (bossa nova), `Funk`, `Jazz`, `Rock`, `SS` (singer-songwriter); 72 takes each. |
+| `<progression>` | `1`–`3`, each appearing with two tempo/key variants, so every style has six pieces per player. |
+| `<bpm>` | Tempo of that recording. |
+| `<key>` | Sounding key, e.g. `Eb`, `C#`, `Bb`, `F#` — 13 key spellings in the set. |
+| `comp` / `solo` | Comping (chordal accompaniment) or lead playing; **180 each**, both annotated. |
+
+#### The rest of `.cache/chords/`
+
+Next to `guitarset/` sit the scratch artefacts from the 2026-09-29 measurement
+run. All of it is gitignored scratch state, and none of it is needed to run the
+package:
+
+* `guitarset_all.py`, `guitarset_aggregate.py`, `guitarset_ablation.py` — the
+  decoding/aggregation scripts, with `guitarset_all*.jsonl`, `guitarset_*summary.json`
+  and `guitarset_csr_views.log` holding their output.
+* 24 `guitarset-<take>/` working directories from the sample run, each with
+  `original.wav`, `features/`, `results/` and a `csr.json` holding that take's
+  per-reference CSR rows.
+* `guitarset-features/` — per-take feature dumps. The working directories and
+  the feature dumps together take 66 MB.
+
+GuitarSet is **CC BY 4.0**: the audio may be kept and measured locally, but it is
+never committed or redistributed here. Deleting `.cache/chords/guitarset/` only
+means re-extracting the two Zenodo zips into the same path; the committed
+annotation fixtures and the tests keep working without it.
+
 ## Design principles
 
 1. **No GUI first.** The command-line laboratory was built and validated before

@@ -29,6 +29,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -38,17 +39,21 @@ from song_chord_lyrics_analyzer.evaluation.chords import (
     harte_to_label,
     triad_reduce,
 )
+from song_chord_lyrics_analyzer.evaluation.confidence import EventOutcome
 from song_chord_lyrics_analyzer.metrics.segmentation import (
     chord_change_detection,
     segment_overlap,
     timing_error,
 )
+from song_chord_lyrics_analyzer.models.music import ChordEvent
 from song_chord_lyrics_analyzer.utils.errors import InputError
 
 __all__ = [
     "GuitarSetManifest",
     "GuitarSetTake",
     "aggregate_scores",
+    "event_outcomes",
+    "label_agreement",
     "load_manifest",
     "read_jams_chords",
     "score_take",
@@ -374,6 +379,81 @@ def read_jams_chords(path: Path, *, index: int = 0) -> list[ChordSegment]:
 def _finite(value: float) -> float | None:
     """A JSON-safe float: ``None`` for NaN/inf rather than invalid JSON."""
     return value if math.isfinite(value) else None
+
+
+def label_agreement(
+    reference: Sequence[ChordSegment],
+    start: float,
+    end: float,
+    label: str,
+) -> float:
+    """Seconds of ``[start, end)`` on which ``reference`` carries ``label``.
+
+    This is the per-event form of the rule :func:`duration_csr` applies: time
+    where the labels differ is a miss and still counts as time. Reference
+    segments that overlap each other are each counted, exactly as the
+    duration-weighted metric counts them.
+    """
+    total = 0.0
+    for ref_start, ref_end, ref_label in reference:
+        if ref_end <= start:
+            continue
+        if ref_start >= end:
+            break
+        overlap = min(ref_end, end) - max(ref_start, start)
+        if overlap > 0.0 and ref_label == label:
+            total += overlap
+    return total
+
+
+def event_outcomes(
+    reference: Sequence[ChordSegment],
+    events: Sequence[ChordEvent],
+) -> list[EventOutcome]:
+    """Turn scored chord events into the rows confidence measurements need.
+
+    Each event contributes its duration, the part of that duration the
+    reference labels the same way (:func:`label_agreement`), the confidence the
+    engine reported and — when the engine kept one — the raw score margin from
+    ``event.metadata["score_margin"]``. The margin is what a mapping is fitted
+    on; the confidence is what a report measures.
+
+    Args:
+        reference: Timed reference labels, canonicalised by
+            :func:`~song_chord_lyrics_analyzer.evaluation.chords.harte_to_label`.
+        events: Chord events with both boundaries set.
+
+    Raises:
+        InputError: When an event has no end or a non-positive duration. A
+            claim with no length cannot be weighed, and inventing a boundary
+            would silently change the measurement.
+    """
+    outcomes: list[EventOutcome] = []
+    for event in events:
+        if event.end is None:
+            raise InputError(
+                f"Chord event at {event.start!r}s has no end.",
+                hint="Confidence is duration-weighted; close the last event at the track duration.",
+            )
+        start, end = float(event.start), float(event.end)
+        if end <= start:
+            raise InputError(
+                f"Chord event at {start!r}s has a non-positive duration.",
+                hint="An empty claim occupies no time and cannot be scored.",
+            )
+        seconds = end - start
+        margin = event.metadata.get("score_margin")
+        outcomes.append(
+            EventOutcome(
+                seconds=seconds,
+                correct_seconds=min(seconds, label_agreement(reference, start, end, event.label)),
+                confidence=event.confidence.value,
+                margin=float(margin)
+                if isinstance(margin, (int, float)) and not isinstance(margin, bool)
+                else None,
+            )
+        )
+    return outcomes
 
 
 def score_take(

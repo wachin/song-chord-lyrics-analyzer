@@ -25,6 +25,8 @@ from song_chord_lyrics_analyzer.analysis import (
 from song_chord_lyrics_analyzer.cli.main import main
 from song_chord_lyrics_analyzer.engines import EngineRegistry
 from song_chord_lyrics_analyzer.models.analysis import RunStatus
+from song_chord_lyrics_analyzer.models.confidence import ConfidenceScore
+from song_chord_lyrics_analyzer.models.music import ChordEvent, ChordQuality
 from song_chord_lyrics_analyzer.utils.errors import DependencyError, InputError
 
 #: Sentinel for "register the default fake"; ``None`` means "register nothing
@@ -203,6 +205,35 @@ class TestAnalyzeCommand:
         assert "Tempo:  120.0 BPM" in output
         assert "Total processing:" in output
         assert "sha256:" in output
+
+    def test_the_chord_line_reports_the_measured_confidence(
+        self, tmp_path: Path, capsys, monkeypatch
+    ) -> None:
+        """The terminal report exposes what the engine now measures (P2)."""
+        chords = [
+            ChordEvent(
+                start=0.0,
+                end=2.0,
+                root="C",
+                quality=ChordQuality.MAJOR,
+                confidence=ConfidenceScore.from_value(0.8),
+                source="fake-chords",
+            ),
+            ChordEvent(
+                start=2.0,
+                end=4.0,
+                root="G",
+                quality=ChordQuality.MAJOR,
+                confidence=ConfidenceScore.from_value(0.6),
+                source="fake-chords",
+            ),
+        ]
+        self._patch(monkeypatch, chords=FakeChordEngine(chords=chords))
+
+        assert main(["analyze", str(_audio(tmp_path))]) == 0
+
+        output = capsys.readouterr().out
+        assert "Chords: 2  (confidence 0.70 average)" in output
 
     def test_json_flag_prints_the_canonical_document(
         self, tmp_path: Path, capsys, monkeypatch

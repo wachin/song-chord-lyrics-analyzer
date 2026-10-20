@@ -452,8 +452,20 @@ can claim a gain.
 
 ## 10. Prioritized improvement plan
 
-Nothing here is implemented. Expected benefits are explicitly **not** measured
-results. Every proposal keeps the existing `ChordEngine` contract and is
+> **Addendum (2026-10-20).** **P1 and P2 are now implemented**; P3–P8 are not.
+> P1 is the harness above (CSR 0.6029 on 180 comping takes,
+> `docs/ENGINE_COMPARISON.md` §2). P2 reports a calibrated per-chord
+> confidence: the score margin of the emitted label is averaged over the
+> event's frames (negative where the Viterbi path overrode a frame) and mapped
+> through a logistic fitted on 90 GuitarSet takes and measured on the other 90
+> (held-out Brier 0.1436, ECE 0.0206, accuracy 0.811 at coverage 0.463;
+> whole-run tables in `docs/ENGINE_COMPARISON.md` §6). The decoded labels did
+> not change — all 180 per-take rows are identical to the P1 run — which is
+> what this section's "accuracy must not silently change" rule asked for. The
+> paragraph below describes the state on 2026-10-18.
+
+At the time of the audit, nothing here was implemented. Expected benefits are
+explicitly **not** measured results. Every proposal keeps the existing `ChordEngine` contract and is
 selectable through `--engine` / `ChordAnalysisOptions`, so a regression can be
 reverted without touching the CLI or the GUI.
 

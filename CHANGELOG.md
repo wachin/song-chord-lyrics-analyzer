@@ -8,6 +8,42 @@ the project uses [semantic versioning](https://semver.org/).
 
 ### Added
 
+* **Measured per-chord confidence (roadmap Phase I P2 / Phase B, 2026-10-20).**
+  `ChordEvent.confidence` is no longer always `unknown`: every event now reports
+  a calibrated probability that its label is right at that instant.
+  * `engines/chroma_baseline.py` — `segment_margins()` averages, over the frames
+    an event covers, the emitted label's score minus the best competing state's
+    score (`N` included), so a frame the Viterbi path kept against the frame's
+    own preference contributes a negative margin; `margin_confidence()` maps it
+    through `sigmoid(24.2814 * margin + 0.1552)`. The raw margin stays in
+    `metadata["score_margin"]`. The mapping is applied *after* merging short
+    segments, so a merged-in chord is not credited with the margin of the label
+    it replaced, and `ChordEvent.silence()` can carry confidence too.
+  * `evaluation/confidence.py` (new) — the measurement half: overflow-safe
+    `probability()`, duration-weighted `fit_logistic()` (Newton/IRLS),
+    `apply_fit()`, and `calibration_report()`/`combine_reports()` producing
+    duration-weighted bands, a risk–coverage curve, Brier and ECE.
+    `evaluation/guitarset.py` gains `label_agreement()` and `event_outcomes()`.
+  * `scripts/chord_benchmark.py` — every run now reports the confidence
+    calibration, and `--fit-confidence` refits the logistic on the 90
+    even-indexed takes, scores it on the 90 odd-indexed ones and writes
+    `confidence_fit.json`. A non-converged fit is refused as a model.
+  * Measurement (2026-10-20, Linux x86_64, CPython 3.13.5, numpy 2.5.3,
+    librosa 1.0.0, commit `2d45363` + this change, 180 takes): held out, Brier
+    **0.1436**, ECE **0.0206**, accuracy 0.581 over all events rising to 0.811
+    on the events scoring at least 0.60 (coverage 0.463). Over the whole run,
+    the very-high band is right 0.869 of the time and the very-low band 0.129.
+  * **The decoded labels are unchanged:** all 180 per-take rows are identical to
+    the P1 run on all ten scored fields, and the means are still CSR 0.6029 /
+    0.6091 triad / overlap 0.8298 / change F1 0.8270.
+  * The Viterbi run now records `match_threshold_used` and
+    `smoothing_window_used` (`false`) instead of letting the unused values look
+    like they shaped the labels (audit P2).
+  * Tests: `tests/unit/test_confidence_evaluation.py` (26 tests), new margin,
+    confidence and metadata cases in `tests/unit/test_chroma_baseline.py`, the
+    outcome helpers in `tests/unit/test_guitarset_corpus.py`, and the fit/refit
+    paths in `tests/unit/test_chord_benchmark_harness.py` — 57 tests in all. The
+    gate reports **1967 passed / 11 skipped**; `ruff` and `mypy` clean.
 * **Reproducible chord benchmark harness (roadmap Phase I P1, 2026-10-19).**
   The chord accuracy number can now be reproduced from the repository instead of
   coming from a gitignored script, and it was re-measured.
@@ -104,6 +140,17 @@ undo/redo, lyrics, transpose, exports, a confidence panel and translations are
 not in it; it reuses the session's `sounddevice` player rather than a Qt
 Multimedia backend; and it claims **synchronization, not accuracy** — wrong
 chords are still wrong until Phase I.
+
+### Fixed
+
+* **The `models/` source package was missing from every commit (found
+  2026-10-20).** `.gitignore` ignored `models/` unanchored, meaning to keep
+  downloaded model weights out of the repository but also matching
+  `src/song_chord_lyrics_analyzer/models/` — the canonical typed model. The
+  package existed on disk, so tests and `mypy` passed locally while a fresh
+  clone could not import the package at all; `ruff` skipped the directory for
+  the same reason. The rule is now anchored to `/models/`, the six files are
+  committed, and the gate covers them.
 
 ### Research
 

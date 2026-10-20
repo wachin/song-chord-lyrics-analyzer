@@ -1,4 +1,4 @@
-"""Chord evaluation (roadmap sections 44 and Phase I P1).
+"""Chord evaluation (roadmap sections 44 and Phase I P1/P2).
 
 The scoring semantics verified against the CSR oracle fixture
 (``tests/fixtures/csr_oracle.json``, derived from GuitarSet comping takes):
@@ -11,6 +11,12 @@ expected values; nothing here invents numbers.
 corpus side: a committed manifest of GuitarSet takes with SHA-256 digests, the
 JAMS chord reader, and the full per-take comparison vector used by
 ``scripts/chord_benchmark.py``.
+
+:mod:`song_chord_lyrics_analyzer.evaluation.confidence` measures the per-event
+confidence the chord engine reports: it refits the margin-to-probability
+logistic from recorded events, so the calibration is reproducible rather than
+taken on trust, and pools the reports into a calibration table, a
+risk-coverage curve and an expected calibration error.
 """
 
 from __future__ import annotations
@@ -23,10 +29,22 @@ from song_chord_lyrics_analyzer.evaluation.chords import (
     reduce_ref_view,
     triad_reduce,
 )
+from song_chord_lyrics_analyzer.evaluation.confidence import (
+    CONFIDENCE_THRESHOLDS,
+    EventOutcome,
+    LogisticFit,
+    apply_fit,
+    calibration_report,
+    combine_reports,
+    fit_logistic,
+    probability,
+)
 from song_chord_lyrics_analyzer.evaluation.guitarset import (
     GuitarSetManifest,
     GuitarSetTake,
     aggregate_scores,
+    event_outcomes,
+    label_agreement,
     load_manifest,
     read_jams_chords,
     score_take,
@@ -35,14 +53,24 @@ from song_chord_lyrics_analyzer.evaluation.guitarset import (
 )
 
 __all__ = [
+    "CONFIDENCE_THRESHOLDS",
+    "EventOutcome",
     "GuitarSetManifest",
     "GuitarSetTake",
+    "LogisticFit",
     "aggregate_scores",
+    "apply_fit",
+    "calibration_report",
     "chord_pcs",
+    "combine_reports",
     "duration_csr",
+    "event_outcomes",
+    "fit_logistic",
     "harte_to_label",
+    "label_agreement",
     "load_manifest",
     "mirex_equal",
+    "probability",
     "read_jams_chords",
     "reduce_ref_view",
     "score_take",

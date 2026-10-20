@@ -64,8 +64,11 @@ benchmark/*.csv
 benchmark/*.md
 samples/private/
 
-# Downloaded models and stems must never be committed
-models/
+# Downloaded models and stems must never be committed. The rule is anchored to
+# the repository root on purpose: `src/song_chord_lyrics_analyzer/models/` is
+# source code (the canonical typed model), not a model download, and an
+# unanchored `models/` silently kept that package out of every commit.
+/models/
 *.qm
 !translations/*.qm
 

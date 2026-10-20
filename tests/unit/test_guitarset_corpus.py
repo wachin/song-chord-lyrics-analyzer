@@ -21,12 +21,16 @@ import pytest
 
 from song_chord_lyrics_analyzer.evaluation.guitarset import (
     aggregate_scores,
+    event_outcomes,
+    label_agreement,
     load_manifest,
     read_jams_chords,
     score_take,
     sha256_file,
     verify_take_files,
 )
+from song_chord_lyrics_analyzer.models.confidence import ConfidenceScore
+from song_chord_lyrics_analyzer.models.music import ChordEvent, ChordQuality
 from song_chord_lyrics_analyzer.utils.errors import InputError
 
 MANIFEST = Path(__file__).resolve().parents[1] / "fixtures" / "guitarset_comp_manifest.json"
@@ -309,3 +313,77 @@ def test_aggregate_scores_averages_only_what_exists() -> None:
 
 def test_aggregate_scores_of_nothing_is_empty() -> None:
     assert aggregate_scores([]) == {}
+
+
+# --------------------------------------------------------------------------- #
+# Per-event confidence outcomes (Phase I P2)
+# --------------------------------------------------------------------------- #
+def _event(
+    start: float,
+    end: float,
+    label: str = "C",
+    *,
+    confidence: float | None = None,
+    margin: float | None = None,
+) -> ChordEvent:
+    metadata = {} if margin is None else {"score_margin": margin}
+    return ChordEvent(
+        start=start,
+        end=end,
+        root=None if label == "N" else label.rstrip("m"),
+        quality=ChordQuality.NO_CHORD
+        if label == "N"
+        else (ChordQuality.MINOR if label.endswith("m") else ChordQuality.MAJOR),
+        confidence=ConfidenceScore.from_value(confidence),
+        metadata=metadata,
+    )
+
+
+def test_label_agreement_counts_only_time_the_reference_agrees() -> None:
+    reference = [(0.0, 2.0, "C"), (2.0, 5.0, "G")]
+
+    assert label_agreement(reference, 1.0, 3.0, "C") == pytest.approx(1.0)
+    assert label_agreement(reference, 1.0, 3.0, "G") == pytest.approx(1.0)
+    assert label_agreement(reference, 0.0, 5.0, "Am") == pytest.approx(0.0)
+    assert label_agreement(reference, 4.0, 8.0, "G") == pytest.approx(1.0)
+
+
+def test_event_outcomes_read_duration_agreement_confidence_and_margin() -> None:
+    reference = [(0.0, 2.0, "C"), (2.0, 4.0, "Am")]
+    events = [
+        _event(0.0, 2.0, "C", confidence=0.9, margin=0.12),
+        _event(2.0, 4.0, "G", confidence=0.2, margin=-0.03),
+    ]
+
+    outcomes = event_outcomes(reference, events)
+
+    assert [outcome.seconds for outcome in outcomes] == [2.0, 2.0]
+    assert [outcome.correct_seconds for outcome in outcomes] == [2.0, 0.0]
+    assert [outcome.confidence for outcome in outcomes] == [0.9, 0.2]
+    assert [outcome.margin for outcome in outcomes] == [pytest.approx(0.12), pytest.approx(-0.03)]
+
+
+def test_event_outcomes_keep_an_unknown_confidence_unknown() -> None:
+    outcomes = event_outcomes([(0.0, 1.0, "C")], [_event(0.0, 1.0, "C")])
+
+    assert outcomes[0].confidence is None
+    assert outcomes[0].margin is None
+
+
+def test_event_outcomes_account_for_a_partial_agreement() -> None:
+    reference = [(0.0, 1.0, "C"), (1.0, 2.0, "Am")]
+
+    outcomes = event_outcomes(reference, [_event(0.0, 2.0, "C", confidence=0.5)])
+
+    assert outcomes[0].correct_seconds == pytest.approx(1.0)
+    assert outcomes[0].correct_fraction == pytest.approx(0.5)
+
+
+def test_event_outcomes_refuse_an_event_without_an_end() -> None:
+    with pytest.raises(InputError, match="no end"):
+        event_outcomes([(0.0, 1.0, "C")], [ChordEvent(start=0.0, root="C")])
+
+
+def test_event_outcomes_refuse_an_empty_event() -> None:
+    with pytest.raises(InputError, match="non-positive duration"):
+        event_outcomes([(0.0, 1.0, "C")], [_event(1.0, 1.0)])

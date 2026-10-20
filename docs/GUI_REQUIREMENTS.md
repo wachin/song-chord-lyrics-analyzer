@@ -143,17 +143,17 @@ CLI, the engine or the session.
    With this, every `[F]` item above 7 is delivered; of the two remaining,
    the confidence/engine panels (item 6) landed 2026-10-14 and only
    translations (item 7) are open.
-6. ~~**Confidence/engine panels**~~ **(delivered 2026-10-14)** — confidence is
-   shown where it exists and named as `unknown` where it does not, never
-   rendered as a number: the summary panel's "Chord confidence" row averages
-   the values the chord engine reported (the baseline engine reports none, so
-   the row honestly reads `unknown` — with the engine's name when it recorded
-   one), and the chord label's tooltip carries the confidence of the chord
-   under the playhead (`DisplayFrame.chord_confidence_text`, empty where no
-   chord is claimed). The `Engines` row was already there; the `Warnings` row
-   now shows the warnings themselves instead of their count. No engine
-   changed: an engine that starts reporting per-chord confidence appears in
-   these surfaces without further UI work.
+6. ~~**Confidence/engine panels**~~ **(delivered 2026-10-14; fed by real values
+   since 2026-10-20)** — confidence is shown where it exists and named as
+   `unknown` where it does not, never invented: the summary panel's "Chord
+   confidence" row averages the values the chord engine reported, and the chord
+   label's tooltip carries the confidence of the chord under the playhead
+   (`DisplayFrame.chord_confidence_text`, empty where no chord is claimed). The
+   panels did not change when the engine started reporting confidence (roadmap
+   Phase I P2): the same row now shows a measured average instead of `unknown`,
+   which is what this item promised — no UI work was needed for the new value.
+   The `Engines` row was already there; the `Warnings` row shows the warnings
+   themselves instead of their count.
 7. **Translations** — **half delivered 2026-10-14/15**: `i18n/` (phase 17) owns
    the catalogue story and the window's Language menu is built from it —
    `available_languages()` lists only compiled catalogues that are actually

@@ -27,6 +27,7 @@ from song_chord_lyrics_analyzer.utils.time import format_timestamp
 
 __all__ = [
     "SummaryRow",
+    "chord_confidence_label",
     "lyrics_label",
     "summarize",
 ]
@@ -89,13 +90,14 @@ def _count(count: int, noun: str) -> str:
     return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
 
 
-def _describe_confidence(document: AnalysisResult) -> str | None:
+def chord_confidence_label(document: AnalysisResult) -> str | None:
     """How confident the chord layer is, never inventing a number.
 
-    A chord engine that reports no per-chord confidence (the baseline engine
-    reports none) is named as ``unknown``: unknown is not zero, and the row
-    never pretends the run was sure. Where some events carry a value the
-    average is over those, and the rest are counted as unknown.
+    The baseline engine reports a calibrated value per event (roadmap Phase I
+    P2), so a real run reads e.g. ``0.71 average``. An engine that reports none
+    is named as ``unknown``: unknown is not zero, and the row never pretends the
+    run was sure. Where only some events carry a value, the average is over
+    those and the rest are counted as unknown.
     """
     chords = document.chords
     if not chords:
@@ -149,7 +151,7 @@ def summarize(
         if audio.duration:
             rows.append(SummaryRow("Duration", format_timestamp(float(audio.duration))))
     rows.append(SummaryRow("Chords", _describe_chords(document)))
-    confidence = _describe_confidence(document)
+    confidence = chord_confidence_label(document)
     if confidence is not None:
         rows.append(SummaryRow("Chord confidence", confidence))
     lyrics = lyrics_label(document)

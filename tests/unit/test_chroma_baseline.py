@@ -9,6 +9,8 @@ promises.
 
 from __future__ import annotations
 
+from itertools import pairwise
+
 import pytest
 
 from fixtures.audio import write_sine_wav
@@ -213,6 +215,145 @@ class TestMergeShortSegments:
         assert baseline.merge_short_segments(segments, minimum_duration=0.5) == segments
 
 
+class TestMarginConfidence:
+    def test_a_zero_margin_lands_near_the_middle_of_the_scale(self) -> None:
+        assert 0.4 < baseline.margin_confidence(0.0) < 0.6
+
+    def test_confidence_grows_with_the_margin(self) -> None:
+        values = [baseline.margin_confidence(margin / 100.0) for margin in range(-20, 21)]
+        assert all(later > earlier for earlier, later in pairwise(values))
+
+    def test_extreme_margins_stay_inside_the_unit_interval(self) -> None:
+        for margin in (-1e6, -1.0, 0.0, 1.0, 1e6):
+            assert 0.0 <= baseline.margin_confidence(margin) <= 1.0
+
+    def test_a_clean_triad_is_more_confident_than_a_noisy_one(self) -> None:
+        clean = baseline.frame_scores([_frame((0, 4, 7))])
+        noisy = baseline.frame_scores([_frame((0, 4, 6, 7))])
+        clean_margin = baseline.segment_margins(
+            clean, [(0.0, 1.0, "C")], frame_period=1.0, frame_count=1
+        )[0]
+        noisy_margin = baseline.segment_margins(
+            noisy, [(0.0, 1.0, "C")], frame_period=1.0, frame_count=1
+        )[0]
+
+        assert clean_margin > noisy_margin
+        assert baseline.margin_confidence(clean_margin) > baseline.margin_confidence(noisy_margin)
+
+
+class TestSegmentMargins:
+    def test_the_margin_is_the_winner_minus_the_runner_up(self) -> None:
+        # C scores 1.0, G 0.5, the no-chord state 0.06: the C margin is 0.5.
+        scores = [[0.0] * 25]
+        scores[0][baseline.TEMPLATE_LABELS.index("C")] = 1.0
+        scores[0][baseline.TEMPLATE_LABELS.index("G")] = 0.5
+        scores[0][-1] = baseline.DEFAULT_NO_CHORD_SCORE
+
+        margins = baseline.segment_margins(
+            scores, [(0.0, 1.0, "C")], frame_period=1.0, frame_count=1
+        )
+
+        assert margins == [pytest.approx(0.5)]
+
+    def test_no_chord_has_a_margin_too(self) -> None:
+        scores = baseline.frame_scores([[0.0] * 12])
+
+        margins = baseline.segment_margins(
+            scores, [(0.0, 1.0, "N")], frame_period=1.0, frame_count=1
+        )
+
+        assert margins == [pytest.approx(baseline.DEFAULT_NO_CHORD_SCORE)]
+
+    def test_a_kept_label_can_have_a_negative_margin(self) -> None:
+        """Viterbi may keep a chord the frame itself preferred against."""
+        scores = [[0.0] * 25]
+        scores[0][baseline.TEMPLATE_LABELS.index("C")] = 0.2
+        scores[0][baseline.TEMPLATE_LABELS.index("G")] = 0.9
+
+        margins = baseline.segment_margins(
+            scores, [(0.0, 1.0, "C")], frame_period=1.0, frame_count=1
+        )
+
+        assert margins == [pytest.approx(-0.7)]
+
+    def test_the_mean_is_taken_over_the_segment_frames(self) -> None:
+        scores = baseline.frame_scores([_frame((0, 4, 7)), _frame((0, 4, 7))])
+
+        margins = baseline.segment_margins(
+            scores, [(0.0, 2.0, "C")], frame_period=1.0, frame_count=2
+        )
+
+        assert len(margins) == 1
+        assert margins[0] > 0.0
+
+    def test_each_segment_reads_its_own_frames(self) -> None:
+        quiet = baseline.frame_scores([_frame((0, 4, 7))])
+        noisy = baseline.frame_scores([_frame((0, 4, 6, 7))])
+        scores = [*quiet, *noisy]
+
+        margins = baseline.segment_margins(
+            scores,
+            [(0.0, 1.0, "C"), (1.0, 2.0, "C")],
+            frame_period=1.0,
+            frame_count=2,
+        )
+
+        assert margins[0] > margins[1]
+
+    def test_a_duration_clamped_last_end_does_not_drop_frames(self) -> None:
+        scores = baseline.frame_scores([_frame((0, 4, 7)), _frame((0, 4, 7))])
+        segments = baseline.segments_from_labels(["C", "C"], frame_period=1.0, duration=1.4)
+        assert segments == [(0.0, 1.4, "C")]
+
+        margins = baseline.segment_margins(scores, segments, frame_period=1.0, frame_count=2)
+
+        unclamped = baseline.segment_margins(
+            scores, [(0.0, 2.0, "C")], frame_period=1.0, frame_count=2
+        )
+        assert margins == unclamped
+
+    def test_offset_shifts_the_frame_grid(self) -> None:
+        scores = baseline.frame_scores([_frame((0, 4, 7)), [0.0] * 12])
+
+        margins = baseline.segment_margins(
+            scores,
+            [(5.0, 6.0, "C"), (6.0, 7.0, "N")],
+            frame_period=1.0,
+            offset=5.0,
+            frame_count=2,
+        )
+
+        assert margins[0] > margins[1]
+
+    def test_no_segments_means_no_margins(self) -> None:
+        scores = baseline.frame_scores([[0.0] * 12])
+
+        assert baseline.segment_margins(scores, [], frame_period=1.0, frame_count=1) == []
+
+    def test_a_segment_that_owns_no_frame_reports_no_evidence(self) -> None:
+        scores = baseline.frame_scores([_frame((0, 4, 7))])
+
+        margins = baseline.segment_margins(
+            scores, [(0.0, 1.0, "C"), (0.0, 1.0, "G")], frame_period=1.0, frame_count=1
+        )
+
+        assert margins[0] == 0.0
+
+    def test_an_unknown_label_is_rejected(self) -> None:
+        scores = baseline.frame_scores([[0.0] * 12])
+        with pytest.raises(ValueError, match="unknown chord label"):
+            baseline.segment_margins(scores, [(0.0, 1.0, "H")], frame_period=1.0, frame_count=1)
+
+    def test_a_non_positive_frame_period_is_rejected(self) -> None:
+        with pytest.raises(ValueError, match="positive"):
+            baseline.segment_margins([], [], frame_period=0.0)
+
+    def test_a_frame_count_outside_the_grid_is_rejected(self) -> None:
+        scores = baseline.frame_scores([[0.0] * 12])
+        with pytest.raises(ValueError, match="frame_count"):
+            baseline.segment_margins(scores, [], frame_period=1.0, frame_count=2)
+
+
 class TestEventsFromSegments:
     def test_major_minor_and_no_chord_become_canonical_events(self) -> None:
         events = baseline.events_from_segments(
@@ -229,6 +370,29 @@ class TestEventsFromSegments:
     def test_events_carry_the_engine_as_source(self) -> None:
         events = baseline.events_from_segments([(0.0, 1.0, "C")])
         assert events[0].source == "chroma-baseline"
+
+    def test_a_margin_becomes_confidence_and_keeps_its_evidence(self) -> None:
+        events = baseline.events_from_segments(
+            [(0.0, 1.0, "C"), (1.0, 2.0, "N")], margins=[0.1, -0.2]
+        )
+
+        assert events[0].confidence.value == pytest.approx(baseline.margin_confidence(0.1))
+        assert events[0].confidence.source == "chroma-baseline"
+        assert events[0].metadata["score_margin"] == pytest.approx(0.1)
+        # A claim of silence keeps its own evidence instead of losing it.
+        assert events[1].confidence.value == pytest.approx(baseline.margin_confidence(-0.2))
+        assert events[1].metadata["score_margin"] == pytest.approx(-0.2)
+
+    def test_without_margins_confidence_is_unknown_not_zero(self) -> None:
+        events = baseline.events_from_segments([(0.0, 1.0, "C")])
+
+        assert events[0].confidence.is_known is False
+        assert events[0].confidence.value is None
+        assert events[0].metadata == {}
+
+    def test_a_margin_count_mismatch_is_rejected(self) -> None:
+        with pytest.raises(ValueError, match="margins"):
+            baseline.events_from_segments([(0.0, 1.0, "C")], margins=[0.1, 0.2])
 
 
 class TestEngineContract:
@@ -247,6 +411,8 @@ class TestEngineContract:
         assert info.description and "chroma" in info.description
         assert info.license == "GPL-3.0-or-later"
         assert info.capabilities["vocabulary_phase"] == 1
+        assert info.capabilities["confidence"] is True
+        assert info.capabilities["confidence_method"] == "score_margin_logistic"
 
     def test_missing_audio_file_is_reported(self, tmp_path) -> None:
         with pytest.raises(AudioFileNotFoundError):
@@ -333,6 +499,34 @@ class TestFullAnalysis:
         assert result.metadata["decoder"] == baseline.DEFAULT_DECODER
         assert result.metadata["change_penalty"] == baseline.DEFAULT_CHANGE_PENALTY
 
+    def test_every_event_carries_a_measured_confidence(self, tmp_path) -> None:
+        wav = write_sine_wav(tmp_path / "tone.wav", seconds=2.0, channels=1)
+        result = ENGINE.analyze(wav, ChordAnalysisOptions())
+
+        assert result.chords
+        for event in result.chords:
+            assert event.confidence.is_known, "the baseline must not report unknown any more"
+            assert event.confidence.source == "chroma-baseline"
+            assert 0.0 <= event.confidence.value <= 1.0
+            assert "score_margin" in event.metadata
+        assert result.metadata["confidence_method"] == "score_margin_logistic"
+        assert result.metadata["confidence_slope"] == baseline.CONFIDENCE_SLOPE
+
+    def test_the_viterbi_run_does_not_claim_the_threshold_shaped_it(self, tmp_path) -> None:
+        wav = write_sine_wav(tmp_path / "tone.wav", seconds=1.0, channels=1)
+        result = ENGINE.analyze(wav, ChordAnalysisOptions())
+
+        assert result.metadata["decoder"] == "viterbi"
+        assert result.metadata["match_threshold_used"] is False
+        assert result.metadata["smoothing_window_used"] is False
+
+    def test_the_majority_decoder_does_use_the_threshold(self, tmp_path) -> None:
+        wav = write_sine_wav(tmp_path / "tone.wav", seconds=1.0, channels=1)
+        result = ENGINE.analyze(wav, ChordAnalysisOptions(extra={"decoder": "majority"}))
+
+        assert result.metadata["match_threshold_used"] is True
+        assert result.metadata["smoothing_window_used"] is True
+
     def test_time_range_restriction_shifts_the_timeline(self, tmp_path) -> None:
         wav = write_sine_wav(tmp_path / "tone.wav", seconds=4.0, channels=1)
         result = ENGINE.analyze(wav, ChordAnalysisOptions(start=1.0, end=3.0))
@@ -351,3 +545,4 @@ class TestFullAnalysis:
         for event in result.chords:
             assert event.end is not None
             assert event.end - event.start >= 1.0 - 1e-9
+            assert event.confidence.is_known

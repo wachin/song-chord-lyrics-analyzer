@@ -23,7 +23,7 @@ from pathlib import Path
 import pytest
 
 from fixtures.audio import write_chord_wav
-from song_chord_lyrics_analyzer.engines import ChromaBaselineEngine
+from song_chord_lyrics_analyzer.engines import ChromaBaselineEngine, chroma_baseline
 from song_chord_lyrics_analyzer.engines.base import ChordAnalysisOptions
 from song_chord_lyrics_analyzer.evaluation import score_take
 from song_chord_lyrics_analyzer.metrics.adapters import chord_segments
@@ -52,11 +52,20 @@ def _reference() -> list[tuple[float, float, str]]:
     ]
 
 
-def _write_corpus(corpus_dir: Path) -> Path:
-    """A one-take corpus: ``01_Demo_comp_mic.wav`` plus its JAMS reference."""
+def _write_corpus(
+    corpus_dir: Path,
+    *,
+    name: str = "01_Demo_comp",
+    harte: tuple[str, ...] = HARTE,
+) -> Path:
+    """One take: ``<name>_mic.wav`` playing the progression plus its JAMS.
+
+    ``harte`` lets a test write an annotation that disagrees with the audio,
+    which is how the confidence fit gets events it knows to be wrong.
+    """
     corpus_dir.mkdir(parents=True, exist_ok=True)
     write_chord_wav(
-        corpus_dir / "01_Demo_comp_mic.wav",
+        corpus_dir / f"{name}_mic.wav",
         chords=PROGRESSION,
         seconds_per_chord=SECONDS_PER_CHORD,
     )
@@ -66,12 +75,12 @@ def _write_corpus(corpus_dir: Path) -> Path:
                 "namespace": "chord",
                 "data": [
                     {"time": start, "duration": end - start, "value": value}
-                    for (start, end, _label), value in zip(_reference(), HARTE, strict=True)
+                    for (start, end, _label), value in zip(_reference(), harte, strict=True)
                 ],
             }
         ]
     }
-    path = corpus_dir / "01_Demo_comp.jams"
+    path = corpus_dir / f"{name}.jams"
     path.write_text(json.dumps(jams), encoding="utf-8")
     return path
 
@@ -164,6 +173,10 @@ def test_harness_pins_and_measures_a_synthetic_corpus(tmp_path: Path) -> None:
     assert row["csr"] > 0.9
     assert row["decoder"] == "viterbi"
     assert row["peak_rss_bytes"] is None or row["peak_rss_bytes"] > 0
+    # Every event the engine reports now carries a confidence, and the row
+    # records the calibration table it feeds.
+    assert row["confidence"]["events"] > 0
+    assert row["confidence"]["unknown_events"] == 0
 
     aggregate = json.loads((out / "aggregate.json").read_text(encoding="utf-8"))
     assert aggregate["metrics"]["count"] == 1
@@ -171,9 +184,13 @@ def test_harness_pins_and_measures_a_synthetic_corpus(tmp_path: Path) -> None:
     assert aggregate["manifest_sha256"] == hashlib.sha256(manifest.read_bytes()).hexdigest()
     assert aggregate["environment"]["engine"] == "chroma-baseline"
     assert aggregate["date"]
+    assert aggregate["confidence"]["accuracy"] is not None
+    assert aggregate["confidence"]["brier"] is not None
     report = (out / "aggregate.md").read_text(encoding="utf-8")
     assert "Duration CSR (raw)" in report
     assert "reference view `instructed`" in report
+    assert "### Confidence calibration" in report
+    assert "### Risk–coverage" in report
 
 
 def test_harness_refuses_bytes_that_do_not_match_the_manifest(tmp_path: Path) -> None:
@@ -193,6 +210,46 @@ def test_harness_refuses_bytes_that_do_not_match_the_manifest(tmp_path: Path) ->
     # No row may be written for a take that failed verification.
     jsonl = out / "per_take.jsonl"
     assert not jsonl.exists() or jsonl.read_text(encoding="utf-8") == ""
+
+
+def test_harness_refits_the_confidence_mapping(tmp_path: Path) -> None:
+    """The mapping's provenance is reproducible from the corpus, not asserted."""
+    corpus = tmp_path / "corpus"
+    # The training take (index 0) has two chords annotated wrong, so the fit
+    # sees both correct and incorrect events; the held-out take is clean.
+    _write_corpus(corpus, harte=("C:maj", "A:min", "G:maj", "F:maj"))
+    _write_corpus(corpus, name="02_Demo_comp")
+    manifest = tmp_path / "manifest.json"
+    assert _run("--corpus-dir", str(corpus), "--write-manifest", str(manifest)).returncode == 0
+
+    out = tmp_path / "out"
+    result = _run(
+        "--manifest",
+        str(manifest),
+        "--corpus-dir",
+        str(corpus),
+        "--out",
+        str(out),
+        "--fit-confidence",
+    )
+
+    assert result.returncode == 0, result.stderr
+    fit = json.loads((out / "confidence_fit.json").read_text(encoding="utf-8"))
+    assert fit["train"]["takes"] == 1
+    assert fit["heldout"]["takes"] == 1
+    assert fit["train"]["events"] > 0
+    assert fit["train"]["slope"] != 0.0
+    assert fit["heldout"]["report"]["accuracy"] is not None
+    assert fit["engine"]["slope"] == chroma_baseline.CONFIDENCE_SLOPE
+    assert fit["engine"]["intercept"] == chroma_baseline.CONFIDENCE_INTERCEPT
+    assert "confidence fit" in result.stdout
+
+
+def test_fit_confidence_refuses_to_resume_a_run(tmp_path: Path) -> None:
+    result = _run("--fit-confidence", "--resume", "--out", str(tmp_path / "out"))
+
+    assert result.returncode == 2
+    assert "--fit-confidence cannot resume" in result.stderr
 
 
 def test_harness_refuses_a_missing_take(tmp_path: Path) -> None:

@@ -3,10 +3,10 @@
 This file is the measurement record. Every number in it was produced by a run whose
 environment and date are stated next to it, and every accuracy claim elsewhere in the
 repository points back here. Sections 4 and 5 cover lyrics and the chunked-analysis
-experiment. Sections 1–3 — the chord measurement — were lost in an earlier edit and
-were **rebuilt on 2026-10-19** together with the harness that produces them
-(`scripts/chord_benchmark.py`) and the committed corpus definition
-(`tests/fixtures/guitarset_comp_manifest.json`).
+experiment, and §6 covers per-chord confidence. Sections 1–3 — the chord measurement —
+were lost in an earlier edit and were **rebuilt on 2026-10-19** together with the
+harness that produces them (`scripts/chord_benchmark.py`) and the committed corpus
+definition (`tests/fixtures/guitarset_comp_manifest.json`).
 
 ## 1. Chord engines — method (2026-10-19)
 
@@ -129,7 +129,9 @@ What this result does **not** establish:
   measurement (audit §9);
 * robustness of the front end to reverb, tuning drift, compression or vocals — none of
   those variables is in this corpus (audit P3 is the proposal that measures them);
-* per-chord confidence: `ChordEvent.confidence` is still `unknown` (audit P2).
+* that every chord comes with a trustworthy number: since 2026-10-20 each event does
+  carry a confidence (§6), but it is a probability *on GuitarSet*, not a guarantee
+  elsewhere, and a `G` over `G7` still counts as a miss in the agreement it predicts.
 
 **Consequence for the plan.** Audit P1 is satisfied: there is now a committed harness
 (`scripts/chord_benchmark.py`), a fixed reference set
@@ -225,3 +227,106 @@ reported as *not slower*, not as a speed-up.
 progression) shifts more than one boundary per seam is not established here:
 the benchmark corpus in `benchmark/` is the place for that, and no accuracy
 claim should be made from these three fixtures.
+
+---
+
+## 6. Per-chord confidence — measurement (roadmap Phase I P2, 2026-10-20)
+
+**What is reported.** `ChordEvent.confidence` is no longer `unknown`. For every
+event the engine averages, over the frames the event covers, the **score margin**
+of the label it emitted: that label's cosine similarity minus the best similarity
+any other state reaches on the same frame, `N` included
+(`engines/chroma_baseline.py:segment_margins`). A frame the Viterbi decoder kept
+on its label against the frame's own preference contributes a *negative* margin,
+so a smoothed boundary is visible in the number instead of hidden by it. The raw
+margin is kept in `ChordEvent.metadata["score_margin"]`, so the derived number
+can always be audited against its evidence.
+
+**How a margin becomes a probability.** A logistic,
+`p = sigmoid(24.2814 * margin + 0.1552)` (`margin_confidence`), fitted by
+duration-weighted IRLS on the events of the **90 even-indexed takes** of the
+committed manifest and measured on the **90 odd-indexed takes**, which never
+influenced the constants. Agreement is the rule `duration_csr` applies: exact
+label equality over the overlapping time, `N` only matching `N`.
+
+**Reproducing it.**
+
+```bash
+python scripts/chord_benchmark.py --fit-confidence --out .cache/chords/benchmark-confidence
+```
+
+**Fit and held-out result** (from `confidence_fit.json`; the same 90/90 split):
+
+| Split | Takes | Events | Duration | Accuracy | Brier | ECE |
+| --- | --- | --- | --- | --- | --- | --- |
+| fitted (even takes) | 90 | 1,160 | 2,738.7 s | 0.5601 | 0.1563 | 0.0252 |
+| held out (odd takes) | 90 | 1,160 | 2,745.5 s | 0.5810 | 0.1436 | 0.0206 |
+
+The fit converged in 6 Newton steps to slope 24.2816 / intercept 0.1552; the
+engine carries them rounded to 24.2814 / 0.1552, which changes no reported value
+by more than 0.0002.
+
+**Calibration of the whole run** (all 180 takes, 2,320 events, 5,484.2 s; every
+event reported a confidence, so no duration is unknown):
+
+| Reported band | Events | Duration | Accuracy | Mean confidence |
+| --- | --- | --- | --- | --- |
+| very low (below 0.2) | 137 | 375.5 s | 0.129 | 0.151 |
+| low (0.2–0.4) | 476 | 1,184.4 s | 0.324 | 0.304 |
+| medium (0.4–0.6) | 661 | 1,380.7 s | 0.489 | 0.505 |
+| high (0.6–0.8) | 609 | 1,397.7 s | 0.735 | 0.698 |
+| very high (0.8–1.0) | 437 | 1,145.9 s | 0.869 | 0.884 |
+
+Pooled accuracy 0.5706, Brier 0.1499, expected calibration error 0.0225. A band's
+accuracy and its mean confidence track within about 0.04 everywhere, which is what
+"calibrated" means here.
+
+**Risk–coverage.** The useful question is not only "is the number calibrated?" but
+"if the user ignores low-confidence chords, how much is left and how good is it?":
+
+| Confidence at least | Coverage | Accuracy |
+| --- | --- | --- |
+| 0.50 | 0.602 | 0.731 |
+| 0.60 | 0.464 | 0.795 |
+| 0.70 | 0.334 | 0.847 |
+| 0.80 | 0.209 | 0.869 |
+| 0.90 | 0.079 | 0.906 |
+
+Held out, the same thresholds give coverage 0.598 / 0.463 / 0.358 / 0.242 / 0.100 at
+accuracy 0.743 / 0.811 / 0.862 / 0.874 / 0.906 — indistinguishable within the
+sampling noise of 90 takes. Roughly half the duration can be shown with more than
+four chords in five right; that is the user-facing value of the number.
+
+**Labels did not change.** All 180 takes reproduce the §2 run's per-take scores,
+counts, boundaries and timing exactly (0 differences over the ten scored fields,
+checked row by row against `.cache/chords/benchmark-viterbi-180`), and the whole-run
+means are still CSR 0.6029 / 0.6091 triad / overlap 0.8298 / change F1 0.8270.
+Confidence is an added output, not a changed decoder.
+
+**Two different ways to average, stated once.** §2's 0.6029 is the *mean of per-take
+CSR*; the 0.5706 above pools every event's duration across the corpus, so a long
+take weighs what it lasts. Neither replaces the other: §2 answers "how well does a
+run do on a typical take?", §6 answers "over this hour of audio, how much is right?".
+
+The harness's own wall clock around `analyze()` summed to 57.1 s for 5,484.2 s of
+audio (decode included), with a 305.9 MiB process high-water mark across the 180
+takes and no harness-side errors.
+
+**Environment.** Linux x86_64, kernel 7.0.10-1-liquorix, CPython 3.13.5, numpy
+2.5.3, librosa 1.0.0, soundfile 0.14.0, `chroma-baseline` 0.1.0, CPU only, commit
+`2d45363` with this change applied, **2026-10-20 15:28 UTC**. The manifest digest
+was `de6338fb…` (the pinned corpus).
+
+**Verdict.** The number is calibrated on the corpus it was fitted on, and its
+risk–coverage curve is monotone and wide enough to be useful. What it is *not*:
+
+* **Not transferable as a probability.** GuitarSet is one clean acoustic guitar; on a
+  mixed commercial recording the ordering still holds, the probabilities do not.
+* **Not measured for `N`.** GuitarSet has no notated silence, so an event claiming
+  silence gets the same mapping by extrapolation, not by evidence.
+* **Not a verdict on extension chords.** The reference is the exact label, so a `G`
+  detected over a `G7` scores as a miss even though a player would accept it. The
+  triad-reduced CSR (0.6091) shows how small that effect is on this corpus.
+* **Not fused with the decoder.** The confidence is computed after decoding and never
+  feeds back into it; a future change that uses it (automatic correction, fusion)
+  must publish a new measurement on this harness, not just a claim.

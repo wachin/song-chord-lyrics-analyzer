@@ -241,12 +241,20 @@ Phase D and the later phases, not a missing foundation.
   tests that need an audio output device), fixtures with annotation-only
   GuitarSet oracles, CI workflow (the DSP job also runs the window offscreen).
   The chord-harness work on 2026-10-19 adds 27 tests; the gate then reported
-  **1910 passed / 11 skipped** (same machine, `ruff` and `mypy` clean).
+  **1910 passed / 11 skipped** (same machine, `ruff` and `mypy` clean). The
+  confidence work on 2026-10-20 adds 57 tests; the gate reports **1967 passed /
+  11 skipped** (`ruff` clean over 162 files, `ruff format --check` 162 files,
+  `mypy` 89 files).
 * `[x]` Documentation of decisions: `docs/ARCHITECTURE.md`,
   `DEPENDENCY_MATRIX.md`, `LICENSE_AUDIT.md`, `DATASET.md`,
   `ENGINE_COMPARISON.md`, `BENCHMARK.md`, `TROUBLESHOOTING.md`.
-* `[~]` Chord confidence: `ChordEvent.confidence` exists but the baseline
-  engine reports `unknown` (honestly — it has no calibrated confidence yet).
+* `[x]` Chord confidence: every `ChordEvent` now carries a measured value
+  (2026-10-20). The baseline engine averages the emitted label's score margin
+  over the event's frames and maps it through a logistic calibrated on
+  GuitarSet (slope 24.2814 / intercept 0.1552); the held-out 90 takes give
+  Brier 0.1436 and ECE 0.0206, and accuracy rises from 0.581 over all events to
+  0.811 on the events scoring at least 0.60 (`docs/ENGINE_COMPARISON.md` §6).
+  The raw margin stays in `metadata["score_margin"]`.
 * `[x]` Real-file E2E: `tests/integration/test_analysis_e2e.py` runs the real
   default registry (chroma-baseline + krumhansl + librosa-tempo) over a
   deterministic generated WAV and, with FFmpeg, over its MP3 transcode, and
@@ -386,8 +394,9 @@ developer's machine; position polling that is not tested.
 timestamped chord events exposed through the application service.
 
 **Current status:** `[~]` — the engine and its output exist and were verified
-on real audio during the audit; the gaps are automation and honesty of the
-output, not the algorithm.
+on real audio during the audit; per-chord confidence landed on 2026-10-20, so
+the remaining gap is the documented JSON serialization contract, not the
+algorithm.
 
 ### Tasks
 
@@ -404,8 +413,13 @@ output, not the algorithm.
   `tests/integration/test_analysis_e2e.py` writes a deterministic C–G–F–C WAV,
   runs the real default registry and, where FFmpeg exists, the same file as an
   MP3 transcode; skips honestly without the DSP stack.
-- [ ] Per-chord confidence from the baseline (score margin), so `confidence` is
-  a measured number instead of always `unknown`
+- [x] Per-chord confidence from the baseline (score margin), so `confidence` is
+  a measured number instead of always `unknown`. `segment_margins()` averages
+  the emitted label's margin over the event's frames (negative where the
+  decoder overrode a frame), `margin_confidence()` maps it with a logistic
+  fitted on GuitarSet, and both are covered by `tests/unit/test_chroma_baseline.py`;
+  the calibration, risk–coverage curve and refit (`--fit-confidence`) are in
+  `docs/ENGINE_COMPARISON.md` §6
 - [ ] Document the stable JSON serialization contract (fields of a chord event,
   units, edge cases: `N`, `?`, overlaps) in `docs/`
 
@@ -930,8 +944,8 @@ previously cited 0.4260 did not reproduce and is retired. No second chord engine
 is registered. A read-only audit of the implementation was completed on
 **2026-10-18** and its prioritized plan is
 [`docs/CHORD_DETECTION_AUDIT.md`](docs/CHORD_DETECTION_AUDIT.md); P1 (the
-measurement harness) is now implemented, and none of the accuracy proposals
-(P2–P8) has been.
+measurement harness) and P2 (per-chord confidence) are now implemented, with the
+labels shown unchanged, and none of the accuracy proposals (P3–P8) has been.
 
 ### Tasks
 
@@ -947,9 +961,15 @@ measurement harness) is now implemented, and none of the accuracy proposals
   written to `per_take.jsonl` / `aggregate.json` / `aggregate.md`; the
   generated-fixture and synthetic-corpus paths are tested offline in
   `tests/unit/test_chord_benchmark_harness.py`
-- [ ] P2 — per-chord confidence from the score margin (the Phase B open task),
+- [x] P2 — per-chord confidence from the score margin (the Phase B task),
   exposed in the existing panel/tooltip without inventing a probability
-  (audit §10 P2)
+  (audit §10 P2). Implemented 2026-10-20: `segment_margins()` +
+  `margin_confidence()` in the engine, the logistic fitted on 90 GuitarSet takes
+  and measured on the other 90 (Brier 0.1436, ECE 0.0206), the full calibration
+  and risk–coverage tables in `docs/ENGINE_COMPARISON.md` §6, the refit command
+  `scripts/chord_benchmark.py --fit-confidence`, and the Viterbi run now records
+  `match_threshold_used`/`smoothing_window_used` instead of implying either
+  shaped the labels. The 180-take per-take vector is bit-for-bit unchanged
 - [ ] P3 — front-end robustness measured one variable at a time (tuning, HPSS,
   energy gate, CENS); no change is adopted without the P1 numbers
   (audit §10 P3)

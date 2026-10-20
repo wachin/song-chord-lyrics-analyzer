@@ -12,12 +12,16 @@ deliberately simple and fully inspectable:
 4. decode the frame scores into a label sequence — either a majority filter
    (roadmap section 19) or a max-sum Viterbi over a flat change penalty
    (roadmap section 20; the default, selectable through ``options.extra``);
-5. collapse runs of equal labels into timed :class:`ChordEvent` segments.
+5. collapse runs of equal labels into timed :class:`ChordEvent` segments;
+6. measure each segment's score margin (its own state against the best
+   competing state on the segment's frames) and report it as the event's
+   confidence through a logistic calibrated on GuitarSet
+   (:data:`CONFIDENCE_SLOPE`, :func:`margin_confidence`).
 
 The DSP front end (numpy + librosa) is **optional**: :meth:`ChromaBaselineEngine.is_available`
 reports whether it is importable, and :meth:`ChromaBaselineEngine.analyze` raises
 :class:`~song_chord_lyrics_analyzer.utils.errors.DependencyError` with an
-install hint instead of failing obscurely. Steps 3-5 are dependency-free
+install hint instead of failing obscurely. Steps 3-6 are dependency-free
 functions so they can be tested without the DSP stack.
 
 Every number the run produces — processing time, audio duration, peak RSS, the
@@ -39,6 +43,7 @@ from song_chord_lyrics_analyzer.audio.decode import decode_audio
 from song_chord_lyrics_analyzer.engines.base import ChordAnalysisOptions, EngineKind
 from song_chord_lyrics_analyzer.engines.decoding import viterbi_decode
 from song_chord_lyrics_analyzer.models.analysis import EngineInfo, EngineResult
+from song_chord_lyrics_analyzer.models.confidence import ConfidenceScore
 from song_chord_lyrics_analyzer.models.music import PITCH_CLASS_NAMES, ChordEvent, ChordQuality
 from song_chord_lyrics_analyzer.performance import PerformanceProbe
 from song_chord_lyrics_analyzer.utils.errors import (
@@ -48,6 +53,8 @@ from song_chord_lyrics_analyzer.utils.errors import (
 )
 
 __all__ = [
+    "CONFIDENCE_INTERCEPT",
+    "CONFIDENCE_SLOPE",
     "DEFAULT_CHANGE_PENALTY",
     "DEFAULT_DECODER",
     "DEFAULT_MATCH_THRESHOLD",
@@ -62,8 +69,10 @@ __all__ = [
     "decode_labels",
     "events_from_segments",
     "frame_scores",
+    "margin_confidence",
     "match_frames",
     "merge_short_segments",
+    "segment_margins",
     "segments_from_labels",
     "smooth_labels",
 ]
@@ -98,6 +107,27 @@ DEFAULT_CHANGE_PENALTY = 0.80
 #: is decoded as ``N`` only when no triad outscores it by enough *and* the
 #: change costs the transition penalty.
 DEFAULT_NO_CHORD_SCORE = 0.06
+
+#: Slope and intercept of the logistic that turns an event's mean score margin
+#: (:func:`segment_margins`) into the confidence reported on every event.
+#:
+#: The value it produces is a **calibrated probability that the event's label is
+#: right at that instant**, and only on the corpus it was fitted to: the 90
+#: even-indexed GuitarSet comping takes of
+#: ``tests/fixtures/guitarset_comp_manifest.json``, against the instructed JAMS
+#: annotation, with the default Viterbi decoder and change penalty. It was
+#: fitted on 2026-10-20 (Linux, CPython 3.13.5, numpy 2.5.3, librosa 1.0.0) and
+#: measured on the 90 held-out odd-indexed takes: Brier score 0.1436, expected
+#: calibration error 0.0206, and duration accuracy rising from 0.581 over all
+#: events to 0.811 over the events scoring at least 0.60 (46.3 % of the held-out
+#: duration). GuitarSet is solo acoustic guitar, so elsewhere the number is a
+#: heuristic, not a guarantee.
+#:
+#: Reproduce the fit with
+#: ``python scripts/chord_benchmark.py --fit-confidence``; the method and the
+#: measured figures are recorded in ``docs/ENGINE_COMPARISON.md``.
+CONFIDENCE_SLOPE = 24.2814
+CONFIDENCE_INTERCEPT = 0.1552
 
 #: The 24 phase-1 labels: 12 major roots first, then the 12 minor ones.
 TEMPLATE_LABELS: tuple[str, ...] = tuple(PITCH_CLASS_NAMES) + tuple(
@@ -191,6 +221,7 @@ def decode_labels(
     smoothing_window: int = DEFAULT_SMOOTHING_WINDOW,
     change_penalty: float = DEFAULT_CHANGE_PENALTY,
     no_chord_score: float = DEFAULT_NO_CHORD_SCORE,
+    scores: Sequence[Sequence[float]] | None = None,
 ) -> list[str]:
     """Decode one label per frame with the selected temporal model.
 
@@ -200,6 +231,11 @@ def decode_labels(
     change penalty, so isolated flips are suppressed by the model itself
     instead of by a fixed-width window.
 
+    ``scores`` lets a caller that already ran :func:`frame_scores` for the same
+    parameters reuse the result instead of scoring every frame twice; it must
+    hold one row per frame in frame order. It is ignored by the ``"majority"``
+    decoder, which works from the labels alone.
+
     Raises:
         ValueError: When ``decoder`` is unknown or the decoder parameters are
             invalid (a negative ``change_penalty``).
@@ -207,10 +243,10 @@ def decode_labels(
     if decoder == "majority":
         return smooth_labels(match_frames(frames, threshold=threshold), width=smoothing_window)
     if decoder == "viterbi":
-        path = viterbi_decode(
-            frame_scores(frames, no_chord_score=no_chord_score),
-            change_penalty=change_penalty,
+        emissions = (
+            frame_scores(frames, no_chord_score=no_chord_score) if scores is None else scores
         )
+        path = viterbi_decode(emissions, change_penalty=change_penalty)
         return [TEMPLATE_LABELS[index] if index < len(TEMPLATE_LABELS) else "N" for index in path]
     raise ValueError(f"unknown decoder: {decoder!r} (expected 'majority' or 'viterbi')")
 
@@ -326,23 +362,169 @@ def events_from_segments(
     segments: Sequence[tuple[float, float, str]],
     *,
     source: str = ENGINE_NAME,
+    margins: Sequence[float] | None = None,
 ) -> list[ChordEvent]:
     """Turn timed label segments into canonical :class:`ChordEvent` objects.
 
     Only the phase-1 vocabulary appears here: a root renders as a major chord,
     ``rootm`` as minor and ``N`` as an explicit no-chord event. Every event
     carries ``source`` so provenance survives into the benchmark report.
+
+    ``margins`` — one value per segment, as :func:`segment_margins` measures it
+    — becomes the event's confidence through :func:`margin_confidence`, and the
+    raw margin is kept in ``event.metadata["score_margin"]`` so the derived
+    number can be audited against its evidence. Without it every event reports
+    ``unknown`` confidence, which is not the same as zero.
+
+    Raises:
+        ValueError: When ``margins`` and ``segments`` have different lengths.
     """
+    if margins is not None and len(margins) != len(segments):
+        raise ValueError(
+            f"got {len(margins)} margins for {len(segments)} segments; "
+            "every segment needs exactly one margin"
+        )
     events: list[ChordEvent] = []
-    for start, end, label in segments:
+    for index, (start, end, label) in enumerate(segments):
+        confidence = ConfidenceScore.unknown(source)
+        metadata: dict[str, Any] = {}
+        if margins is not None:
+            margin = float(margins[index])
+            confidence = ConfidenceScore.from_value(margin_confidence(margin), source=source)
+            metadata["score_margin"] = round(margin, 6)
         if label == "N":
-            events.append(ChordEvent.silence(start, end, source=source))
+            events.append(
+                ChordEvent.silence(
+                    start,
+                    end,
+                    source=source,
+                    confidence=confidence,
+                    metadata=metadata,
+                )
+            )
             continue
         minor = label.endswith("m")
         root = label[:-1] if minor else label
         quality = ChordQuality.MINOR if minor else ChordQuality.MAJOR
-        events.append(ChordEvent(start=start, end=end, root=root, quality=quality, source=source))
+        events.append(
+            ChordEvent(
+                start=start,
+                end=end,
+                root=root,
+                quality=quality,
+                confidence=confidence,
+                source=source,
+                metadata=metadata,
+            )
+        )
     return events
+
+
+def _state_index(label: str) -> int:
+    """The column of ``label`` in a :func:`frame_scores` row (``N`` is last)."""
+    if label == "N":
+        return len(TEMPLATE_LABELS)
+    try:
+        return TEMPLATE_LABELS.index(label)
+    except ValueError:
+        raise ValueError(f"unknown chord label: {label!r}") from None
+
+
+def _frame_index(time: float, offset: float, frame_period: float, count: int) -> int:
+    """The frame index a segment boundary falls on, clamped to ``[0, count]``."""
+    index = round((time - offset) / frame_period)
+    return min(max(index, 0), count)
+
+
+def segment_margins(
+    scores: Sequence[Sequence[float]],
+    segments: Sequence[tuple[float, float, str]],
+    *,
+    frame_period: float,
+    offset: float = 0.0,
+    frame_count: int | None = None,
+) -> list[float]:
+    """The mean score margin of each segment's own label, over its frames.
+
+    For every frame of a segment the *margin* is the score of the segment's
+    label minus the best score any other state reaches on that frame — the
+    ``N`` state included. Averaging over the segment answers the question a
+    confidence is supposed to answer: over the time this chord claims, how much
+    better did the decoder's answer score than the nearest alternative?
+
+    A frame the decoder kept on its label against the frame's own preference
+    contributes a negative margin, so smoothed boundaries are visible in the
+    number instead of being hidden by it. The average is not clamped: the
+    scale is the score's own, and :func:`margin_confidence` maps it to
+    ``[0, 1]``.
+
+    ``segments`` must partition the frames in order, as
+    :func:`segments_from_labels` and :func:`merge_short_segments` leave them:
+    each segment runs from its own start to the next segment's start, and the
+    last one to the end of the frame grid, so a ``duration``-clamped end cannot
+    make the last frames disappear. ``scores`` are the rows of
+    :func:`frame_scores` (or of :func:`frame_scores` with a custom
+    ``no_chord_score``) that produced those labels.
+
+    Args:
+        scores: One score row per frame, in frame order.
+        segments: Timed ``(start, end, label)`` segments partitioning the frames.
+        frame_period: Seconds per frame (``hop_length / sample_rate``).
+        offset: Time of the first frame in the analysed timeline (seconds).
+        frame_count: Number of frames that belong to the segments; defaults to
+            ``len(scores)``.
+
+    Returns:
+        One mean margin per segment, in the given order. A segment that owns no
+        frame reports ``0.0`` (no evidence either way), which maps to the
+        middle of the confidence scale rather than to a confident answer.
+
+    Raises:
+        ValueError: When ``frame_period`` is not positive, ``frame_count`` is
+            outside ``[0, len(scores)]``, or a segment carries a label the
+            phase-1 vocabulary does not know.
+    """
+    if frame_period <= 0.0:
+        raise ValueError("frame_period must be positive")
+    count = len(scores) if frame_count is None else frame_count
+    if count < 0 or count > len(scores):
+        raise ValueError(f"frame_count {count} is outside the {len(scores)} available frames")
+
+    margins: list[float] = []
+    for position, (start, _end, label) in enumerate(segments):
+        state = _state_index(label)
+        first = _frame_index(start, offset, frame_period, count)
+        if position + 1 < len(segments):
+            stop = _frame_index(segments[position + 1][0], offset, frame_period, count)
+        else:
+            stop = count
+        stop = max(first, stop)
+        if stop == first:
+            margins.append(0.0)
+            continue
+        total = 0.0
+        for frame in scores[first:stop]:
+            best_other = max(value for index, value in enumerate(frame) if index != state)
+            total += float(frame[state]) - float(best_other)
+        margins.append(total / (stop - first))
+    return margins
+
+
+def margin_confidence(margin: float) -> float:
+    """Map a mean score margin to a confidence in ``(0, 1)``.
+
+    A logistic with the constants fitted on GuitarSet (see
+    :data:`CONFIDENCE_SLOPE`), evaluated so neither tail overflows: a margin of
+    ``0.0`` — the decoder's label no better than the best alternative — lands
+    near the middle of the scale, and larger margins approach 1.0
+    monotonically. The result is a probability *on that corpus*; see the
+    constants for the caveat.
+    """
+    z = CONFIDENCE_SLOPE * float(margin) + CONFIDENCE_INTERCEPT
+    if z >= 0.0:
+        return 1.0 / (1.0 + math.exp(-z))
+    scaled = math.exp(z)
+    return scaled / (1.0 + scaled)
 
 
 def _import_front_end() -> tuple[Any, Any]:
@@ -384,13 +566,17 @@ class ChromaBaselineEngine:
             available=self.is_available(),
             description=(
                 "CQT chroma matched per frame against the 24 phase-1 triad "
-                "templates by cosine similarity, with a majority smoother."
+                "templates by cosine similarity, with a majority smoother or "
+                "a Viterbi decoder, and a per-event confidence from the score "
+                "margin."
             ),
             license="GPL-3.0-or-later",
             capabilities={
                 "vocabulary_phase": 1,
                 "device": "cpu",
                 "no_chord": True,
+                "confidence": True,
+                "confidence_method": "score_margin_logistic",
             },
         )
 
@@ -454,12 +640,14 @@ class ChromaBaselineEngine:
             change_penalty = float(options.extra.get("change_penalty", DEFAULT_CHANGE_PENALTY))
             no_chord_score = float(options.extra.get("no_chord_score", DEFAULT_NO_CHORD_SCORE))
             raw_labels = match_frames(frames)
+            scores = frame_scores(frames, no_chord_score=no_chord_score)
             try:
                 labels = decode_labels(
                     frames,
                     decoder=decoder,
                     change_penalty=change_penalty,
                     no_chord_score=no_chord_score,
+                    scores=scores,
                 )
             except ValueError as error:
                 raise InputError(
@@ -474,7 +662,17 @@ class ChromaBaselineEngine:
             )
             if options.minimum_duration > 0.0:
                 segments = merge_short_segments(segments, minimum_duration=options.minimum_duration)
-            events = events_from_segments(segments, source=self.name)
+            # Confidence is measured *after* merging, against the label each
+            # surviving segment actually claims: a merged-in chord is not
+            # credited with the margin of the label it replaced.
+            margins = segment_margins(
+                scores,
+                segments,
+                frame_period=frame_period,
+                offset=offset,
+                frame_count=len(labels),
+            )
+            events = events_from_segments(segments, source=self.name, margins=margins)
         finally:
             report = probe.stop()
 
@@ -492,9 +690,17 @@ class ChromaBaselineEngine:
                 "sample_rate": SAMPLE_RATE,
                 "hop_length": HOP_LENGTH,
                 "match_threshold": DEFAULT_MATCH_THRESHOLD,
+                # The Viterbi decoder never consults the match threshold or
+                # the smoother; the flags say so instead of letting the values
+                # look like they shaped this run.
+                "match_threshold_used": decoder == "majority",
+                "smoothing_window_used": decoder == "majority",
                 "decoder": decoder,
                 "change_penalty": change_penalty,
                 "no_chord_score": no_chord_score,
                 "smoothing_window": DEFAULT_SMOOTHING_WINDOW,
+                "confidence_method": "score_margin_logistic",
+                "confidence_slope": CONFIDENCE_SLOPE,
+                "confidence_intercept": CONFIDENCE_INTERCEPT,
             },
         )

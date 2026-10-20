@@ -34,9 +34,14 @@ Usage::
     # the majority smoother, for the validation comparison
     python scripts/chord_benchmark.py --decoder majority --out .cache/chords/benchmark-majority
 
+    # refit the per-event confidence mapping and report it held out
+    python scripts/chord_benchmark.py --fit-confidence --out .cache/chords/benchmark-confidence
+
 The output directory holds ``per_take.jsonl`` (one row per take, appended as
 the run advances, so an interrupted run resumes with ``--resume``),
-``aggregate.json`` and ``aggregate.md``.
+``aggregate.json`` and ``aggregate.md``. A run also reports the confidence
+calibration (bands, risk-coverage, Brier, ECE); ``--fit-confidence`` adds
+``confidence_fit.json`` with the refitted logistic and its held-out result.
 """
 
 from __future__ import annotations
@@ -49,6 +54,7 @@ import subprocess
 import sys
 import time
 import wave
+from collections.abc import Sequence
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -56,12 +62,21 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
+from song_chord_lyrics_analyzer.engines import chroma_baseline  # noqa: E402
 from song_chord_lyrics_analyzer.engines.base import ChordAnalysisOptions, EngineKind  # noqa: E402
 from song_chord_lyrics_analyzer.engines.registry import create_default_registry  # noqa: E402
+from song_chord_lyrics_analyzer.evaluation.confidence import (  # noqa: E402
+    EventOutcome,
+    apply_fit,
+    calibration_report,
+    combine_reports,
+    fit_logistic,
+)
 from song_chord_lyrics_analyzer.evaluation.guitarset import (  # noqa: E402
     ANNOTATION_VIEWS,
     GuitarSetTake,
     aggregate_scores,
+    event_outcomes,
     load_manifest,
     read_jams_chords,
     score_take,
@@ -208,6 +223,48 @@ def _done_takes(jsonl_path: Path) -> set[str]:
     return done
 
 
+def _confidence_markdown(confidence: dict[str, Any]) -> list[str]:
+    """The calibration and risk-coverage tables for the run report."""
+    if not confidence:
+        return []
+    lines = ["", "### Confidence calibration", ""]
+    if confidence.get("accuracy") is None or confidence.get("ece") is None:
+        lines.append("No event reported a confidence, so there is nothing to calibrate.")
+        return lines
+    lines.extend(
+        [
+            "| Reported band | Events | Duration (s) | Accuracy | Mean confidence |",
+            "| --- | --- | --- | --- | --- |",
+        ]
+    )
+    for band, values in confidence["bands"].items():
+        if not values["events"] or values["accuracy"] is None:
+            continue
+        lines.append(
+            f"| {band} | {values['events']} | {values['seconds']:.1f} | "
+            f"{values['accuracy']:.3f} | {values['mean_confidence']:.3f} |"
+        )
+    lines.extend(
+        [
+            "",
+            f"Overall accuracy {confidence['accuracy']:.4f}; "
+            f"Brier {confidence['brier']:.4f}; "
+            f"expected calibration error {confidence['ece']:.4f}; "
+            f"events without a confidence {confidence['unknown_events']} "
+            f"({confidence['unknown_seconds']:.1f} s).",
+            "",
+            "### Risk–coverage",
+            "",
+            "| Confidence at least | Coverage | Accuracy |",
+            "| --- | --- | --- |",
+        ]
+    )
+    for threshold, values in confidence["thresholds"].items():
+        accuracy = "—" if values["accuracy"] is None else f"{values['accuracy']:.3f}"
+        lines.append(f"| {threshold} | {values['coverage']:.3f} | {accuracy} |")
+    return lines
+
+
 def _markdown(aggregate: dict[str, Any]) -> str:
     """A table for docs/ENGINE_COMPARISON.md from the aggregate."""
     settings = aggregate["settings"]
@@ -258,6 +315,7 @@ def _markdown(aggregate: dict[str, Any]) -> str:
             f"total decode wall {aggregate['totals']['processing_seconds']:.1f} s.",
         ]
     )
+    lines.extend(_confidence_markdown(aggregate.get("confidence") or {}))
     return "\n".join(lines) + "\n"
 
 
@@ -271,6 +329,14 @@ def run(args: argparse.Namespace) -> int:
         raise InputError(
             f"Engine {args.engine!r} is not available in this environment.",
             hint='Install the DSP extra: pip install -e ".[dev,dsp]"',
+        )
+
+    if args.fit_confidence and args.resume:
+        raise InputError(
+            "--fit-confidence cannot resume a run: a fit needs every take's events.",
+            hint=(
+                "Drop --resume (or start a fresh --out directory) so the fit sees the whole corpus."
+            ),
         )
 
     out_dir: Path = args.out
@@ -289,6 +355,7 @@ def run(args: argparse.Namespace) -> int:
     environment = _environment(engine)
     started = time.time()
     processed = skipped = 0
+    outcomes_by_take: dict[str, list[EventOutcome]] = {}
     with jsonl_path.open("a", encoding="utf-8") as jsonl:
         for index, take in enumerate(takes, 1):
             if take.name in done:
@@ -337,6 +404,10 @@ def run(args: argparse.Namespace) -> int:
                 "real_time_factor": performance.get("real_time_factor"),
             }
             row.update(score_take(reference, hypothesis, change_window=args.change_window))
+            outcomes = event_outcomes(reference, result.chords)
+            row["confidence"] = calibration_report(outcomes)
+            if args.fit_confidence:
+                outcomes_by_take[take.name] = outcomes
             jsonl.write(json.dumps(row, allow_nan=False) + "\n")
             jsonl.flush()
             processed += 1
@@ -365,6 +436,7 @@ def run(args: argparse.Namespace) -> int:
         },
         "environment": environment,
         "metrics": aggregate_scores(rows),
+        "confidence": combine_reports([row["confidence"] for row in rows if row.get("confidence")]),
         "totals": {
             "processing_seconds": round(sum(float(row["wall_seconds"]) for row in rows), 3),
             "peak_rss_bytes": max(
@@ -390,9 +462,96 @@ def run(args: argparse.Namespace) -> int:
     if timing:
         summary += f"  timing={timing['mean']:.3f}s"
     print(summary)
+    confidence = aggregate["confidence"]
+    if confidence and confidence.get("accuracy") is not None:
+        print(
+            f"confidence: brier={confidence['brier']:.4f} ece={confidence['ece']:.4f} "
+            f"unknown={confidence['unknown_events']} events"
+        )
+    if args.fit_confidence:
+        _fit_and_write(takes, outcomes_by_take, out_dir)
     print(f"wrote {out_dir / 'per_take.jsonl'}, aggregate.json, aggregate.md")
     print(f"processed={processed} skipped={skipped} elapsed={time.time() - started:.0f}s")
     return 0
+
+
+def _fit_and_write(
+    takes: Sequence[GuitarSetTake],
+    outcomes_by_take: dict[str, list[EventOutcome]],
+    out_dir: Path,
+) -> None:
+    """Refit the margin-to-confidence logistic and record train/held-out results.
+
+    The split is the manifest's own order: even-indexed takes train, odd-indexed
+    takes are held out. It is deterministic, it needs no random seed, and the
+    held-out half never influences the constants it is scored with.
+    """
+    train: list[EventOutcome] = []
+    heldout: list[EventOutcome] = []
+    train_takes = heldout_takes = 0
+    for index, take in enumerate(takes):
+        events = outcomes_by_take.get(take.name)
+        if not events:
+            continue
+        if index % 2 == 0:
+            train.extend(events)
+            train_takes += 1
+        else:
+            heldout.extend(events)
+            heldout_takes += 1
+    if not train or not heldout:
+        raise InputError(
+            "--fit-confidence needs at least two measured takes (one for each split).",
+            hint="Run the whole corpus, not --limit 1.",
+        )
+    fit = fit_logistic(train)
+    trained = calibration_report(apply_fit(train, fit))
+    tested = calibration_report(apply_fit(heldout, fit))
+    report = {
+        "split": (
+            "even-indexed manifest takes fitted, odd-indexed takes held out; "
+            "the fit weights each event by its duration"
+        ),
+        "train": {
+            "takes": train_takes,
+            "events": fit.events,
+            "seconds": round(fit.seconds, 3),
+            "slope": round(fit.slope, 4),
+            "intercept": round(fit.intercept, 4),
+            "iterations": fit.iterations,
+            "converged": fit.converged,
+            "report": combine_reports([trained]),
+        },
+        "heldout": {"takes": heldout_takes, "report": combine_reports([tested])},
+        "engine": {
+            "name": chroma_baseline.ENGINE_NAME,
+            "slope": chroma_baseline.CONFIDENCE_SLOPE,
+            "intercept": chroma_baseline.CONFIDENCE_INTERCEPT,
+        },
+    }
+    (out_dir / "confidence_fit.json").write_text(
+        json.dumps(report, indent=1) + "\n", encoding="utf-8"
+    )
+    heldout_report = report["heldout"]["report"]
+    print(
+        f"confidence fit: slope={fit.slope:.4f} intercept={fit.intercept:.4f} "
+        f"({train_takes} takes trained, converged={fit.converged})"
+    )
+    if not fit.converged:
+        print(
+            "warning: the fit did not converge (perfectly separable or too little "
+            "data); do not copy these constants into the engine."
+        )
+    print(
+        f"held out ({heldout_takes} takes): accuracy={heldout_report['accuracy']:.4f} "
+        f"brier={heldout_report['brier']:.4f} ece={heldout_report['ece']:.4f}"
+    )
+    print(
+        "engine constants: "
+        f"slope={chroma_baseline.CONFIDENCE_SLOPE} "
+        f"intercept={chroma_baseline.CONFIDENCE_INTERCEPT}"
+    )
+    print(f"wrote {out_dir / 'confidence_fit.json'}")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -449,6 +608,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-verify",
         action="store_true",
         help="skip SHA-256 verification (not reproducible; for local experiments only)",
+    )
+    parser.add_argument(
+        "--fit-confidence",
+        action="store_true",
+        help=(
+            "refit the margin-to-confidence logistic on even-indexed takes and "
+            "report it on the odd-indexed ones (writes confidence_fit.json)"
+        ),
     )
     parser.add_argument(
         "--write-manifest",

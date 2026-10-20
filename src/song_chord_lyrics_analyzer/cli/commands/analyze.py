@@ -22,7 +22,7 @@ from song_chord_lyrics_analyzer.analysis import (
     run_analysis,
     with_lyrics_from_timed_text,
 )
-from song_chord_lyrics_analyzer.app.summary import lyrics_label
+from song_chord_lyrics_analyzer.app.summary import chord_confidence_label, lyrics_label
 from song_chord_lyrics_analyzer.models.analysis import AnalysisResult
 from song_chord_lyrics_analyzer.performance import real_time_factor
 from song_chord_lyrics_analyzer.schema.codec import encode
@@ -179,7 +179,11 @@ def format_report(outcome: AnalysisOutcome) -> str:
         )
 
     lines.extend(["", "Results", "-------"])
-    lines.append(f"  Chords: {len(document.chords)}")
+    chord_confidence = chord_confidence_label(document)
+    lines.append(
+        f"  Chords: {len(document.chords)}"
+        + (f"  (confidence {chord_confidence})" if chord_confidence is not None else "")
+    )
     lyrics = lyrics_label(document)
     if lyrics is not None:
         lines.append(f"  Lyrics: {lyrics}")

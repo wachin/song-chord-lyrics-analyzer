@@ -72,7 +72,17 @@ Phase C display work landed **2026-10-07**, the Phase D window landed
   Kinds `LYRICS`, `BEATS`, `STEMS`, `NOTES` have **no** engine.
 - Canonical typed model (`models/`), JSON codec with `SCHEMA_VERSION=1`
   (`schema/codec.py`), engine protocols (`engines/base.py`), error handling,
-  logging.
+  logging. **Note (2026-10-20):** `models/` had been silently excluded from every
+  commit by an unanchored `models/` rule in `.gitignore`; the rule is now
+  `/models/` and the package is tracked. A fresh clone before this fix could not
+  import the package.
+- **Chord measurement and confidence (2026-10-19/20):**
+  `scripts/chord_benchmark.py` plus the committed GuitarSet manifest measure the
+  chord engine reproducibly (CSR 0.6029 on 180 comping takes), and every
+  `ChordEvent` now carries a calibrated confidence derived from its score margin
+  (held-out Brier 0.1436, ECE 0.0206, accuracy 0.811 at coverage 0.463). The raw
+  margin stays in `metadata["score_margin"]`. Method and tables:
+  `docs/ENGINE_COMPARISON.md` §2 and §6.
 - Metrics/evaluation as library code (`metrics/`, `evaluation/`), pinned
   GuitarSet annotation oracles in `tests/fixtures/`.
 - **Headless Phase A/B/C work (same day, after the audit):**
@@ -159,7 +169,10 @@ Phase C display work landed **2026-10-07**, the Phase D window landed
 - **GUI testing without a screen**: the presenters are pure Python and the
   widgets are driven offscreen, but nothing here has been run by hand on
   Windows or macOS (no claim is made about them beyond the shared code path).
-- **Chord confidence**: field exists, baseline engine reports `unknown`.
+- **Chord confidence**: measured since 2026-10-20, but calibrated on GuitarSet
+  solo acoustic guitar only. On a mixed recording the number keeps its ordering
+  and loses its probability meaning, and an `N` event's value is extrapolation
+  because GuitarSet has no notated silence (`docs/ENGINE_COMPARISON.md` §6).
 - **Transpose / simplify / export (Phase H, 2026-10-13)**: `TransposeDocument`
   and `SimplifyDocument` commands in `app/editing.py` ride the same tape as the
   per-chord edits; the window pitches them as "Transpose all chords..." (a
@@ -185,8 +198,9 @@ code. The findings another session must not re-derive:
   model/parser support sevenths, sus, dim/aug, add9/6/9 and slash basses, but
   the engine never produces them and refuses `vocabulary_phase > 1`.
 - **Not modelled:** key conditioning, bass/inversions, tuning estimation,
-  harmonic-percussive separation, onsets/beats, instrument changes, per-chord
-  confidence. Boundaries are frame-grid only (2048/22050 ≈ 92.9 ms).
+  harmonic-percussive separation, onsets/beats, instrument changes. Boundaries
+  are frame-grid only (2048/22050 ≈ 92.9 ms). Per-chord confidence *was* in this
+  list and is now implemented (2026-10-20).
 - **Test gap:** no committed test asserts label correctness on audio. The E2E
   test (`tests/integration/test_analysis_e2e.py`) checks timestamp coverage,
   vocabulary and provenance only; `tests/fixtures/csr_oracle.json` pins metric
@@ -197,6 +211,11 @@ code. The findings another session must not re-derive:
   on Viterbi runs; `analysis/chunking.py`'s seam comment says a frame is ~23 ms
   while the chord hop is ~92.9 ms; `docs/ENGINE_COMPARISON.md` begins at section
   4, so the chord-measurement method table is missing from the current tree.
+- **Resolved since the audit (2026-10-20):** P1 (the harness and manifest) and P2
+  (per-chord confidence) are implemented, the Viterbi run now records
+  `match_threshold_used` / `smoothing_window_used`, and the ENGINE_COMPARISON
+  method table is restored. Still open from that list: `raw.frame_labels` remains
+  the majority output on Viterbi runs, and the chunking seam comment is stale.
 - **Manual GUI check:** the user launched the window on MX Linux 25 in
   `.venv-chords` and reported waveform, lyrics panel, analysis info, working
   playback, moving playhead, changing chords, and an estimated ~75 % correct.
@@ -204,10 +223,10 @@ code. The findings another session must not re-derive:
   accuracy. The README records the commands and screenshot.
 
 **Next accuracy work, in order (audit §10):** P1 comparison harness and fixed
-reference set first; then P2 confidence margin, P3 front-end A/B (tuning, HPSS,
-energy, CENS), P4 bass/slash chords, P5 duration/metrical model, P6 vocabulary
-phase 2, P7 shared decode/chroma, P8 alternative engine last. No proposal is
-implemented, and each needs before/after numbers on the same audio.
+reference set, and P2 confidence margin, are **implemented** (2026-10-19/20).
+Remaining: P3 front-end A/B (tuning, HPSS, energy, CENS), P4 bass/slash chords,
+P5 duration/metrical model, P6 vocabulary phase 2, P7 shared decode/chroma, P8
+alternative engine last. Each needs before/after numbers on the same audio.
 
 ### Research only (measured, recorded, NOT wired into the product)
 
@@ -448,10 +467,10 @@ must exit 1. Nothing extra lands between the code and the commit: the
 then the signed commit goes out.
 
 **The next accuracy work is now specified:** see
-[`docs/CHORD_DETECTION_AUDIT.md`](docs/CHORD_DETECTION_AUDIT.md) §10–§12. The
-first task there is P1, the comparison harness and fixed reference set; every
-other chord proposal is unverifiable until it exists. Nothing in that plan has
-been implemented, and no accuracy improvement has been demonstrated.
+[`docs/CHORD_DETECTION_AUDIT.md`](docs/CHORD_DETECTION_AUDIT.md) §10–§12. P1
+(the harness and fixed reference set) and P2 (per-chord confidence) are
+implemented; P3–P8 are not, and no accuracy *improvement* has been demonstrated
+(the labels are unchanged by P2, on purpose).
 
 **What remains open (and what is not the next task):**
 
@@ -462,9 +481,9 @@ been implemented, and no accuracy improvement has been demonstrated.
   2026-10-13, the Export document... save dialog 2026-10-13). Each item is
   small enough to land on its own and every one of them needs an `app/`
   presenter with offscreen tests.
-* **Confidence per chord + the JSON contract** — the `lyrics` step carries
-  `unknown` confidence and the canonical `EngineResult` ships a `lyrics` field;
-  exposing that honestly per position in the window is `[F]` work, not more
-  engine work.
+* **The JSON serialization contract** — Phase B's last open task: document the
+  chord-event fields, units and the `N`/`?`/overlap edge cases in `docs/`. The
+  `lyrics` step still carries `unknown` confidence (the ASR model reports none),
+  which is honest rather than pending.
 * Any of the four alternatives the user replies with, if they prefer not to
   follow the phase list.

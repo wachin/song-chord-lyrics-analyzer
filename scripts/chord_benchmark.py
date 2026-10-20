@@ -210,6 +210,41 @@ def _environment(engine: Any) -> dict[str, str]:
     }
 
 
+def _coerce_option(raw: str) -> Any:
+    """``true``/``false`` become bools, integers ints, decimals floats, rest str."""
+    lowered = raw.lower()
+    if lowered in {"true", "false"}:
+        return lowered == "true"
+    try:
+        return int(raw)
+    except ValueError:
+        pass
+    try:
+        return float(raw)
+    except ValueError:
+        return raw
+
+
+def _parse_options(pairs: Sequence[str]) -> dict[str, Any]:
+    """Parse repeated ``KEY=VALUE`` engine options into a dict.
+
+    Values are coerced so ``--option harmonic=true`` reaches the engine as a
+    bool and ``--option change_penalty=0.5`` as a float; anything else stays a
+    string. A pair without ``=`` or with an empty key is refused, because a
+    silently ignored option would make a run unreproducible.
+    """
+    options: dict[str, Any] = {}
+    for pair in pairs:
+        key, separator, value = pair.partition("=")
+        if not separator or not key.strip():
+            raise InputError(
+                f"Engine option {pair!r} is not KEY=VALUE.",
+                hint="Example: --option tuning=estimate, --option harmonic=true",
+            )
+        options[key.strip()] = _coerce_option(value.strip())
+    return options
+
+
 def _done_takes(jsonl_path: Path) -> set[str]:
     """Take names already present in a JSONL run file."""
     if not jsonl_path.exists():
@@ -300,13 +335,23 @@ def _markdown(aggregate: dict[str, Any]) -> str:
             f"{reference['min']} | {reference['max']} |"
         )
     per_take = f"{aggregate['metrics']['count']} takes"
+    run_line = (
+        f"**Run:** {per_take}, reference view `{settings['reference']}`, "
+        f"engine `{environment['engine']}` {environment['engine_version']}, "
+        f"decoder `{settings['decoder']}`, change penalty {settings['change_penalty']}, "
+        f"change window {settings['change_window']} s."
+    )
+    engine_options = settings.get("engine_options") or {}
+    if engine_options:
+        rendered = ", ".join(
+            f"`{key}={str(value).lower() if isinstance(value, bool) else value}`"
+            for key, value in sorted(engine_options.items())
+        )
+        run_line += f" Engine options: {rendered}."
     lines.extend(
         [
             "",
-            f"**Run:** {per_take}, reference view `{settings['reference']}`, "
-            f"engine `{environment['engine']}` {environment['engine_version']}, "
-            f"decoder `{settings['decoder']}`, change penalty {settings['change_penalty']}, "
-            f"change window {settings['change_window']} s.",
+            run_line,
             f"**Environment:** {environment['platform']}, CPython {environment['python']}, "
             f"numpy {environment['numpy']}, librosa {environment['librosa']}, "
             f"commit {environment['git_commit']}.",
@@ -349,9 +394,14 @@ def run(args: argparse.Namespace) -> int:
             hint="Pass --resume to continue it, or choose a different --out directory.",
         )
 
-    options = ChordAnalysisOptions(
-        extra={"decoder": args.decoder, "change_penalty": args.change_penalty}
-    )
+    # Explicit --option pairs win over the dedicated flags when both name the
+    # same key, and the run records the effective value rather than the flag's.
+    extra: dict[str, Any] = {
+        "decoder": args.decoder,
+        "change_penalty": args.change_penalty,
+        **_parse_options(args.option),
+    }
+    options = ChordAnalysisOptions(extra=extra)
     environment = _environment(engine)
     started = time.time()
     processed = skipped = 0
@@ -395,8 +445,8 @@ def run(args: argparse.Namespace) -> int:
                 "audio_seconds": round(float(audio_seconds), 3)
                 if isinstance(audio_seconds, (int, float))
                 else None,
-                "decoder": args.decoder,
-                "change_penalty": args.change_penalty,
+                "decoder": extra["decoder"],
+                "change_penalty": extra["change_penalty"],
                 "engine": result.engine,
                 "engine_version": result.engine_version,
                 "wall_seconds": round(wall, 3),
@@ -429,10 +479,15 @@ def run(args: argparse.Namespace) -> int:
         "date": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
         "settings": {
             "reference": args.reference,
-            "decoder": args.decoder,
-            "change_penalty": args.change_penalty,
+            "decoder": extra["decoder"],
+            "change_penalty": extra["change_penalty"],
             "change_window": args.change_window,
             "corpus_verified": not args.no_verify,
+            "engine_options": {
+                key: value
+                for key, value in extra.items()
+                if key not in {"decoder", "change_penalty"}
+            },
         },
         "environment": environment,
         "metrics": aggregate_scores(rows),
@@ -579,6 +634,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--engine", default="chroma-baseline")
     parser.add_argument("--decoder", choices=("viterbi", "majority"), default="viterbi")
     parser.add_argument("--change-penalty", type=float, default=0.80)
+    parser.add_argument(
+        "--option",
+        action="append",
+        default=[],
+        metavar="KEY=VALUE",
+        help=(
+            "engine option, repeatable (e.g. --option tuning=estimate; "
+            "--option harmonic=true); overrides --decoder/--change-penalty"
+        ),
+    )
     parser.add_argument(
         "--change-window",
         type=float,

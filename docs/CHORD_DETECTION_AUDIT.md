@@ -452,17 +452,20 @@ can claim a gain.
 
 ## 10. Prioritized improvement plan
 
-> **Addendum (2026-10-20).** **P1 and P2 are now implemented**; P3–P8 are not.
-> P1 is the harness above (CSR 0.6029 on 180 comping takes,
-> `docs/ENGINE_COMPARISON.md` §2). P2 reports a calibrated per-chord
-> confidence: the score margin of the emitted label is averaged over the
-> event's frames (negative where the Viterbi path overrode a frame) and mapped
-> through a logistic fitted on 90 GuitarSet takes and measured on the other 90
-> (held-out Brier 0.1436, ECE 0.0206, accuracy 0.811 at coverage 0.463;
-> whole-run tables in `docs/ENGINE_COMPARISON.md` §6). The decoded labels did
-> not change — all 180 per-take rows are identical to the P1 run — which is
-> what this section's "accuracy must not silently change" rule asked for. The
-> paragraph below describes the state on 2026-10-18.
+> **Addendum (2026-10-20).** **P1, P2 and P3 are now implemented**; P4–P8 are
+> not. P1 is the harness above. P2 reports a calibrated per-chord confidence:
+> the score margin of the emitted label is averaged over the event's frames
+> (negative where the Viterbi path overrode a frame) and mapped through a
+> logistic fitted on 90 GuitarSet takes and measured on the other 90 (held-out
+> Brier 0.1420, ECE 0.0161, accuracy 0.808 at coverage 0.472; whole-run tables
+> in `docs/ENGINE_COMPARISON.md` §6). P3 measured this section's four front-end
+> proposals one variable at a time on the same 180 takes: **`tuning=zero` gained
+> +0.0092 CSR (paired, ±0.0033) and was adopted as the default**, HPSS lost
+> −0.0139 while costing 6.7× the CPU, CENS lost −0.0554, and the −40 dB energy
+> gate is within noise (full table and paired deltas in
+> `docs/ENGINE_COMPARISON.md` §7). P2 alone changed no labels; P3 changes them
+> deliberately and says so. The paragraph below describes the state on
+> 2026-10-18.
 
 At the time of the audit, nothing here was implemented. Expected benefits are
 explicitly **not** measured results. Every proposal keeps the existing `ChordEngine` contract and is
@@ -874,16 +877,54 @@ beat-alignment layer. Each is expensive and unverifiable until P1 exists.
 
 ---
 
+## 13. Addenda (2026-10-20)
+
+> **P1 harness closed.** `docs/ENGINE_COMPARISON.md` §1 now carries the full method
+> table (`tests/fixtures/guitarset_comp_manifest.json`, 180 comp takes, instructed
+> lead sheet). Reproducing it needs the audio, which stays in the gitignored cache:
+> `python scripts/chord_benchmark.py --limit 180 --reference instructed --out .cache/chords/benchmark-viterbi-180`.
+> The recorded measurement is **CSR 0.6029 / triad 0.6091, overlap 0.8298, change F1 0.8270**
+> (10.89s on 69.5 s of wall; peak RSS 303.9 MiB; environment in §2 of that file).
+> The previously cited CSR 0.4260 did not reproduce — it described a 2026-10-05
+> hypothesis set (17.06 chords per take, a different Viterbi path); the code in
+> `engines/chroma_baseline.py` yields 12.89 today, so that figure is retired as the
+> registered engine's accuracy.
+
+> **P2 closed.** Confidence is now reported on every events: the mean score margin
+> over the event's frames (`engines/chroma_baseline.py:segment_margins`), mapped by
+> `p = sigmoid(23.4861 * margin + 0.1973)` fitted on the 90 even-indexed takes and
+> measured on the 90 odd-indexed ones: held-out Brier 0.1420, ECE 0.0161, accuracy
+> 0.808 at coverage 0.472 (full pooling table in `docs/ENGINE_COMPARISON.md` §6).
+> The fit is reproducible with
+> `python scripts/chord_benchmark.py --fit-confidence --out .cache/chords/benchmark-zero-tuning`.
+
+> **P3 closed.** Every front-end variable was measured one at a time on the same 180
+> takes, same machine, 2026-10-20. The adopted default is `tuning=zero` (A440, no
+> estimate): **CSR 0.6121 (triad 0.6183), overlap 0.8343, change F1 0.8296**, which is
+> `tuning=auto` (+0.0092 ± 0.0033, paired). HPSS `harmonic=true` lost −0.0139 CSR,
+> −0.0167 change F1 for 6.7× the CPU; CENS `feature=cens` lost −0.0554 CSR and
+> −0.0955 change F1 with boundaries collapsing to 8.91 chords per take; the −40 dB
+> energy gate was within noise (+0.0017, and it never forced a single `N` on this
+> corpus). `engines/chroma_baseline.py` carries the full tables, the paired deltas
+> and the guard against averaging away a loss.
+
 ## 13. Open questions that need experiments
 
 1. How much of the current error is *quality misclassification* (major vs minor,
    triad vs seventh) versus *boundary error* versus *no-chord confusion*? The
    metric vector can separate these; no one has.
 2. Does tuning estimation change any labels on real GuitarSet takes, or is the
-   corpus already well tuned?
+   corpus already well tuned? **Partly answered 2026-10-20** (§7): trusting
+   A440 (`tuning=zero`) beats letting librosa estimate it (+0.0092 CSR), and
+   the takes measure 4–10 cents sharp — but *no corpus here is detuned*, so
+   `tuning=auto` remains the flag to reach for on old or tape-sourced audio.
 3. Does HPSS help on guitar-only recordings, and does it hurt on dense mixes?
+   **Answered for guitar-only 2026-10-20** (§7): it hurts (−0.0139 CSR, −0.0167
+   change F1, 6.7× the CPU). The dense-mix half is still open.
 4. Is the `0.80` penalty still optimal once confidence and duration are added,
-   or was it compensating for a weak emission model?
+   or was it compensating for a weak emission model? **Not re-swept**: 0.80 was
+   fitted on the *previous* front end, and §7 moved that front end without
+   re-fitting the penalty. This is the cheapest unmeasured number in the plan.
 5. How much does the vocal melody contribute to wrong labels? Stem separation
    would answer it, but adds a large dependency; this is a research question,
    not a product change yet.

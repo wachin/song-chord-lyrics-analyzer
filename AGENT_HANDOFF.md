@@ -78,11 +78,12 @@ Phase C display work landed **2026-10-07**, the Phase D window landed
   import the package.
 - **Chord measurement and confidence (2026-10-19/20):**
   `scripts/chord_benchmark.py` plus the committed GuitarSet manifest measure the
-  chord engine reproducibly (CSR 0.6029 on 180 comping takes), and every
-  `ChordEvent` now carries a calibrated confidence derived from its score margin
-  (held-out Brier 0.1436, ECE 0.0206, accuracy 0.811 at coverage 0.463). The raw
-  margin stays in `metadata["score_margin"]`. Method and tables:
-  `docs/ENGINE_COMPARISON.md` §2 and §6.
+  chord engine reproducibly (CSR **0.6121** on 180 comping takes, 2026-10-20),
+  and every `ChordEvent` now carries a calibrated confidence derived from its
+  score margin (held-out Brier 0.1420, ECE 0.0161, accuracy 0.808 at coverage
+  0.472). The raw margin stays in `metadata["score_margin"]`. Method and
+  tables: `docs/ENGINE_COMPARISON.md` §6 and §7 (§2 holds the previous default's
+  numbers).
 - Metrics/evaluation as library code (`metrics/`, `evaluation/`), pinned
   GuitarSet annotation oracles in `tests/fixtures/`.
 - **Headless Phase A/B/C work (same day, after the audit):**
@@ -360,10 +361,13 @@ Do **not** repeat these; they are measured and recorded:
   requirement, stems conclusion (see Current State).
 - **Chord decoding** — Viterbi change penalty 0.80 measured on 180 GuitarSet
   comping takes (2026-10-19, `scripts/chord_benchmark.py`): CSR 0.6029 vs 0.5300
-  for the majority smoother; change-F1 0.8270 vs 0.4033. The previously cited
-  0.4260 did not reproduce and is retired (`docs/ENGINE_COMPARISON.md` §2 has the
-  traceability note). Do not measure it again — measure the *next* change against
-  this vector.
+  for the majority smoother; change-F1 0.8270 vs 0.4033. With the current
+  default front end (`tuning=zero`, adopted 2026-10-20) the Viterbi figure is
+  CSR 0.6121 / change-F1 0.8296; the penalty was fitted on the old front end and
+  has **not** been re-swept. The previously cited 0.4260 did not reproduce and is
+  retired (`docs/ENGINE_COMPARISON.md` §2 has the traceability note, §7 the
+  sweep). Do not measure it again — measure the *next* change against this
+  vector.
 - **Key** — Krumhansl: 0.4278 exact / 0.1333 relative over 360 takes.
 - **Tempo** — librosa: 22.63 BPM mean error; octave readings kept, not hidden.
 - **Candidate engines/tools** — Chordino, madmom, beat_this, basic-pitch, etc.
@@ -468,9 +472,9 @@ then the signed commit goes out.
 
 **The next accuracy work is now specified:** see
 [`docs/CHORD_DETECTION_AUDIT.md`](docs/CHORD_DETECTION_AUDIT.md) §10–§12. P1
-(the harness and fixed reference set) and P2 (per-chord confidence) are
-implemented; P3–P8 are not, and no accuracy *improvement* has been demonstrated
-(the labels are unchanged by P2, on purpose).
+(the harness and fixed reference set), P2 (per-chord confidence) and P3 (the
+front-end sweep, which moved the tuning default and gained +0.0092 CSR) are
+implemented; P4–P8 are not.
 
 **What remains open (and what is not the next task):**
 

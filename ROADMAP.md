@@ -185,7 +185,7 @@ and no real song).
 | --- | --- | --- | --- |
 | 1 | Real audio file input | `[x]` | `audio/validation.py` + `audio/probe.py` (ffprobe; WAV via stdlib). Verified on a real song file (296.8 s, MP3, 324 kbit/s). |
 | 2 | Decoding to samples | `[x]` | One decode owner: `audio/decode.py` → `decode_audio()` (librosa/soundfile backend plus a stdlib WAV backend, mono/interleaved floats + sample rate) is asked by the chords, key, tempo and lyrics engines for the window they need, by `SoundDevicePlayer.load` for playback, and by `SongSession` for the waveform fallback; no component calls `librosa.load` privately any more. Verified 2026-10-16 on `samples/vocadito_6.wav` and `samples/vocadito_16.wav`: the three DSP engines return the same chord events (start/end/label), key and tempo before and after the switch, both whole-file and with a time window, plus a real compressed transcode through the service (`tests/integration/test_decode_integration.py`). |
-| 3 | Chord engine on real audio | `[x]` | `ChromaBaselineEngine` registered, tested, measured (CSR 0.6029 with Viterbi 0.80 on 180 GuitarSet comping takes, instructed lead sheet, 2026-10-19 — `docs/ENGINE_COMPARISON.md` §2, reproducible with `scripts/chord_benchmark.py`). Ran on a real song during the audit. |
+| 3 | Chord engine on real audio | `[x]` | `ChromaBaselineEngine` registered, tested, measured (CSR 0.6121 with Viterbi 0.80 on 180 GuitarSet comping takes, instructed lead sheet, 2026-10-20 — `docs/ENGINE_COMPARISON.md` §7, reproducible with `scripts/chord_benchmark.py`; 0.6029 with the previous front-end default). Ran on a real song during the audit. |
 | 4 | Timestamped ChordEvent sequence | `[x]` | `songlab chords` printed 76 events with `start`/`end`/`label` on a real song; `songlab analyze --json` emitted the same inside the canonical document with provenance (schema version 1, `schema/codec.py`). |
 | 5 | Audio playback | `[x]` | `audio/playback.py`: `SoundDevicePlayer` streams decoded samples through PortAudio (`sounddevice`, optional `playback` extra), with `load`/`play`/`pause`/`stop`/`seek`/`close`. Verified on a real device on 2026-10-06; skipped honestly where no output device exists. |
 | 6 | Lyrics engine (roadmap Phase E) | `[x]` | `ParakeetLyricsEngine` via `onnx-asr` (MIT runtime, CC-BY-4.0 weights), `songlab lyrics`, `run_analysis()` lyrics step. Chunked at 20 s; words carry `unknown` confidence. Verified on `samples/vocadito_6.wav` (real weights and real voice, offscreen) and structurally everywhere else. Model pulls (CC-BY-4.0) are fetched on first use and never committed. |
@@ -220,7 +220,9 @@ Phase D and the later phases, not a missing foundation.
   have **no** registered engine.
 * `[x]` Chord engine: CQT chroma → 24 triad templates → majority or Viterbi
   decoding (`engines/chroma_baseline.py`, `engines/decoding.py`), with the
-  change penalty measured (0.80) on GuitarSet.
+  change penalty measured (0.80) on GuitarSet, and the front end exposed as one
+  variable per option (tuning, feature, harmonic, energy gate) with each
+  measured separately (`docs/ENGINE_COMPARISON.md` §7).
 * `[x]` Application service `run_analysis()` (`analysis/service.py`): runs
   chords/key/tempo, skips unavailable engines honestly, assembles provenance
   (version, SHA-256, python, platform, engines, configuration).
@@ -251,10 +253,12 @@ Phase D and the later phases, not a missing foundation.
 * `[x]` Chord confidence: every `ChordEvent` now carries a measured value
   (2026-10-20). The baseline engine averages the emitted label's score margin
   over the event's frames and maps it through a logistic calibrated on
-  GuitarSet (slope 24.2814 / intercept 0.1552); the held-out 90 takes give
-  Brier 0.1436 and ECE 0.0206, and accuracy rises from 0.581 over all events to
-  0.811 on the events scoring at least 0.60 (`docs/ENGINE_COMPARISON.md` §6).
-  The raw margin stays in `metadata["score_margin"]`.
+  GuitarSet (slope 23.4861 / intercept 0.1973); the held-out 90 takes give
+  Brier 0.1420 and ECE 0.0161, and accuracy rises from 0.584 over all events to
+  0.808 on the events scoring at least 0.60 (`docs/ENGINE_COMPARISON.md` §6).
+  The raw margin stays in `metadata["score_margin"]`. The constants follow the
+  front end: the P3 sweep moved the tuning default, so the logistic was
+  refitted on the same corpus (§7).
 * `[x]` Real-file E2E: `tests/integration/test_analysis_e2e.py` runs the real
   default registry (chroma-baseline + krumhansl + librosa-tempo) over a
   deterministic generated WAV and, with FFmpeg, over its MP3 transcode, and
@@ -937,15 +941,16 @@ documented, tested rule table.
 **Objective:** improve chord recognition **after** the vertical slice works,
 and only where measurement justifies it.
 
-**Current status:** `[~]` — baseline measured on 2026-10-19 with the committed
-harness: CSR 0.6029 (instructed lead sheet), segment overlap 0.8298, change-F1
-0.8270 on 180 GuitarSet comping takes (`docs/ENGINE_COMPARISON.md` §2); the
-previously cited 0.4260 did not reproduce and is retired. No second chord engine
-is registered. A read-only audit of the implementation was completed on
+**Current status:** `[~]` — measured with the committed harness: **CSR 0.6121**
+(instructed lead sheet), segment overlap 0.8343, change-F1 0.8296 on 180
+GuitarSet comping takes (2026-10-20, `docs/ENGINE_COMPARISON.md` §7); the same
+engine measured 0.6029 with the previous front-end default (2026-10-19, §2), and
+the previously cited 0.4260 did not reproduce and is retired. No second chord
+engine is registered. A read-only audit of the implementation was completed on
 **2026-10-18** and its prioritized plan is
 [`docs/CHORD_DETECTION_AUDIT.md`](docs/CHORD_DETECTION_AUDIT.md); P1 (the
-measurement harness) and P2 (per-chord confidence) are now implemented, with the
-labels shown unchanged, and none of the accuracy proposals (P3–P8) has been.
+measurement harness), P2 (per-chord confidence) and P3 (the front-end sweep,
+which moved the tuning default) are implemented; P4–P8 are not.
 
 ### Tasks
 
@@ -970,9 +975,16 @@ labels shown unchanged, and none of the accuracy proposals (P3–P8) has been.
   `scripts/chord_benchmark.py --fit-confidence`, and the Viterbi run now records
   `match_threshold_used`/`smoothing_window_used` instead of implying either
   shaped the labels. The 180-take per-take vector is bit-for-bit unchanged
-- [ ] P3 — front-end robustness measured one variable at a time (tuning, HPSS,
+- [x] P3 — front-end robustness measured one variable at a time (tuning, HPSS,
   energy gate, CENS); no change is adopted without the P1 numbers
-  (audit §10 P3)
+  (audit §10 P3). Implemented 2026-10-20: `front_end_settings()` /
+  `compute_chroma()` expose four independent options, the harness gained
+  `--option KEY=VALUE` and records what ran, and the full sweep is measured on
+  the same 180 takes (`docs/ENGINE_COMPARISON.md` §7). `tuning=zero` gained
+  +0.0092 CSR (paired, ±0.0033) against the old default and **was adopted**;
+  HPSS (−0.0139, 6.7× the CPU) and CENS (−0.0554) were measured and rejected;
+  the −40 dB energy gate is within noise and stays an option. The change
+  penalty itself was **not** re-swept on the new front end.
 - [ ] P4 — bass-aware feature and slash-chord output, reported separately from
   the triad label (audit §10 P4)
 - [ ] P5 — duration-aware transition model (and metrical alignment once a beat

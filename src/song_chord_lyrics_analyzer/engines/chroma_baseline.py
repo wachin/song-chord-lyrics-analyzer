@@ -6,7 +6,9 @@ deliberately simple and fully inspectable:
 
 1. decode the audio to mono 22.05 kHz through the shared decode service
    (:func:`~song_chord_lyrics_analyzer.audio.decode.decode_audio`);
-2. compute per-frame CQT chroma;
+2. compute per-frame CQT chroma (optionally HPSS-harmonic, tuning-corrected,
+   CENS or energy-gated — one variable at a time, see
+   :func:`front_end_settings`);
 3. match every frame against the 24 phase-1 triad templates (12 major, 12
    minor) by cosine similarity, reporting ``N`` when no template fits;
 4. decode the frame scores into a label sequence — either a majority filter
@@ -35,7 +37,8 @@ import importlib
 import math
 import time
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -56,6 +59,10 @@ __all__ = [
     "CONFIDENCE_INTERCEPT",
     "CONFIDENCE_SLOPE",
     "DEFAULT_CHANGE_PENALTY",
+    "DEFAULT_ENERGY_GATE_DB",
+    "DEFAULT_FEATURE",
+    "DEFAULT_HARMONIC",
+    "DEFAULT_TUNING",
     "DEFAULT_DECODER",
     "DEFAULT_MATCH_THRESHOLD",
     "DEFAULT_NO_CHORD_SCORE",
@@ -64,8 +71,13 @@ __all__ = [
     "ENGINE_VERSION",
     "HOP_LENGTH",
     "SAMPLE_RATE",
+    "SUPPORTED_FEATURES",
+    "SUPPORTED_TUNING",
     "TEMPLATE_LABELS",
     "ChromaBaselineEngine",
+    "FrontEndSettings",
+    "compute_chroma",
+    "front_end_settings",
     "decode_labels",
     "events_from_segments",
     "frame_scores",
@@ -93,6 +105,43 @@ DEFAULT_MATCH_THRESHOLD = 0.5
 #: Majority-filter window (in frames) that removes isolated label flips.
 DEFAULT_SMOOTHING_WINDOW = 5
 
+#: Chroma feature used by the front end: ``"cqt"`` (the default, and the one the
+#: confidence mapping is calibrated on) or ``"cens"`` (chroma energy normalised
+#: statistics, which smooths over time).
+DEFAULT_FEATURE = "cqt"
+#: Tuning handling. ``"zero"`` (the default) assumes A440 equal temperament
+#: and corrects for nothing; ``"auto"`` lets librosa estimate the deviation
+#: inside ``cqt()`` (that is what every earlier measurement used);
+#: ``"estimate"`` measures the deviation here (``librosa.estimate_tuning``),
+#: records it in cents and passes it to the CQT explicitly.
+#:
+#: ``auto`` and ``zero`` are **not** the same call: in librosa 1.0,
+#: ``chroma_cqt(tuning=None)`` estimates the tuning from the signal, while
+#: ``tuning=0.0`` disables that correction. The default was moved from ``auto``
+#: to ``zero`` on 2026-10-20 after a one-variable-at-a-time measurement on the
+#: 180 GuitarSet comping takes: ``zero`` gained +0.0092 duration CSR against
+#: the instructed lead sheet and +0.0064 against the performed voicings, with
+#: no regression in change F1 or boundary error and slightly less CPU.
+#: GuitarSet is played in tune, so this is a measured win on that corpus, not a
+#: claim about detuned recordings; ``auto`` stays one flag away and
+#: ``docs/ENGINE_COMPARISON.md`` §7 carries the table.
+DEFAULT_TUNING = "zero"
+#: Whether to analyse the harmonic component of an HPSS split instead of the mix.
+DEFAULT_HARMONIC = False
+#: Frame energy gate in dB relative to the loudest frame. ``0.0`` disables it; a
+#: negative value zeros the chroma of frames below it, so those frames can only
+#: be decoded as ``N``.
+DEFAULT_ENERGY_GATE_DB = 0.0
+
+#: Accepted feature and tuning values, validated with an install-free message.
+SUPPORTED_FEATURES: tuple[str, ...] = ("cqt", "cens")
+SUPPORTED_TUNING: tuple[str, ...] = ("zero", "auto", "estimate")
+
+#: CQT bins per octave. ``cqt(tuning=...)`` expects fractions of one of these
+#: bins, while :func:`librosa.estimate_tuning` returns fractions of a semitone,
+#: so an estimate is scaled by ``CQT_BINS_PER_OCTAVE / 12`` before use.
+CQT_BINS_PER_OCTAVE = 36
+
 #: Temporal decoder: ``"majority"`` (per-frame argmax + majority smoother,
 #: roadmap section 19) or ``"viterbi"`` (max-sum sequence decoding, roadmap
 #: section 20).
@@ -115,19 +164,26 @@ DEFAULT_NO_CHORD_SCORE = 0.06
 #: right at that instant**, and only on the corpus it was fitted to: the 90
 #: even-indexed GuitarSet comping takes of
 #: ``tests/fixtures/guitarset_comp_manifest.json``, against the instructed JAMS
-#: annotation, with the default Viterbi decoder and change penalty. It was
+#: annotation, with the default front end (``tuning="zero"`` since 2026-10-20),
+#: Viterbi decoder and change penalty. It was
 #: fitted on 2026-10-20 (Linux, CPython 3.13.5, numpy 2.5.3, librosa 1.0.0) and
-#: measured on the 90 held-out odd-indexed takes: Brier score 0.1436, expected
-#: calibration error 0.0206, and duration accuracy rising from 0.581 over all
-#: events to 0.811 over the events scoring at least 0.60 (46.3 % of the held-out
+#: measured on the 90 held-out odd-indexed takes: Brier score 0.1420, expected
+#: calibration error 0.0161, and duration accuracy rising from 0.584 over all
+#: events to 0.808 over the events scoring at least 0.60 (47.2 % of the held-out
 #: duration). GuitarSet is solo acoustic guitar, so elsewhere the number is a
 #: heuristic, not a guarantee.
+#:
+#: The constants follow the front end: moving the default from ``tuning="auto"``
+#: to ``tuning="zero"`` changed the chroma, so the logistic was refitted on the
+#: same corpus (``--fit-confidence`` now gives slope 23.4861 / intercept 0.1973,
+#: matching these to the fourth decimal). The earlier ``tuning="auto"`` fit was
+#: slope 24.2814 / intercept 0.1552 and is recorded in the measurement log.
 #:
 #: Reproduce the fit with
 #: ``python scripts/chord_benchmark.py --fit-confidence``; the method and the
 #: measured figures are recorded in ``docs/ENGINE_COMPARISON.md``.
-CONFIDENCE_SLOPE = 24.2814
-CONFIDENCE_INTERCEPT = 0.1552
+CONFIDENCE_SLOPE = 23.4861
+CONFIDENCE_INTERCEPT = 0.1973
 
 #: The 24 phase-1 labels: 12 major roots first, then the 12 minor ones.
 TEMPLATE_LABELS: tuple[str, ...] = tuple(PITCH_CLASS_NAMES) + tuple(
@@ -527,6 +583,162 @@ def margin_confidence(margin: float) -> float:
     return scaled / (1.0 + scaled)
 
 
+@dataclass(frozen=True)
+class FrontEndSettings:
+    """The front end an ``analyze()`` call will use, validated before any DSP.
+
+    Every field corresponds to one ``options.extra`` key, so a benchmark can
+    change one variable at a time (audit P3) and record what actually ran.
+    """
+
+    feature: str = DEFAULT_FEATURE
+    tuning: str = DEFAULT_TUNING
+    harmonic: bool = DEFAULT_HARMONIC
+    energy_gate_db: float = DEFAULT_ENERGY_GATE_DB
+
+    def as_dict(self) -> dict[str, Any]:
+        """The settings as JSON-safe metadata."""
+        return {
+            "feature": self.feature,
+            "tuning": self.tuning,
+            "harmonic": self.harmonic,
+            "energy_gate_db": self.energy_gate_db,
+        }
+
+
+def front_end_settings(extra: Mapping[str, Any]) -> FrontEndSettings:
+    """Read and validate the front-end options from ``ChordAnalysisOptions.extra``.
+
+    Validation happens before the audio is decoded, so a typo costs nothing and
+    the error names the accepted values instead of surfacing as a librosa
+    ``TypeError`` later.
+
+    Raises:
+        InputError: When a feature, tuning mode or gate value is not supported.
+    """
+    feature = str(extra.get("feature", DEFAULT_FEATURE))
+    if feature not in SUPPORTED_FEATURES:
+        raise InputError(
+            f"Unknown chroma feature: {feature!r}",
+            hint=f"Supported features: {', '.join(SUPPORTED_FEATURES)}.",
+        )
+    tuning = str(extra.get("tuning", DEFAULT_TUNING))
+    if tuning not in SUPPORTED_TUNING:
+        raise InputError(
+            f"Unknown tuning mode: {tuning!r}",
+            hint=f"Supported modes: {', '.join(SUPPORTED_TUNING)}.",
+        )
+    try:
+        energy_gate_db = float(extra.get("energy_gate_db", DEFAULT_ENERGY_GATE_DB))
+    except (TypeError, ValueError) as error:
+        raise InputError(
+            f"energy_gate_db must be a number, got {extra.get('energy_gate_db')!r}",
+            hint="Use 0 to disable the gate, or a negative dB threshold such as -40.",
+        ) from error
+    if energy_gate_db > 0.0:
+        raise InputError(
+            f"energy_gate_db must not be positive, got {energy_gate_db!r}",
+            hint="The gate is measured downwards from the loudest frame: 0 disables it or use -40.",
+        )
+    return FrontEndSettings(
+        feature=feature,
+        tuning=tuning,
+        harmonic=bool(extra.get("harmonic", DEFAULT_HARMONIC)),
+        energy_gate_db=energy_gate_db,
+    )
+
+
+def compute_chroma(
+    librosa: Any,
+    numpy: Any,
+    samples: Any,
+    sample_rate: float,
+    settings: FrontEndSettings,
+    *,
+    hop_length: int = HOP_LENGTH,
+) -> tuple[list[list[float]], dict[str, Any]]:
+    """Turn decoded samples into chroma frames for ``settings``.
+
+    The defaults are the front end the *current* recorded measurement uses, so
+    a default run is a pure refactor: CQT chroma at ``hop_length`` on the
+    decoded mix, assuming A440 equal temperament. Each option changes exactly
+    one thing (audit P3):
+
+    * ``harmonic`` analyses the harmonic component of an HPSS split;
+    * ``tuning`` selects how the CQT treats tuning: ``"auto"`` lets librosa
+      estimate it (the historical default), ``"zero"`` assumes A440 and
+      ``"estimate"`` measures it here, records it and passes it explicitly;
+    * ``feature="cens"`` swaps the CQT chroma for chroma CENS, which smooths
+      over time;
+    * ``energy_gate_db`` zeros frames whose RMS is that far below the loudest
+      frame, so near-silence can only be decoded as ``N``.
+
+    Args:
+        librosa: The imported librosa module (injected so the caller imports it
+            once and tests can pass a stand-in).
+        numpy: The imported numpy module, used for the RMS gate.
+        samples: Mono samples in ``[-1, 1]``.
+        sample_rate: Sample rate of ``samples`` in Hz.
+        settings: The validated front-end options.
+        hop_length: Frame hop in samples.
+
+    Returns:
+        ``(frames, metadata)``: one 12-value chroma frame per row, and the
+        measured facts about the run (feature, tuning in cents, gate count).
+    """
+    signal = samples
+    if settings.harmonic:
+        harmonic, _percussive = librosa.effects.hpss(y=samples)
+        signal = harmonic
+
+    # ``auto`` must not pass the keyword at all: ``tuning=None`` asks librosa to
+    # estimate it, which is what the engine did before the default moved to
+    # ``zero`` (docs/ENGINE_COMPARISON.md §7).
+    tuning_cents = 0.0
+    tuning_bins: float | None = 0.0
+    if settings.tuning == "auto":
+        tuning_bins = None
+    elif settings.tuning == "estimate":
+        semitones = float(librosa.estimate_tuning(y=signal, sr=int(sample_rate)))
+        tuning_cents = round(semitones * 100.0, 2)
+        tuning_bins = semitones * CQT_BINS_PER_OCTAVE / 12.0
+
+    if settings.feature == "cens":
+        chroma = librosa.feature.chroma_cens(
+            y=signal,
+            sr=int(sample_rate),
+            hop_length=hop_length,
+        )
+    else:
+        cqt_options: dict[str, Any] = {
+            "y": signal,
+            "sr": int(sample_rate),
+            "hop_length": hop_length,
+        }
+        if tuning_bins is not None:
+            cqt_options["tuning"] = tuning_bins
+        chroma = librosa.feature.chroma_cqt(**cqt_options)
+    frames = chroma.T.tolist()
+
+    gated = 0
+    if settings.energy_gate_db < 0.0 and frames:
+        rms = numpy.asarray(librosa.feature.rms(y=signal, hop_length=hop_length)[0])
+        peak = float(rms.max()) if rms.size else 0.0
+        if peak > 0.0:
+            floor = peak * 10.0 ** (settings.energy_gate_db / 20.0)
+            allowed = [bool(value >= floor) for value in rms[: len(frames)]]
+            allowed.extend([True] * (len(frames) - len(allowed)))
+            for index, keep in enumerate(allowed):
+                if not keep:
+                    frames[index] = [0.0] * 12
+                    gated += 1
+
+    metadata = settings.as_dict()
+    metadata["tuning_cents"] = tuning_cents
+    metadata["energy_gate_frames"] = gated
+    return frames, metadata
+
+
 def _import_front_end() -> tuple[Any, Any]:
     """Import the optional DSP stack, or raise ``ImportError``.
 
@@ -601,9 +813,12 @@ class ChromaBaselineEngine:
                 hint="Pass vocabulary_phase=1 or choose a richer engine.",
             )
 
+        # Validate the front-end options before decoding: a typo costs nothing.
+        settings = front_end_settings(options.extra)
+
         startup_started = time.perf_counter()
         try:
-            librosa, _numpy = _import_front_end()
+            librosa, numpy = _import_front_end()
         except ImportError as error:
             raise DependencyError(
                 f"Engine {self.name!r} needs numpy and librosa, which are not installed.",
@@ -623,17 +838,14 @@ class ChromaBaselineEngine:
                 offset=offset,
                 duration=window,
             )
-            samples = _numpy.asarray(decoded.samples)
+            samples = numpy.asarray(decoded.samples)
             sample_rate = decoded.sample_rate
             audio_seconds = decoded.duration
             probe.audio_seconds = audio_seconds
 
-            chroma = librosa.feature.chroma_cqt(
-                y=samples,
-                sr=int(sample_rate),
-                hop_length=HOP_LENGTH,
+            frames, front_end_metadata = compute_chroma(
+                librosa, numpy, samples, float(sample_rate), settings
             )
-            frames = chroma.T.tolist()
             frame_period = HOP_LENGTH / float(sample_rate)
 
             decoder = str(options.extra.get("decoder", DEFAULT_DECODER))
@@ -695,6 +907,7 @@ class ChromaBaselineEngine:
                 # look like they shaped this run.
                 "match_threshold_used": decoder == "majority",
                 "smoothing_window_used": decoder == "majority",
+                **front_end_metadata,
                 "decoder": decoder,
                 "change_penalty": change_penalty,
                 "no_chord_score": no_chord_score,

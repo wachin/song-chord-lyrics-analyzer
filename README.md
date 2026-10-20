@@ -193,10 +193,10 @@ repository root**, not in the package and not in this repository's history:
 ```
 
 The application never opens this path. It is the input of the *measurement* work
-behind the recorded chord numbers — CSR 0.6029 on 180 comping takes against the
+behind the recorded chord numbers — CSR 0.6121 on 180 comping takes against the
 instructed lead sheet, and the confidence calibration fitted on the same corpus,
 recorded with their environment and date in
-[`docs/ENGINE_COMPARISON.md`](docs/ENGINE_COMPARISON.md) §2 and §6 — and the harness that
+[`docs/ENGINE_COMPARISON.md`](docs/ENGINE_COMPARISON.md) §6 and §7 — and the harness that
 scores it is committed at `scripts/chord_benchmark.py`, driven by the committed
 manifest [`tests/fixtures/guitarset_comp_manifest.json`](tests/fixtures/guitarset_comp_manifest.json).
 Only that manifest is in the repository; the audio never is.
@@ -546,7 +546,7 @@ songlab export    song.mp3 --format chordpro  ChordPro, JSON, Markdown, ...
 | `songlab info`, `songlab doctor`, error handling and exit codes | implemented |
 | `songlab chords` — chord detection on a registry-selected engine (`--engine`, `--json`, time range) | implemented |
 | Chord decoder — bulk majority smoothing or max-sum Viterbi with a measured change penalty and no-chord state | implemented |
-| Per-chord confidence — the emitted label's score margin mapped through a logistic calibrated on GuitarSet (held-out Brier 0.1436); shown in `songlab analyze`, the window's panel and the chord tooltip | implemented (2026-10-20) |
+| Per-chord confidence — the emitted label's score margin mapped through a logistic calibrated on GuitarSet (held-out Brier 0.1420); shown in `songlab analyze`, the window's panel and the chord tooltip | implemented (2026-10-20) |
 | `krumhansl` key engine — key, mode and correlation confidence, scored by `songlab benchmark --engine` | implemented |
 | `librosa-tempo` tempo engine — BPM scored as absolute, half-time and double-time error by `songlab benchmark --engine` | implemented |
 | `songlab analyze` — the canonical document (`AnalysisResult` + `Provenance` + `AnalysisRun`) from the registered engines | implemented |

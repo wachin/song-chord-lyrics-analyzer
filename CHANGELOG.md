@@ -8,6 +8,38 @@ the project uses [semantic versioning](https://semver.org/).
 
 ### Added
 
+* **Front-end robustness sweep and a new tuning default (roadmap Phase I P3,
+  2026-10-20).** The chroma front end had exactly one shape; it now exposes one
+  option per measured variable, each adopted or rejected on the same 180-take
+  corpus.
+  * `engines/chroma_baseline.py` — `front_end_settings()` validates the options
+    before any audio is decoded, and `compute_chroma()` applies them:
+    `tuning` (`zero` / `auto` / `estimate`), `feature` (`cqt` / `cens`),
+    `harmonic` (HPSS before chroma) and `energy_gate_db`. Every run records what
+    it used in `EngineResult.metadata`.
+  * `scripts/chord_benchmark.py` — `--option KEY=VALUE` (repeatable; `true` /
+    numbers coerced) forwards any engine option and records the effective
+    values in the row, `aggregate.json` and `aggregate.md`, so a variant run is
+    self-describing.
+  * **Adopted: `tuning=zero` as the default.** In librosa 1.0,
+    `chroma_cqt(tuning=None)` *estimates* the recording's tuning and shifts the
+    filters, while `tuning=0.0` keeps the A440 grid. On GuitarSet (4–10 cents
+    sharp on every take checked) trusting A440 gives CSR **0.6029 → 0.6121**
+    (+0.0092 ± 0.0033 paired), segment overlap 0.8343, change F1 0.8296, and
+    ~20 % less CPU; the same direction holds on the performed-voicings
+    reference (+0.0064 ± 0.0019). Not a claim about detuned audio —
+    `tuning=auto` stays one flag away.
+  * **Rejected on the measurement:** HPSS harmonic separation (−0.0139 CSR,
+    −0.0167 change F1, 464 s vs 55 s of wall time) and chroma CENS (−0.0554
+    CSR, −0.0955 change F1, 8.91 chords per take against a 12.00 reference).
+    The −40 dB energy gate is within noise (+0.0017) and stays an option; the
+    corpus has no notated silence to show what it is for.
+  * The change penalty (0.80) was fitted on the *previous* front end and was
+    **not** re-swept; that is the cheapest open measurement
+    (`docs/CHORD_DETECTION_AUDIT.md` §13).
+  * Tests: `front_end_settings()` validation, `compute_chroma()` per-option
+    behaviour, the metadata that records what ran, and the harness
+    `--option` pass-through.
 * **Measured per-chord confidence (roadmap Phase I P2 / Phase B, 2026-10-20).**
   `ChordEvent.confidence` is no longer always `unknown`: every event now reports
   a calibrated probability that its label is right at that instant.
@@ -15,7 +47,9 @@ the project uses [semantic versioning](https://semver.org/).
     an event covers, the emitted label's score minus the best competing state's
     score (`N` included), so a frame the Viterbi path kept against the frame's
     own preference contributes a negative margin; `margin_confidence()` maps it
-    through `sigmoid(24.2814 * margin + 0.1552)`. The raw margin stays in
+    through a logistic whose constants are fitted on GuitarSet (shipped as
+    `sigmoid(23.4861 * margin + 0.1973)`; refitted by the front-end change
+    below). The raw margin stays in
     `metadata["score_margin"]`. The mapping is applied *after* merging short
     segments, so a merged-in chord is not credited with the margin of the label
     it replaced, and `ChordEvent.silence()` can carry confidence too.
@@ -29,10 +63,15 @@ the project uses [semantic versioning](https://semver.org/).
     even-indexed takes, scores it on the 90 odd-indexed ones and writes
     `confidence_fit.json`. A non-converged fit is refused as a model.
   * Measurement (2026-10-20, Linux x86_64, CPython 3.13.5, numpy 2.5.3,
-    librosa 1.0.0, commit `2d45363` + this change, 180 takes): held out, Brier
-    **0.1436**, ECE **0.0206**, accuracy 0.581 over all events rising to 0.811
-    on the events scoring at least 0.60 (coverage 0.463). Over the whole run,
-    the very-high band is right 0.869 of the time and the very-low band 0.129.
+    librosa 1.0.0, commit `2d45363` + this change, 180 takes, front end as it
+    stood that morning): held out, Brier **0.1436**, ECE **0.0206**, accuracy
+    0.581 over all events rising to 0.811 on the events scoring at least 0.60
+    (coverage 0.463). Over the whole run, the very-high band is right 0.869 of
+    the time and the very-low band 0.129. **These constants were later refit**
+    by the front-end change below, which moved the tuning default and therefore
+    the margins; the shipped values are slope 23.4861 / intercept 0.1973 with
+    held-out Brier 0.1420 / ECE 0.0161. Both are recorded because they describe
+    two different front ends, not two attempts at the same one.
   * **The decoded labels are unchanged:** all 180 per-take rows are identical to
     the P1 run on all ten scored fields, and the means are still CSR 0.6029 /
     0.6091 triad / overlap 0.8298 / change F1 0.8270.

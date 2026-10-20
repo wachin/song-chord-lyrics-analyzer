@@ -9,6 +9,9 @@ promises.
 
 from __future__ import annotations
 
+import math
+import struct
+import wave
 from itertools import pairwise
 
 import pytest
@@ -395,6 +398,46 @@ class TestEventsFromSegments:
             baseline.events_from_segments([(0.0, 1.0, "C")], margins=[0.1, 0.2])
 
 
+class TestFrontEndSettings:
+    def test_the_defaults_are_the_measured_front_end(self) -> None:
+        settings = baseline.front_end_settings({})
+
+        assert settings.feature == baseline.DEFAULT_FEATURE == "cqt"
+        assert settings.tuning == baseline.DEFAULT_TUNING == "zero"
+        assert settings.harmonic is baseline.DEFAULT_HARMONIC is False
+        assert settings.energy_gate_db == baseline.DEFAULT_ENERGY_GATE_DB == 0.0
+
+    def test_engine_options_are_read_and_unrelated_ones_ignored(self) -> None:
+        settings = baseline.front_end_settings(
+            {"decoder": "viterbi", "harmonic": True, "energy_gate_db": -40.0}
+        )
+
+        assert settings.harmonic is True
+        assert settings.energy_gate_db == -40.0
+        assert settings.feature == "cqt"
+
+    def test_an_unknown_feature_is_refused_with_the_valid_list(self) -> None:
+        with pytest.raises(InputError, match="Unknown chroma feature") as excinfo:
+            baseline.front_end_settings({"feature": "mel"})
+
+        assert "cqt" in str(excinfo.value.hint)
+        assert "cens" in str(excinfo.value.hint)
+
+    def test_an_unknown_tuning_mode_is_refused(self) -> None:
+        with pytest.raises(InputError, match="Unknown tuning mode") as excinfo:
+            baseline.front_end_settings({"tuning": "none"})
+
+        assert "zero" in str(excinfo.value.hint)
+
+    def test_a_positive_gate_is_refused(self) -> None:
+        with pytest.raises(InputError, match="must not be positive"):
+            baseline.front_end_settings({"energy_gate_db": 6.0})
+
+    def test_a_non_numeric_gate_is_refused(self) -> None:
+        with pytest.raises(InputError, match="energy_gate_db must be a number"):
+            baseline.front_end_settings({"energy_gate_db": "loud"})
+
+
 class TestEngineContract:
     def test_identity(self) -> None:
         assert ENGINE.name == "chroma-baseline"
@@ -480,6 +523,72 @@ class TestFullAnalysis:
             }
         ]
 
+    def test_compute_chroma_matches_the_default_calls(self, tmp_path) -> None:
+        """The default path is the plain ``chroma_cqt`` call, byte for byte."""
+        librosa, numpy = baseline._import_front_end()
+        wav = write_sine_wav(tmp_path / "tone.wav", seconds=2.0, channels=1)
+        decoded = baseline.decode_audio(wav, sample_rate=baseline.SAMPLE_RATE, mono=True)
+        samples = numpy.asarray(decoded.samples)
+
+        frames, metadata = baseline.compute_chroma(
+            librosa, numpy, samples, float(decoded.sample_rate), baseline.FrontEndSettings()
+        )
+        expected = librosa.feature.chroma_cqt(
+            y=samples,
+            sr=int(decoded.sample_rate),
+            hop_length=baseline.HOP_LENGTH,
+            tuning=0.0,
+        )
+
+        assert numpy.allclose(numpy.asarray(frames), expected.T)
+        assert metadata["feature"] == "cqt"
+        assert metadata["tuning"] == "zero"
+
+    def test_the_auto_tuning_mode_delegates_to_librosa(self, tmp_path) -> None:
+        librosa, numpy = baseline._import_front_end()
+        wav = write_sine_wav(tmp_path / "tone.wav", seconds=2.0, frequency=330.0, channels=1)
+        decoded = baseline.decode_audio(wav, sample_rate=baseline.SAMPLE_RATE, mono=True)
+        samples = numpy.asarray(decoded.samples)
+
+        frames, _metadata = baseline.compute_chroma(
+            librosa,
+            numpy,
+            samples,
+            float(decoded.sample_rate),
+            baseline.FrontEndSettings(tuning="auto"),
+        )
+        delegated = librosa.feature.chroma_cqt(
+            y=samples, sr=int(decoded.sample_rate), hop_length=baseline.HOP_LENGTH
+        )
+
+        assert numpy.allclose(numpy.asarray(frames), delegated.T)
+
+    def test_an_energy_gate_zeroes_the_quiet_frames(self, tmp_path) -> None:
+        """Two seconds of tone, then two of silence: only the silence is gated."""
+        path = tmp_path / "gated.wav"
+        sample_rate = baseline.SAMPLE_RATE
+        frames = bytearray()
+        for index in range(4 * sample_rate):
+            if index < 2 * sample_rate:
+                value = int(3000 * math.sin(2 * math.pi * 440.0 * index / sample_rate))
+            else:
+                value = 0
+            frames.extend(struct.pack("<h", value))
+        with wave.open(str(path), "wb") as writer:
+            writer.setnchannels(1)
+            writer.setsampwidth(2)
+            writer.setframerate(sample_rate)
+            writer.writeframes(bytes(frames))
+
+        result = ENGINE.analyze(path, ChordAnalysisOptions(extra={"energy_gate_db": -30.0}))
+
+        assert result.metadata["energy_gate_db"] == -30.0
+        # Only the silent half is gated, not the whole file.
+        assert 0 < result.metadata["energy_gate_frames"] < 40
+        # The gated frames can only be decoded as no-chord.
+        assert result.chords[-1].label == "N"
+        assert result.chords[-1].start < 2.5
+
     def test_run_cost_is_measured_not_estimated(self, tmp_path) -> None:
         wav = write_sine_wav(tmp_path / "tone.wav", seconds=2.0, channels=1)
         result = ENGINE.analyze(wav, ChordAnalysisOptions())
@@ -511,6 +620,24 @@ class TestFullAnalysis:
             assert "score_margin" in event.metadata
         assert result.metadata["confidence_method"] == "score_margin_logistic"
         assert result.metadata["confidence_slope"] == baseline.CONFIDENCE_SLOPE
+
+    def test_the_front_end_settings_are_recorded(self, tmp_path) -> None:
+        wav = write_sine_wav(tmp_path / "tone.wav", seconds=1.0, channels=1)
+        result = ENGINE.analyze(
+            wav, ChordAnalysisOptions(extra={"tuning": "estimate", "harmonic": True})
+        )
+
+        assert result.metadata["feature"] == "cqt"
+        assert result.metadata["tuning"] == "estimate"
+        assert result.metadata["harmonic"] is True
+        assert result.metadata["energy_gate_db"] == 0.0
+        assert result.metadata["energy_gate_frames"] == 0
+        assert isinstance(result.metadata["tuning_cents"], float)
+
+    def test_an_invalid_front_end_option_fails_before_decoding(self, tmp_path) -> None:
+        wav = write_sine_wav(tmp_path / "tone.wav", seconds=1.0, channels=1)
+        with pytest.raises(InputError, match="Unknown chroma feature"):
+            ENGINE.analyze(wav, ChordAnalysisOptions(extra={"feature": "mel"}))
 
     def test_the_viterbi_run_does_not_claim_the_threshold_shaped_it(self, tmp_path) -> None:
         wav = write_sine_wav(tmp_path / "tone.wav", seconds=1.0, channels=1)

@@ -3,10 +3,11 @@
 This file is the measurement record. Every number in it was produced by a run whose
 environment and date are stated next to it, and every accuracy claim elsewhere in the
 repository points back here. Sections 4 and 5 cover lyrics and the chunked-analysis
-experiment, and §6 covers per-chord confidence. Sections 1–3 — the chord measurement —
-were lost in an earlier edit and were **rebuilt on 2026-10-19** together with the
-harness that produces them (`scripts/chord_benchmark.py`) and the committed corpus
-definition (`tests/fixtures/guitarset_comp_manifest.json`).
+experiment, §6 covers per-chord confidence and §7 the front-end sweep that moved the
+default tuning handling. Sections 1–3 — the chord measurement — were lost in an
+earlier edit and were **rebuilt on 2026-10-19** together with the harness that produces
+them (`scripts/chord_benchmark.py`) and the committed corpus definition
+(`tests/fixtures/guitarset_comp_manifest.json`).
 
 ## 1. Chord engines — method (2026-10-19)
 
@@ -30,6 +31,12 @@ major/minor triad templates plus an `N` state, Viterbi with a flat change penalt
 0.80. Hypothesis segments come from `metrics.adapters.chord_segments()`, which
 completes a missing end from the next event or the measured duration and raises rather
 than inventing one.
+
+The front end has one knob per measured variable (audit P3) and every run records the
+ones it used: `tuning` (`zero` since 2026-10-20, `auto` or `estimate`), `feature`
+(`cqt`/`cens`), `harmonic` (HPSS before chroma) and `energy_gate_db`. §7 is the
+one-variable-at-a-time comparison that moved the tuning default, and it carries the
+table for both settings.
 
 **Metrics** — the implemented definitions, not parallel ones (audit §11):
 
@@ -56,23 +63,36 @@ so a later default change can still be compared against these segmentations),
 python scripts/chord_benchmark.py --limit 180 --out .cache/chords/benchmark-viterbi-180
 python scripts/chord_benchmark.py --limit 180 --decoder majority --out .cache/chords/benchmark-majority-180
 python scripts/chord_benchmark.py --reference performed --out .cache/chords/benchmark-viterbi-180-performed
+
+# §7: one front-end variable at a time, then the adopted default
+python scripts/chord_benchmark.py --option tuning=auto --out .cache/chords/p3-baseline
+python scripts/chord_benchmark.py --option tuning=zero --out .cache/chords/p3-tuning-zero
+python scripts/chord_benchmark.py --option harmonic=true --out .cache/chords/p3-harmonic
+python scripts/chord_benchmark.py --option feature=cens --out .cache/chords/p3-cens
+python scripts/chord_benchmark.py --option energy_gate_db=-40 --out .cache/chords/p3-energy-gate
+python scripts/chord_benchmark.py --fit-confidence --out .cache/chords/benchmark-zero-tuning
 ```
 
 `scripts/chord_benchmark.py --write-manifest PATH` regenerates the pinned manifest from
 a downloaded corpus.
 
-**Environment (all three runs).** Linux x86_64, kernel 7.0.10-1-liquorix,
+**Environment (the three runs above).** Linux x86_64, kernel 7.0.10-1-liquorix,
 CPython 3.13.5, numpy 2.5.3, librosa 1.0.0, soundfile 0.14.0, `chroma-baseline` 0.1.0,
-CPU only, commit `53ebb60`, **2026-10-19 (UTC)**.
+CPU only, commit `53ebb60`, **2026-10-19 (UTC)**. The §7 sweep was run on the same
+machine on **2026-10-20** at commit `f72c8a9` and at the commit that carries the
+front-end options; its own environment line is inside each run's `aggregate.md`.
 
 ## 2. Chord engines — measurement (2026-10-19)
 
 Means over the 180 comping takes; per-take minima and maxima are in each run's
-`aggregate.json`.
+`aggregate.json`. These runs were made with the then-default front end
+(`tuning=auto`, librosa's internal estimate); §7 moved the default to `tuning=zero`
+and both tables are kept, because a default change is only believable if the
+measurement behind it is reproducible.
 
 | Reference | Decoder | CSR | CSR (triad) | Segment overlap | Change F1 | Boundary err. ref→hyp | Boundary err. hyp→ref | Hyp chords | Ref chords |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| instructed | Viterbi, penalty 0.80 | **0.6029** | **0.6091** | **0.8298** | **0.8270** | 0.178 s | **0.187 s** | 12.89 | 12.00 |
+| instructed | Viterbi, penalty 0.80 | 0.6029 | 0.6091 | 0.8298 | 0.8270 | 0.178 s | 0.187 s | 12.89 | 12.00 |
 | instructed | Majority smoother | 0.5300 | 0.5388 | 0.5428 | 0.4033 | **0.056 s** | 0.486 s | 56.86 | 12.00 |
 | performed | Viterbi, penalty 0.80 | 0.5186 | 0.5954 | 0.8298 | 0.8270 | 0.178 s | 0.187 s | 12.89 | 12.00 |
 
@@ -118,19 +138,23 @@ the registered engine's accuracy figure**. This is exactly the traceability gap 
 
 ## 3. Chord engines — verdict
 
-**The registered engine's measured accuracy is CSR 0.6029 (0.6091 triad-reduced) on
-180 GuitarSet comping takes against the instructed lead sheet, 2026-10-19.** The
-complete vector is in §2; quote the date and the reference view with the number.
+**The registered engine's measured accuracy is CSR 0.6121 (0.6183 triad-reduced) on
+180 GuitarSet comping takes against the instructed lead sheet, 2026-10-20** —
+the default front end after the §7 sweep. The same engine measured 0.6029 / 0.6091
+on 2026-10-19 with the previous default (`tuning=auto`); the difference is the
+§7 measurement, not a different metric. The complete vector is in §7 and §2;
+quote the date and the reference view with the number.
 
 What this result does **not** establish:
 
 * accuracy on a mixed commercial recording — GuitarSet is one clean acoustic guitar
   with a permissive licence, and the user's ~75 % manual observation is still not a
   measurement (audit §9);
-* robustness of the front end to reverb, tuning drift, compression or vocals — none of
-  those variables is in this corpus (audit P3 is the proposal that measures them);
-* that every chord comes with a trustworthy number: since 2026-10-20 each event does
-  carry a confidence (§6), but it is a probability *on GuitarSet*, not a guarantee
+* robustness to reverb, compression or vocals — none of those variables is in this
+  corpus (audit P3's remaining proposals are what would measure them; the §7 sweep
+  covers tuning, HPSS, CENS and an energy gate);
+* that every chord comes with a trustworthy number: each event does carry a
+  confidence (§6), but it is a probability *on GuitarSet*, not a guarantee
   elsewhere, and a `G` over `G7` still counts as a miss in the agreement it predicts.
 
 **Consequence for the plan.** Audit P1 is satisfied: there is now a committed harness
@@ -243,7 +267,7 @@ margin is kept in `ChordEvent.metadata["score_margin"]`, so the derived number
 can always be audited against its evidence.
 
 **How a margin becomes a probability.** A logistic,
-`p = sigmoid(24.2814 * margin + 0.1552)` (`margin_confidence`), fitted by
+`p = sigmoid(23.4861 * margin + 0.1973)` (`margin_confidence`), fitted by
 duration-weighted IRLS on the events of the **90 even-indexed takes** of the
 committed manifest and measured on the **90 odd-indexed takes**, which never
 influenced the constants. Agreement is the rule `duration_csr` applies: exact
@@ -252,32 +276,37 @@ label equality over the overlapping time, `N` only matching `N`.
 **Reproducing it.**
 
 ```bash
-python scripts/chord_benchmark.py --fit-confidence --out .cache/chords/benchmark-confidence
+python scripts/chord_benchmark.py --fit-confidence --out .cache/chords/benchmark-zero-tuning
 ```
 
-**Fit and held-out result** (from `confidence_fit.json`; the same 90/90 split):
+**Fit and held-out result** (from `confidence_fit.json`; the same 90/90 split,
+run over the §7 default front end):
 
 | Split | Takes | Events | Duration | Accuracy | Brier | ECE |
 | --- | --- | --- | --- | --- | --- | --- |
-| fitted (even takes) | 90 | 1,160 | 2,738.7 s | 0.5601 | 0.1563 | 0.0252 |
-| held out (odd takes) | 90 | 1,160 | 2,745.5 s | 0.5810 | 0.1436 | 0.0206 |
+| fitted (even takes) | 90 | 1,163 | 2,738.7 s | 0.5736 | 0.1579 | 0.0227 |
+| held out (odd takes) | 90 | 1,160 | 2,745.5 s | 0.5836 | 0.1420 | 0.0161 |
 
-The fit converged in 6 Newton steps to slope 24.2816 / intercept 0.1552; the
-engine carries them rounded to 24.2814 / 0.1552, which changes no reported value
-by more than 0.0002.
+The fit converged in 6 Newton steps to slope 23.4861 / intercept 0.1973; the
+engine carries exactly those. **The constants follow the front end:** the
+§7 sweep moved the tuning default from `auto` to `zero`, which changed the
+chroma and therefore the margins, so the logistic was refitted on the same
+corpus. The pre-sweep fit (`tuning=auto`) was slope 24.2814 / intercept 0.1552
+with held-out Brier 0.1436 / ECE 0.0206 — kept here so a reader can see the
+two numbers describe two different front ends, not a re-tune of the same one.
 
-**Calibration of the whole run** (all 180 takes, 2,320 events, 5,484.2 s; every
+**Calibration of the whole run** (all 180 takes, 2,323 events, 5,484.2 s; every
 event reported a confidence, so no duration is unknown):
 
 | Reported band | Events | Duration | Accuracy | Mean confidence |
 | --- | --- | --- | --- | --- |
-| very low (below 0.2) | 137 | 375.5 s | 0.129 | 0.151 |
-| low (0.2–0.4) | 476 | 1,184.4 s | 0.324 | 0.304 |
-| medium (0.4–0.6) | 661 | 1,380.7 s | 0.489 | 0.505 |
-| high (0.6–0.8) | 609 | 1,397.7 s | 0.735 | 0.698 |
-| very high (0.8–1.0) | 437 | 1,145.9 s | 0.869 | 0.884 |
+| very low (below 0.2) | 134 | 385.0 s | 0.100 | 0.154 |
+| low (0.2–0.4) | 467 | 1,123.9 s | 0.340 | 0.310 |
+| medium (0.4–0.6) | 674 | 1,423.8 s | 0.500 | 0.505 |
+| high (0.6–0.8) | 596 | 1,362.9 s | 0.736 | 0.698 |
+| very high (0.8–1.0) | 452 | 1,188.7 s | 0.873 | 0.885 |
 
-Pooled accuracy 0.5706, Brier 0.1499, expected calibration error 0.0225. A band's
+Pooled accuracy 0.5786, Brier 0.1500, expected calibration error 0.0234. A band's
 accuracy and its mean confidence track within about 0.04 everywhere, which is what
 "calibrated" means here.
 
@@ -286,35 +315,37 @@ accuracy and its mean confidence track within about 0.04 everywhere, which is wh
 
 | Confidence at least | Coverage | Accuracy |
 | --- | --- | --- |
-| 0.50 | 0.602 | 0.731 |
-| 0.60 | 0.464 | 0.795 |
-| 0.70 | 0.334 | 0.847 |
-| 0.80 | 0.209 | 0.869 |
-| 0.90 | 0.079 | 0.906 |
+| 0.50 | 0.608 | 0.734 |
+| 0.60 | 0.465 | 0.800 |
+| 0.70 | 0.339 | 0.843 |
+| 0.80 | 0.217 | 0.873 |
+| 0.90 | 0.083 | 0.890 |
 
-Held out, the same thresholds give coverage 0.598 / 0.463 / 0.358 / 0.242 / 0.100 at
-accuracy 0.743 / 0.811 / 0.862 / 0.874 / 0.906 — indistinguishable within the
+Held out, the same thresholds give coverage 0.629 / 0.472 / 0.364 / 0.248 / 0.097 at
+accuracy 0.732 / 0.808 / 0.861 / 0.881 / 0.887 — indistinguishable within the
 sampling noise of 90 takes. Roughly half the duration can be shown with more than
 four chords in five right; that is the user-facing value of the number.
 
-**Labels did not change.** All 180 takes reproduce the §2 run's per-take scores,
-counts, boundaries and timing exactly (0 differences over the ten scored fields,
-checked row by row against `.cache/chords/benchmark-viterbi-180`), and the whole-run
-means are still CSR 0.6029 / 0.6091 triad / overlap 0.8298 / change F1 0.8270.
-Confidence is an added output, not a changed decoder.
+**P2 changed no labels.** The confidence work alone (2026-10-20, before the §7
+sweep) reproduced the §2 run's per-take scores, counts, boundaries and timing
+exactly (0 differences over the ten scored fields, row by row against
+`.cache/chords/benchmark-viterbi-180`). The §7 front-end change *does* move the
+labels — it is a different chroma — which is why that sweep is measured, not
+assumed.
 
-**Two different ways to average, stated once.** §2's 0.6029 is the *mean of per-take
-CSR*; the 0.5706 above pools every event's duration across the corpus, so a long
-take weighs what it lasts. Neither replaces the other: §2 answers "how well does a
-run do on a typical take?", §6 answers "over this hour of audio, how much is right?".
+**Two different ways to average, stated once.** §7's 0.6121 is the *mean of
+per-take CSR*; the 0.5786 above pools every event's duration across the corpus,
+so a long take weighs what it lasts. Neither replaces the other: the table
+answers "how well does a run do on a typical take?", §6 answers "over this hour
+of audio, how much is right?".
 
-The harness's own wall clock around `analyze()` summed to 57.1 s for 5,484.2 s of
-audio (decode included), with a 305.9 MiB process high-water mark across the 180
+The harness's own wall clock around `analyze()` summed to 43.2 s for 5,484.2 s of
+audio (decode included), with a 260.4 MiB process high-water mark across the 180
 takes and no harness-side errors.
 
 **Environment.** Linux x86_64, kernel 7.0.10-1-liquorix, CPython 3.13.5, numpy
 2.5.3, librosa 1.0.0, soundfile 0.14.0, `chroma-baseline` 0.1.0, CPU only, commit
-`2d45363` with this change applied, **2026-10-20 15:28 UTC**. The manifest digest
+`f72c8a9` plus this change, **2026-10-20 17:11 UTC**. The manifest digest
 was `de6338fb…` (the pinned corpus).
 
 **Verdict.** The number is calibrated on the corpus it was fitted on, and its
@@ -326,7 +357,106 @@ risk–coverage curve is monotone and wide enough to be useful. What it is *not*
   silence gets the same mapping by extrapolation, not by evidence.
 * **Not a verdict on extension chords.** The reference is the exact label, so a `G`
   detected over a `G7` scores as a miss even though a player would accept it. The
-  triad-reduced CSR (0.6091) shows how small that effect is on this corpus.
+  triad-reduced CSR (0.6183) shows how small that effect is on this corpus.
 * **Not fused with the decoder.** The confidence is computed after decoding and never
   feeds back into it; a future change that uses it (automatic correction, fusion)
   must publish a new measurement on this harness, not just a claim.
+
+---
+
+## 7. Front-end robustness — one variable at a time (roadmap Phase I P3, 2026-10-20)
+
+**Why this exists.** The audit's P3 asks whether the chroma front end — which until
+2026-10-20 was just `librosa.feature.chroma_cqt(y, sr, hop_length=2048)` with no
+explicit tuning, no harmonic attenuation and no energy gate — is throwing accuracy
+away. Each option is measured alone, with everything else at its default, and each
+run records what it used, so a reader can reproduce a row rather than trust it.
+
+```bash
+python scripts/chord_benchmark.py --option tuning=auto     --out .cache/chords/p3-baseline
+python scripts/chord_benchmark.py --option tuning=zero     --out .cache/chords/p3-tuning-zero
+python scripts/chord_benchmark.py --option tuning=estimate --out .cache/chords/p3-tuning-estimate
+python scripts/chord_benchmark.py --option harmonic=true   --out .cache/chords/p3-harmonic
+python scripts/chord_benchmark.py --option feature=cens    --out .cache/chords/p3-cens
+python scripts/chord_benchmark.py --option energy_gate_db=-40 --out .cache/chords/p3-energy-gate
+```
+
+| Front end | CSR | CSR (triad) | Segment overlap | Change F1 | Boundary err. ref→hyp | Hyp chords | Wall | Peak RSS |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `tuning=auto` (previous default) | 0.6029 | 0.6091 | 0.8298 | 0.8270 | 0.178 s | 12.89 | 69.5 s | 303.9 MB |
+| **`tuning=zero` (new default)** | **0.6121** | **0.6183** | **0.8343** | **0.8296** | **0.168 s** | 12.91 | 55.2 s | 260.5 MB |
+| `tuning=estimate` | 0.6062 | 0.6123 | 0.8313 | 0.8271 | 0.170 s | 12.93 | 60.8 s | 304.8 MB |
+| `harmonic=true` (HPSS) | 0.5890 | 0.5953 | 0.8267 | 0.8103 | **0.139 s** | 13.74 | 464.1 s | 373.4 MB |
+| `feature=cens` | 0.5475 | 0.5538 | 0.7228 | 0.7315 | 0.649 s | 8.91 | 58.2 s | 303.9 MB |
+| `energy_gate_db=-40` | 0.6046 | 0.6107 | 0.8318 | 0.8284 | 0.178 s | 12.77 | 66.7 s | 304.6 MB |
+
+All six runs: 180 comping takes, instructed lead sheet, Viterbi at penalty 0.80,
+same manifest, same machine as §2 (Linux x86_64, CPython 3.13.5, numpy 2.5.3,
+librosa 1.0.0, CPU only), **2026-10-20**, at the commits stated in each run's
+`aggregate.md`.
+
+**Paired deltas against `tuning=auto`.** Each row below is the mean of the 180
+take-wise differences (the runs are paired by take, so the noise cancels) with
+the standard error of that mean:
+
+| Front end | Δ CSR (± SE) | Δ change F1 (± SE) | Takes with higher CSR |
+| --- | --- | --- | --- |
+| `tuning=zero` | **+0.0092 ± 0.0033** | +0.0027 ± 0.0028 | 65 / 180 |
+| `tuning=estimate` | +0.0033 ± 0.0023 | +0.0001 ± 0.0014 | 24 / 180 |
+| `energy_gate_db=-40` | +0.0017 ± 0.0010 | +0.0015 ± 0.0022 | 9 / 180 |
+| `harmonic=true` | **−0.0139 ± 0.0051** | **−0.0167 ± 0.0055** | 64 / 180 |
+| `feature=cens` | **−0.0554 ± 0.0094** | **−0.0955 ± 0.0122** | 54 / 180 |
+
+The gate and HPSS win on more takes than they lose yet lose in duration: a few
+takes suffer a large regression that a mean over takes hides and a duration
+average surfaces. That is exactly the reason the audit asks for the whole vector
+and not one number.
+
+**What each row says.**
+
+* **`tuning=zero` was adopted as the default.** In librosa 1.0,
+  `chroma_cqt(tuning=None)` (what `tuning=auto` does) *estimates the recording's
+  tuning from the signal* and shifts the CQT filters by that fraction of a bin,
+  while `tuning=0.0` keeps the A440 grid. On GuitarSet — which measures 4–10
+  cents sharp on every take checked — trusting A440 gains +0.0092 CSR with no
+  metric worse, and it is also ~20 % less CPU and ~43 MB less memory because
+  the tuning estimate is skipped. The mechanism is unproven; the measurement is.
+* **`tuning=estimate` does not beat `zero` and barely beats `auto`.** It
+  measures the deviation explicitly (`estimate_tuning`, recorded in cents as
+  `tuning_cents`) and passes the same shift `auto` would have applied, so its
+  +0.0033 over `auto` is within noise, and it stays 0.006 below `zero`.
+  GuitarSet being in tune is the likely explanation, and no corpus here tests
+  detuned audio.
+* **HPSS is a loss, and a big cost.** The harmonic component costs 464 s of wall
+  time for the same corpus (6.7× the default) and drops both CSR (−0.0139) and
+  change F1 (−0.0167). On solo guitar the percussive component carries the
+  attack the change detector uses; removing it blurs boundaries. Not adopted.
+* **CENS is worse at everything except speed.** −0.0554 CSR and −0.0955 change
+  F1, with the hypothesis collapsing to 8.91 chords per take against a 12.00
+  reference: CENS's temporal smoothing swallows short chords. Its boundary error
+  (0.649 s) is the worst in the table. Not adopted.
+* **The −40 dB energy gate changes almost nothing** (+0.0017, within noise) and
+  does not make GuitarSet emit a single `N`: there is no notated silence in it.
+  It stays an option, because the audit's stated purpose — honest `N` in
+  near-silence — cannot be measured on this corpus at all.
+
+**Cross-check against the second annotation view.** Re-running the adopted default
+on the `performed` voicings (JAMS `chord` index 1) and pairing it against the
+recorded `tuning=auto` run for that view gives the same direction: CSR
+0.5186 → **0.5250** (+0.0064 ± 0.0019), triad CSR 0.5954 → **0.6019** (+0.0064
+± 0.0034), segment overlap +0.0045 ± 0.0020, change F1 +0.0027 ± 0.0028. The
+improvement is a property of the front end, not of one reference view.
+
+**What this does *not* establish.** That `tuning=zero` is better in general. Every
+take in this corpus is played on a tuned instrument; a detuned recording is the
+case where `auto` should win, and this corpus cannot express it. `tuning=auto`
+stays one `--option` away for exactly that reason. The reverb, compression,
+vocal-mix and onset variables of P3 are still unmeasured; the change penalty
+itself (0.80) was fitted on the *old* front end and has not been re-swept.
+
+**Consequence for the recorded numbers.** The default now produces CSR **0.6121**
+/ **0.6183** triad / overlap **0.8343** / change F1 **0.8296** against the
+instructed lead sheet, and the §6 confidence was refitted for it (Brier 0.1420,
+ECE 0.0161 held out). The §2 numbers remain the record of the previous default;
+both are in this file so that "what changed" is a diff between two measurements,
+not a story.

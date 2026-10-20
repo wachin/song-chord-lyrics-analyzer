@@ -245,6 +245,43 @@ def test_harness_refits_the_confidence_mapping(tmp_path: Path) -> None:
     assert "confidence fit" in result.stdout
 
 
+def test_harness_forwards_engine_options_and_records_them(tmp_path: Path) -> None:
+    corpus = tmp_path / "corpus"
+    _write_corpus(corpus)
+    manifest = tmp_path / "manifest.json"
+    assert _run("--corpus-dir", str(corpus), "--write-manifest", str(manifest)).returncode == 0
+
+    out = tmp_path / "out"
+    measured = _run(
+        "--manifest",
+        str(manifest),
+        "--corpus-dir",
+        str(corpus),
+        "--out",
+        str(out),
+        "--option",
+        "tuning=auto",
+        "--option",
+        "harmonic=true",
+    )
+
+    assert measured.returncode == 0, measured.stderr
+    aggregate = json.loads((out / "aggregate.json").read_text(encoding="utf-8"))
+    assert aggregate["settings"]["engine_options"] == {"tuning": "auto", "harmonic": True}
+    row = json.loads((out / "per_take.jsonl").read_text(encoding="utf-8").splitlines()[0])
+    assert row["decoder"] == "viterbi"  # the flags keep their defaults
+    report = (out / "aggregate.md").read_text(encoding="utf-8")
+    assert "`tuning=auto`" in report
+    assert "`harmonic=true`" in report
+
+
+def test_harness_refuses_an_option_that_is_not_key_value(tmp_path: Path) -> None:
+    result = _run("--option", "tuning", "--out", str(tmp_path / "out"))
+
+    assert result.returncode == 2
+    assert "not KEY=VALUE" in result.stderr
+
+
 def test_fit_confidence_refuses_to_resume_a_run(tmp_path: Path) -> None:
     result = _run("--fit-confidence", "--resume", "--out", str(tmp_path / "out"))
 

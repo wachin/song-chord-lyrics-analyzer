@@ -654,15 +654,18 @@ intro. The song and chart remain private and are not committed.
 ## Development
 
 ```bash
-pytest                # 2136 tests + environment-dependent skips, no network, no models
-ruff check . && ruff format --check .
-python -m mypy
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev,gui]"
+python scripts/check.py
 ```
 
-Without PyQt6 the window's tests skip; the development environment installs it
-with the other extras, `python -m pip install -e ".[dev,dsp,playback,gui]"`,
-which is what the CI jobs do (`mypy` type-checks `gui/` against the real PyQt6
-stubs, so the lint job installs `gui` too).
+`scripts/check.py` runs the same gate as CI with the current interpreter: ruff,
+the format check, mypy and pytest. It sets `QT_QPA_PLATFORM=offscreen` on
+headless Linux; `--quick` runs only the static checks and `--tests-only` only
+pytest. Install `.[dev,dsp,playback,gui]` for the full DSP/playback/window
+suite. Without PyQt6 the window's tests skip, but the mypy gate also needs the
+`gui` extra because it type-checks `gui/` against the real stubs.
 
 Finished roadmap work must be marked in the same change: the task moves to `[x]`
 in [`ROADMAP.md`](ROADMAP.md) (`[~]` when only part of it landed); see
@@ -684,16 +687,22 @@ becomes something people rely on.
 
 To start a parallel research effort with your own agent:
 
-1. **Fork or clone** the repository and create the development environment above
-   (`python -m pip install -e ".[dev]"`).
-2. **Read the contract first.** Give your agent these files before it writes a
-   line: [`AGENTS.md`](AGENTS.md) (agent rules), [`ROADMAP.md`](ROADMAP.md) (the
-   specification and progress markers) and [`CONTRIBUTING.md`](CONTRIBUTING.md)
-   (the human-facing rules).
+1. **Fork or clone** the repository and create the documented gate environment
+   (`python -m pip install -e ".[dev,gui]"`). Use
+   `.[dev,dsp,playback,gui]` for the full suite; `mp3-library/` and `external/`
+   are not needed.
+2. **Read the contract first.** Give your agent
+   [`docs/AGENT_ONBOARDING.md`](docs/AGENT_ONBOARDING.md) (setup, repository map,
+   prompt template), [`AGENTS.md`](AGENTS.md) (binding rules),
+   [`ROADMAP.md`](ROADMAP.md) (specification and markers) and
+   [`CONTRIBUTING.md`](CONTRIBUTING.md) (human-facing rules). `CLAUDE.md`,
+   `GEMINI.md`, `.github/copilot-instructions.md` and
+   `.cursor/rules/repository.mdc` are short pointers for specific tools.
 3. **Pick a roadmap item** that is still `[ ]`, and treat its *Status* line as the
    definition of done.
-4. **Keep the gate green** — the same four commands CI runs:
-   `ruff check .`, `ruff format --check .`, `python -m mypy`, `pytest -q`.
+4. **Keep the gate green** — run `python scripts/check.py`. It executes the same
+   four commands CI runs (`ruff check .`, `ruff format --check .`,
+   `python -m mypy`, `pytest -q`) and reports what actually ran.
 5. **Record what you learned before you build.** New dependency or dataset
    findings go to [`docs/DEPENDENCY_MATRIX.md`](docs/DEPENDENCY_MATRIX.md) and
    [`docs/LICENSE_AUDIT.md`](docs/LICENSE_AUDIT.md); the roadmap marker is set in

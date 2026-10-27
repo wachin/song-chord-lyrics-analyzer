@@ -1,0 +1,13 @@
+---
+description: Repository-wide instructions for AI coding agents
+alwaysApply: true
+---
+
+Read [`AGENTS.md`](../../AGENTS.md) and
+[`docs/AGENT_ONBOARDING.md`](../../docs/AGENT_ONBOARDING.md) before editing.
+`AGENTS.md` is canonical; this rule is only a pointer.
+
+Quick start: create `.venv`, install `.[dev,gui]`, run
+`python scripts/check.py`. Never import or modify `external/`, never commit
+private audio/lyrics/model weights/caches, keep GUI logic in `app/`, and update
+the roadmap marker in the same change. No invented measurements.

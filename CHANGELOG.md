@@ -8,6 +8,25 @@ the project uses [semantic versioning](https://semver.org/).
 
 ### Added
 
+* **Agent-ready developer onboarding (2026-10-27).**
+  * `scripts/check.py` is the one cross-platform gate command: it runs ruff,
+    the format check, mypy and pytest with the current interpreter, sets
+    `QT_QPA_PLATFORM=offscreen` on headless Linux, and has `--quick` and
+    `--tests-only` modes. Missing tools fail with the documented install
+    command instead of a traceback.
+  * `docs/AGENT_ONBOARDING.md` is the stable setup/workflow guide: environment
+    matrix, repository map, task checklist, privacy and measurement rules,
+    common setup failures and a prompt template. `AGENTS.md` now has a
+    "Start here" section plus the workflow and definition of done.
+  * `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md` and
+    `.cursor/rules/repository.mdc` are short tool-specific pointers to
+    `AGENTS.md`, so several agent tools find the same rules without copied text.
+  * `CONTRIBUTING.md` and `docs/DEVELOPMENT.md` were corrected: they now teach
+    the current `[x]`/`[~]`/`[ ]` markers (not the retired `[*]` convention),
+    install `.[dev,gui]` for the mypy gate, and point at the one gate command.
+  * Added a pull-request checklist and `.editorconfig`. No package dependency,
+    runtime code or test count changed.
+
 * **Plain-text chart import (2026-10-27).** A user's own chart can now be the
   window's lyric and chord source instead of only a checking reference:
   * `app/chart_import.py` parses the chart's chord sequence, its chord columns
@@ -66,7 +85,7 @@ the project uses [semantic versioning](https://semver.org/).
   * Tests: chart parser/alignment unit tests, a command-wiring test, the
     no-wrap widget test, and the updated engine-option expectations.
   * **Gate (2026-10-27, after the chart import):** `ruff check` clean,
-    `ruff format --check` 172 files clean, `mypy` 93 files clean,
+    `ruff format --check` 173 files clean, `mypy` 93 files clean,
     `.venv-chords` **2136 passed / 2 skipped in 262 s**, `.venv` **2128 passed
     / 10 skipped in 226 s**.
 * **Chords above the synchronized lyrics (roadmap Phase F, 2026-10-21).** The

@@ -291,7 +291,7 @@ against the same harness, not a missing foundation.
   files, `mypy` 89 files). The chord-chart, spelling, chart-check and
   measured-front-end work through 2026-10-21..27 adds its own tests; the full
   `.venv-chords` suite reports **2136 passed / 2 skipped in 262 s**, `ruff`
-  clean over 172 files and `mypy` 93 files clean.
+  clean over 173 files and `mypy` 93 files clean.
 * `[x]` Documentation of decisions: `docs/ARCHITECTURE.md`,
   `DEPENDENCY_MATRIX.md`, `LICENSE_AUDIT.md`, `DATASET.md`,
   `ENGINE_COMPARISON.md`, `BENCHMARK.md`, `TROUBLESHOOTING.md`.

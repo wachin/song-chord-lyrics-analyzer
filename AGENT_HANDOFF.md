@@ -1,7 +1,10 @@
 # Agent Handoff
 
-> This file lets a **new AI-agent session** continue the project without the
-> context of previous conversations. Read it first, then `ROADMAP.md`.
+> This file is a **dated session handoff**, not the setup guide. For a fresh
+> developer or agent, read [`docs/AGENT_ONBOARDING.md`](docs/AGENT_ONBOARDING.md)
+> and [`AGENTS.md`](AGENTS.md) first; current status is `ROADMAP.md` §1. The
+> `.venv`/`.venv-chords` commands below are the author's local environments;
+> substitute your own and prefer `python scripts/check.py`.
 
 ---
 
@@ -150,7 +153,7 @@ Phase C display work landed **2026-10-07**, the Phase D window landed
 - Tests: **2136 passed / 2 skipped in 262 s** (`.venv-chords`, DSP + GUI +
   real output device, `QT_QPA_PLATFORM=offscreen`, 2026-10-27); `.venv` reports
   **2128 passed / 10 skipped** (no output device); `ruff check`,
-  `ruff format --check` (172 files), `mypy` (93 files) all green.
+  `ruff format --check` (173 files), `mypy` (93 files) all green.
 - **Phase H transforms + export (2026-10-13):**
   - `app/editing.py` — `TransposeDocument` / `SimplifyDocument` over the
     effective layer, on the same tape as the per-chord edits (undo, redo and

@@ -5,6 +5,40 @@ repository. [`ROADMAP.md`](ROADMAP.md) is the specification and wins over
 convenience; [`CONTRIBUTING.md`](CONTRIBUTING.md) holds the human-facing rules. Read
 both before changing anything.
 
+## Start here
+
+A fresh checkout needs Python 3.10+ and no private assets. The documented gate
+environment installs the development tools **and** the window stubs:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -e ".[dev,gui]"
+python scripts/check.py
+```
+
+For the full DSP/playback/window suite use
+`python -m pip install -e ".[dev,dsp,playback,gui]"`. The `lyrics` extra is
+separate because it downloads the Parakeet model; do not install it just to run
+the gate. `python scripts/check.py` runs ruff, the format check, mypy and
+pytest with the current interpreter and sets `QT_QPA_PLATFORM=offscreen` on
+headless Linux. `--quick` runs only the static checks; `--tests-only` runs only
+pytest.
+
+There is no required virtual-environment name. `.venv` is the convention;
+`.venv-chords` in old session notes is a local author environment and must not
+be assumed to exist. `mp3-library/` is a private submodule: its absence is
+normal for a contributor and no test may depend on it. `external/` may be empty
+unless you explicitly initialised the reference submodules; neither the build
+nor the tests need them.
+
+Read [`docs/AGENT_ONBOARDING.md`](docs/AGENT_ONBOARDING.md) for the environment
+matrix, repository map, common failures and a copy-paste prompt template.
+`CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md` and
+`.cursor/rules/repository.mdc` are short pointers to this file; edit this file
+when a rule changes, not the pointers.
+
 ## What this repository is
 
 `song-chord-lyrics-analyzer` is a **Python package plus a CLI** (`songlab`) and a
@@ -78,6 +112,23 @@ If a reference repository is genuinely worth adopting, follow
 first, then an optional extra, then an engine behind the interface, with tests. The
 submodule is never the integration path.
 
+## Agent workflow
+
+1. Pick one roadmap deliverable that is `[ ]` or `[~]`; read its status line and
+   the tests around it before writing code.
+2. Add a failing regression test first where the behaviour is testable, then the
+   smallest general implementation in the correct layer.
+3. Update the roadmap marker/status and any user-facing changelog/docs in the
+   same change.
+4. Run `python scripts/check.py` and report the real result. A skipped optional
+   test is not a failure; a skipped required test is not a pass.
+5. Keep commits focused. Do not rewrite published history, force-push or push
+   unless the maintainer asked; do not commit generated state.
+
+A change is done only when the roadmap marker is honest, the tests cover the
+new path, the gate passes, `external/` is untouched, and no private material or
+invented measurement entered the tree.
+
 ## Roadmap progress markers
 
 `ROADMAP.md` tracks its own progress. Every section, subsection and task carries a
@@ -114,5 +165,10 @@ a section `[x]` because it looks close, and never invent a fourth marker. (The o
 * **Licences.** This project is GPL-3.0-or-later. Model weights, datasets and external
   tools have their own licences and several of the audited candidates are non-free for
   commercial use. Check `docs/LICENSE_AUDIT.md` before proposing anything.
+* **Private material never becomes a fixture.** The author's `mp3-library/`
+  submodule, the real song/chart used in local checks, and
+  `images/A-quien-ire/` are intentionally untracked. Do not commit, quote or
+  embed private audio, user lyrics or screenshots of copyrighted lyrics; use
+  generated audio and invented text in tests and docs.
 * **Do not push generated state.** Results, caches, `.venv*`, model downloads and
   temporary WAVs stay out of the repository.

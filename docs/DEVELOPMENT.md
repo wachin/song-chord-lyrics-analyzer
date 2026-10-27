@@ -18,7 +18,7 @@ python -m venv .venv
 source .venv/bin/activate
 
 python -m pip install --upgrade pip setuptools wheel
-python -m pip install -e ".[dev]"
+python -m pip install -e ".[dev,gui]"
 ```
 
 Windows (PowerShell):
@@ -31,29 +31,33 @@ python -m venv .venv
 .venv\Scripts\Activate.ps1
 
 python -m pip install --upgrade pip setuptools wheel
-python -m pip install -e ".[dev]"
+python -m pip install -e ".[dev,gui]"
 ```
 
 The core package has **no** required dependencies. Analysis engines are opt-in
 extras that are added phase by phase, with their licence and platform support
-recorded in `docs/DEPENDENCY_MATRIX.md` first. The environment the full gate is
-run in installs the extras the tests need:
+recorded in `docs/DEPENDENCY_MATRIX.md` first. The gate environment needs the
+development tools and the window stubs (`.[dev,gui]`). The full local suite adds
+the DSP and playback stacks:
 
 ```bash
 python -m pip install -e ".[dev,dsp,playback,gui]"
 ```
 
-`dsp` (numpy/librosa/soundfile) runs the real engines, `playback` (sounddevice)
-the real player, and `gui` (PyQt6) the desktop window,
-which its tests drive on the offscreen platform plugin (`QT_QPA_PLATFORM=offscreen`,
-set by the `qt_app` fixture) so no display or sound card is required. `mypy`
-type-checks `gui/` against the real PyQt6 stubs, so the lint gate installs `gui`
-as well; the installed package itself stays Qt-free and the test matrix runs
-without it.
+`gui` (PyQt6) is required for the mypy gate and the window tests; `.[dev]` alone
+cannot type-check `gui/`. `dsp` (numpy/librosa/soundfile) runs the real engines;
+`playback` (sounddevice) runs the real player. The window's tests drive it on the
+offscreen platform plugin (`QT_QPA_PLATFORM=offscreen`, set by the `qt_app`
+fixture), so no display or sound card is required. The installed package itself
+stays Qt-free and the core test matrix runs without it.
 
 ## 3. Everyday commands
 
 ```bash
+python scripts/check.py      # the four-command gate with this interpreter
+python scripts/check.py --quick       # ruff + mypy only
+python scripts/check.py --tests-only  # pytest only
+
 pytest                       # full suite
 pytest -q -m "not integration"   # skip tests that need FFmpeg
 pytest -m integration        # only the FFmpeg integration tests
@@ -64,6 +68,11 @@ songlab --help               # CLI smoke check
 songlab doctor               # environment report
 songlab info samples/example.wav
 ```
+
+`scripts/check.py` uses `sys.executable`, so activating the environment is what
+selects the tools; on headless Linux it sets `QT_QPA_PLATFORM=offscreen`. There
+is no required environment name: `.venv` is the convention, and the author's
+`.venv-chords` is not part of a fresh clone.
 
 ## 4. Repository layout
 
@@ -77,7 +86,7 @@ docs/                             architecture, matrix, licence audit, this file
 samples/                          small, licence-clear audio for experiments
 benchmark/                        generated benchmark reports
 results/                          generated analysis output (git-ignored)
-scripts/                          one-off maintenance helpers
+scripts/                          gate script + one-off maintenance helpers
 translations/                     Qt Linguist catalogues (phase 17)
 external/                         third-party reference submodules (never imported)
 ```
@@ -100,9 +109,10 @@ copied from, and the exclusions are configured in `pyproject.toml` for that reas
   acceptable for engine-specific payloads that are stored verbatim.
 * Subprocesses: argument lists, `shell=False`, explicit timeouts.
 * Anything model-driven must be optional and must report `is_available()`.
-* Roadmap progress markers: finish work and mark it in the same change. A new
-  completion gets `[*]` plus its date in `ROADMAP.md`; a section that is only
-  partly done stays `[ ]` with an italic *Status* line. See `CONTRIBUTING.md`.
+* Roadmap progress markers: finish work and mark it in the same change. A
+  completed deliverable is `[x]`; a partial one is `[~]` with the missing part
+  named; `[ ]` is not implemented. The archived `[*]` convention is not used.
+  See `CONTRIBUTING.md`.
 
 ## 6. Adding an engine (target workflow)
 
@@ -117,7 +127,9 @@ copied from, and the exclusions are configured in `pyproject.toml` for that reas
 
 ## 7. Testing policy
 
-* Tests never require network access and never download models.
+* Tests never require network access and never download models. The optional
+  `lyrics` extras/integration tests are the exception when explicitly selected;
+  the normal gate leaves them out.
 * Tests must not commit copyrighted commercial songs; audio is generated
   (`tests/fixtures/audio.py`) or explicitly licensed (`samples/`).
 * Optional tools are handled with `pytest.mark.skipif`, never by failing.
@@ -126,7 +138,15 @@ copied from, and the exclusions are configured in `pyproject.toml` for that reas
 * Never report accuracy numbers that were not measured (see `docs/BENCHMARK.md`
   once phase 11 lands).
 
-## 8. Environment variables
+## 8. Working with AI agents
+
+The stable onboarding guide is [`AGENT_ONBOARDING.md`](AGENT_ONBOARDING.md), with
+the binding rules in [`../AGENTS.md`](../AGENTS.md). It covers the environment
+matrix, repository map, common setup failures and a prompt template. Tool
+pointers (`CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`,
+`.cursor/rules/repository.mdc`) delegate to `AGENTS.md`.
+
+## 9. Environment variables
 
 | Variable | Purpose |
 | --- | --- |

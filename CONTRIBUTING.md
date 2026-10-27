@@ -24,24 +24,24 @@ specification; the roadmap wins over convenience.
 [`ROADMAP.md`](ROADMAP.md) is both the specification and the progress tracker.
 Every section, subsection and task carries a bracket marker:
 
-* `[x]` — already achieved when the convention was introduced (2026-09-23).
-* `[ ]` — not achieved yet. An italic *Status* line states what exists and what
-  is still missing.
-* `[*]` — **newly completed**. Anything finished after 2026-09-23 is marked with
-  `[*]` plus the completion date, for example `[*] (2026-09-24)`.
+* `[x]` — **implemented**: the requirement exists, runs and was verified by
+  executing it.
+* `[~]` — **partially implemented**: the missing part is stated in the phase.
+* `[ ]` — **not implemented** yet. An italic *Status* line says what exists and
+  what is still missing.
 
 Rules:
 
 1. Work completed in a change must be marked in that same change. A change that
    advances a roadmap item but leaves its marker unset is incomplete, exactly
    like a change with no tests.
-2. Newly finished work is marked `[*]`, never `[x]`. `[x]` records the state at
-   the introduction of the convention; it is not a moving target.
-3. Markers must be defensible against the code. Never mark something `[x]`
+2. Markers must be defensible against the code. Never mark something `[x]`
    because it looks close: only when the section's own deliverable is truly met.
-4. A partially finished section stays `[ ]`; the *Status* line carries the
-   detail. Do not invent a fourth marker.
-5. Name the roadmap sections you changed in the pull-request description.
+   Use `[~]` and name the missing part when only part landed.
+3. Do not invent a fourth marker and do not use the archived `[*]` convention;
+   it belongs to the pre-product-reset roadmap.
+4. Name the roadmap sections and markers you changed in the pull-request
+   description.
 
 ## Development setup
 
@@ -49,24 +49,44 @@ Rules:
 python -m venv .venv
 source .venv/bin/activate         # Windows: .venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip setuptools wheel
-python -m pip install -e ".[dev]"
+python -m pip install -e ".[dev,gui]"
 ```
+
+`gui` is required for the mypy gate because `mypy` type-checks the window
+against the real PyQt6 stubs. For the full DSP/playback/window suite install
+`.[dev,dsp,playback,gui]`; the `lyrics` extra is separate because it downloads a
+model. There is no required environment name: `.venv` is the convention, and
+`mp3-library/`/`external/` are not needed for tests.
 
 ## Before opening a pull request
 
 ```bash
-ruff check .            # lint
-ruff format --check .   # formatting (markdown is excluded on purpose)
-python -m mypy          # types
-pytest -q               # tests
+python scripts/check.py
 songlab --help          # CLI still starts
 ```
 
-All four must pass. CI runs them on Linux, Windows and macOS for Python 3.10 to
-3.13.
+`scripts/check.py` runs the four gate commands with the current interpreter:
+`ruff check .`, `ruff format --check .`, `python -m mypy` and `pytest -q`. All
+must pass. CI runs them on Linux, Windows and macOS for Python 3.10 to 3.13,
+plus the DSP/FFmpeg jobs.
 
 Roadmap progress markers must be updated in the same change: mark what you
-finished with `[*]` and its date, as described above.
+finished `[x]`, or `[~]` with the missing part named, as described above.
+
+## Working with AI coding agents
+
+This repository is designed to be worked on with an AI agent. The binding rules
+are in [`AGENTS.md`](AGENTS.md); the stable onboarding guide, environment
+matrix, repository map and a copy-paste prompt template are in
+[`docs/AGENT_ONBOARDING.md`](docs/AGENT_ONBOARDING.md). Point an agent at those
+two files, the relevant `ROADMAP.md` phase and the tests near the code.
+
+Tool-specific pointers (`CLAUDE.md`, `GEMINI.md`,
+`.github/copilot-instructions.md`, `.cursor/rules/repository.mdc`) all delegate
+to `AGENTS.md`; edit `AGENTS.md` when a rule changes. Ask the agent to run
+`python scripts/check.py` and report the real output, not a summary. Do not let
+it commit or push unless you asked, and never let it add private songs, user
+lyrics, model weights or generated caches.
 
 ## Adding an analysis engine
 

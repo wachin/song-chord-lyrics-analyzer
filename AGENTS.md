@@ -155,6 +155,11 @@ a section `[x]` because it looks close, and never invent a fourth marker. (The o
 * **Never invent numbers.** No benchmark, timing or accuracy figure may appear in
   docs or commits unless it was measured, and a measurement must state the
   environment and the date.
+* **Do not repeat measured research.** Read `docs/ENGINE_COMPARISON.md`,
+  `docs/DATASET.md`, `docs/LICENSE_AUDIT.md` and
+  `docs/DEPENDENCY_MATRIX.md` before re-running a dataset, licensing, decoder or
+  engine comparison; measure the next change against the recorded vector. The
+  product path comes first; research supports it.
 * **English only** for identifiers, CLI text, errors, logs, docs and test names.
 * **GUI after the product slice, and always through `app/`.** The headless slice
   (Phase C) exists and so does the minimal window (Phase D, `songlab gui`, behind

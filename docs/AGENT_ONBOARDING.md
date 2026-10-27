@@ -6,9 +6,9 @@ repository's binding rules are in [`AGENTS.md`](../AGENTS.md); this document
 explains how to set up a working tree, where things live, and how to finish a
 change without breaking the project's evidence and licensing rules.
 
-> `AGENT_HANDOFF.md` is a dated session handoff, useful for the current state of
-> the product but not a setup guide. If it disagrees with this page, the
-> repository, [`ROADMAP.md`](../ROADMAP.md) §1 and `AGENTS.md` win.
+> Superseded session notes live in Git history. Current status is
+> [`ROADMAP.md`](../ROADMAP.md) §1 and `CHANGELOG.md`; this page is the setup and
+> workflow guide, and `AGENTS.md` holds the binding rules.
 
 ## 1. Five-minute setup
 
@@ -143,9 +143,9 @@ widget needs a decoder, it belongs behind `app/` or the session.
 2. **Read the existing tests** before adding code. Add a failing regression test
    that names the behaviour, or explain in the commit why no new test is
    possible.
-3. **Implement the smallest general change** in the right layer. Prefer a pure
-   function or presenter over a new widget, and an existing seam over a new
-   dependency.
+3. **Implement the smallest general change** in the right layer. Search the
+   existing modules first, prefer a pure function or presenter over a new widget,
+   and an existing seam over a new dependency.
 4. **Update the record in the same change**: `ROADMAP.md` marker/status,
    `CHANGELOG.md` when user-visible, and the relevant `docs/` section. Do not
    invent numbers; if you measured something, record the environment and date.
@@ -175,6 +175,14 @@ A change is done only when all of these are true:
       `app/`, not in the widget.
 
 ## 7. Evidence and privacy rules
+
+Before repeating a dataset, licensing, chord-decoding or engine comparison,
+read [`ENGINE_COMPARISON.md`](ENGINE_COMPARISON.md), [`DATASET.md`](DATASET.md),
+[`LICENSE_AUDIT.md`](LICENSE_AUDIT.md) and
+[`DEPENDENCY_MATRIX.md`](DEPENDENCY_MATRIX.md). Those questions have measured
+answers; do not re-open them without a concrete new dependency or product
+reason. The product path comes first: research and benchmarks support it, they
+do not replace it.
 
 - **Never invent a number.** A benchmark or accuracy figure needs a committed
   script, a fixed input manifest, the environment and the date. `CSR 0.6312` is

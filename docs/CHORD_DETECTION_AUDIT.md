@@ -429,8 +429,8 @@ can claim a gain.
 
 * The recorded chord number is **CSR 0.4260** on 180 GuitarSet takes, with
   change-detection F1 0.6202, compared with 0.3676 / 0.3144 for the majority
-  smoother. It is cited in `ROADMAP.md` §1 and §10, `AGENTS.md`, `CHANGELOG.md`
-  and `AGENT_HANDOFF.md`.
+  smoother. It is cited in `ROADMAP.md` §1 and §10, `AGENTS.md` and
+  `CHANGELOG.md`.
 * This audit did **not** reproduce that measurement: it needs the GuitarSet
   audio, which is not committed, and a harness that is not in the repository.
   The number is therefore treated as a prior recorded result, not as a fresh

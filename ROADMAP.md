@@ -344,12 +344,12 @@ against the same harness, not a missing foundation.
   same bullet still listed a lyrics engine as remaining work although Phases E
   and F are `[x]`, the test counts carried no date, and
   `docs/GUI_REQUIREMENTS.md` did not record
-  the window's Language menu. `AGENT_HANDOFF.md`'s "Partially implemented"
+  the window's Language menu. The dated session handoff's "Partially implemented"
   entry for decoding said the same, and was corrected with it. The `AGENTS.md`
   line about the registered engines is now stale in the same way (it predates
   the lyrics engine) and was left alone as the instruction file.
 * Resolved on 2026-10-08: the "no Qt code in `src/`" claims in `README.md`,
-  `AGENT_HANDOFF.md`, `docs/GUI_REQUIREMENTS.md` and `docs/ARCHITECTURE.md`
+  `docs/GUI_REQUIREMENTS.md` and `docs/ARCHITECTURE.md`
   (the window exists now), the stale `README.md` test badge again, and the
   `docs/DEPENDENCY_MATRIX.md` §2.1/§8 rows that still spoke of PyQt6 and Qt
   Multimedia as future work.
@@ -708,8 +708,7 @@ open-questions are listed there.
 `engines/lyrics_chunking.py`, `engines/lyrics_parakeet.py`,
 `cli/commands/lyrics.py`, `utils/text.py`, `analysis/service.py`,
 `pyproject.toml` (optional `lyrics` extra), `tests/`; docs `ENGINE_COMPARISON.md`,
-`README.md`, `AGENT_HANDOFF.md`, `CHANGELOG.md`, `DEPENDENCY_MATRIX.md`,
-`LICENSE_AUDIT.md`.
+`README.md`, `CHANGELOG.md`, `DEPENDENCY_MATRIX.md`, `LICENSE_AUDIT.md`.
 
 ### Acceptance criteria
 

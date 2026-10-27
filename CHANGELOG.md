@@ -299,13 +299,24 @@ the project uses [semantic versioning](https://semver.org/).
   link-7 row and the milestone conclusion rewritten),
   `docs/GUI_REQUIREMENTS.md` (what exists now, what is still `[F]`),
   `docs/ARCHITECTURE.md` (layer diagram, layout, status table),
-  `AGENT_HANDOFF.md`, `README.md`, `AGENTS.md` and the dependency/licence docs.
+  `README.md`, `AGENTS.md` and the dependency/licence docs.
 
 Honest limits of that window: it is the **minimal** window, so editing,
 undo/redo, lyrics, transpose, exports, a confidence panel and translations are
 not in it; it reuses the session's `sounddevice` player rather than a Qt
 Multimedia backend; and it claims **synchronization, not accuracy** — wrong
 chords are still wrong until Phase I.
+
+### Removed
+
+* **Dated `AGENT_HANDOFF.md` (2026-10-27).** Removed so new agents have one
+  setup path instead of a 29 KB session log that overlaps `ROADMAP.md`,
+  `CHANGELOG.md` and the onboarding guide. Its durable guidance (product-first
+  priority, reuse existing components, do not repeat measured research) now
+  lives in `AGENTS.md` and `docs/AGENT_ONBOARDING.md`. The file also carried
+  tool-specific instructions (a Codebuff commit footer and author-local
+  `.venv-chords` paths) that would mislead other agents. Git history keeps it
+  recoverable (`git log -- AGENT_HANDOFF.md`).
 
 ### Fixed
 

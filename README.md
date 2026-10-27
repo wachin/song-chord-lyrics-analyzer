@@ -377,6 +377,9 @@ source .venv/bin/activate          # or .venv-chords, if that is your environmen
 songlab gui
 ```
 
+![Song Chord Lyrics Analyzer early GUI screenshot](./images/01-song-chord-lyrics-analizer-early.png)
+
+
 Use **Open...** in the window, or pass a file directly with
 `songlab gui song.mp3`. The window needs the `gui`, `dsp` and `playback` extras;
 the installation section above installs them.

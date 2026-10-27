@@ -307,6 +307,17 @@ not in it; it reuses the session's `sounddevice` player rather than a Qt
 Multimedia backend; and it claims **synchronization, not accuracy** — wrong
 chords are still wrong until Phase I.
 
+### Changed
+
+* **README is GUI-first; detailed usage moved to `docs/USAGE.md`
+  (2026-10-27).** The README now keeps only installation, the short
+  `source .venv-chords/bin/activate` / `songlab gui` quick start, and links for
+  developers and agents. The command list, `songlab play` demo, window
+  description, MX Linux launch example and screenshots moved to
+  [`docs/USAGE.md`](docs/USAGE.md), where someone who needs the CLI can find
+  them without making the README's first screen about commands the window user
+  never runs.
+
 ### Removed
 
 * **Dated `AGENT_HANDOFF.md` (2026-10-27).** Removed so new agents have one

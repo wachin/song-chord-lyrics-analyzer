@@ -51,6 +51,7 @@ from song_chord_lyrics_analyzer.app import (
     SongSession,
     chord_bands,
     frame_from,
+    import_chart,
     lyric_at,
     summarize,
     word_at,
@@ -70,6 +71,7 @@ from song_chord_lyrics_analyzer.app.editing import (
     SplitChord,
     TransposeChords,
     TrimChord,
+    with_chart_bases,
     with_lyric_base,
 )
 from song_chord_lyrics_analyzer.app.persistence import (
@@ -98,7 +100,8 @@ from song_chord_lyrics_analyzer.i18n import (
 )
 from song_chord_lyrics_analyzer.models.analysis import AnalysisResult
 from song_chord_lyrics_analyzer.models.lyrics import LyricSegment
-from song_chord_lyrics_analyzer.utils.errors import SongLabError
+from song_chord_lyrics_analyzer.models.music import ChordEvent
+from song_chord_lyrics_analyzer.utils.errors import InputError, SongLabError
 
 __all__ = ["AUDIO_FILTER", "AUDIO_SUFFIXES", "EXPORT_FILTER", "MainWindow", "launch"]
 
@@ -129,6 +132,9 @@ EXPORT_FILTER = "ChordPro (*.pro *.crd);;Markdown (*.md);;JSON (*.json)"
 #: The open dialog's format choice for an external lyric file (Phase F): the
 #: karaoke format musicians share first, SubRip titles second.
 LYRICS_FILTER = "Timed lyrics (*.lrc *.srt);;All files (*)"
+
+#: The chart import dialog's format choice: a plain-text chord chart.
+CHART_FILTER = "Chord charts (*.txt);;All files (*)"
 
 _EXPORT_FORMAT_BY_FILTER = {
     "ChordPro (*.pro *.crd)": "chordpro",
@@ -221,6 +227,9 @@ class MainWindow(QMainWindow):
         #: The lyric base the sidecar carries, same purpose as the commands:
         #: a base swapped for an external file is unsaved work too (Phase F).
         self._saved_base_lyrics: tuple[LyricSegment, ...] = ()
+        #: The chord base the sidecar carries. A chart import replaces both
+        #: bases, so the chord base is part of "nothing is unsaved" too.
+        self._saved_base_chords: tuple[ChordEvent, ...] = ()
 
         #: The window's language: English (the source) until the user picks
         #: an installed catalogue from the Language menu. Never guessed from
@@ -370,6 +379,12 @@ class MainWindow(QMainWindow):
         self._lyrics_load_action.setShortcut(QKeySequence("Ctrl+L"))
         self._lyrics_load_action.triggered.connect(self.load_lyrics_dialog)
 
+        # Phase F extension: a plain-text chord chart becomes both the chord
+        # and the lyric base, with its words timed from the transcript.
+        self._chart_load_action = QAction(self.tr("Load chord chart..."), self)
+        self._chart_load_action.setShortcut(QKeySequence("Ctrl+Shift+L"))
+        self._chart_load_action.triggered.connect(self.load_chart_dialog)
+
         toolbar = self.addToolBar(self.tr("Transport"))
         assert toolbar is not None  # always created by QMainWindow
         toolbar.setMovable(False)
@@ -391,6 +406,7 @@ class MainWindow(QMainWindow):
         edit_menu.addAction(self._simplify_action)
         edit_menu.addSeparator()
         edit_menu.addAction(self._lyrics_load_action)
+        edit_menu.addAction(self._chart_load_action)
 
     def _build_widgets(self) -> None:
         self._chord_label = QLabel("--")
@@ -545,6 +561,7 @@ class MainWindow(QMainWindow):
         self._simplify_action.setText(self.tr("Simplify chords"))
         self._export_action.setText(self.tr("Export document..."))
         self._lyrics_load_action.setText(self.tr("Load lyrics from file..."))
+        self._chart_load_action.setText(self.tr("Load chord chart..."))
         self._timeline.retranslate()
 
     # -- opening a song ----------------------------------------------------
@@ -660,6 +677,7 @@ class MainWindow(QMainWindow):
         # included (a sidecar can carry an external lyric base).
         assert self._edits is not None
         self._saved_applied = self._edits.applied
+        self._saved_base_chords = self._edits.base
         self._saved_base_lyrics = self._edits.base_lyrics
         self._populate_timeline()
         self._populate_lyrics()
@@ -1204,8 +1222,9 @@ class MainWindow(QMainWindow):
         """
         undo, redo, save = self._undo_action, self._redo_action, self._save_action
         export, lyrics_load = self._export_action, self._lyrics_load_action
+        chart_load = self._chart_load_action
         open_action, play = self._open_action, self._play_action
-        assert None not in (undo, redo, save, export, lyrics_load, open_action, play)
+        assert None not in (undo, redo, save, export, lyrics_load, chart_load, open_action, play)
         loading = self._loading is not None
         open_action.setEnabled(not loading)
         for action in (play, self._stop_action, self._back_action, self._forward_action):
@@ -1217,6 +1236,7 @@ class MainWindow(QMainWindow):
         save.setEnabled(not loading and self._edits is not None and len(self._edits) > 0)
         export.setEnabled(not loading and self._session.is_open)
         lyrics_load.setEnabled(not loading and self._session.is_open)
+        chart_load.setEnabled(not loading and self._session.is_open)
 
     # -- persistence (Phase G) --------------------------------------------
 
@@ -1233,7 +1253,8 @@ class MainWindow(QMainWindow):
         # An empty tape is nothing to save - unless the lyric base changed
         # under it (an external .lrc/.srt swap), which is work worth persisting.
         base_changed = self._edits is not None and (
-            self._edits.base_lyrics != self._saved_base_lyrics
+            self._edits.base != self._saved_base_chords
+            or self._edits.base_lyrics != self._saved_base_lyrics
         )
         if self._edits is None or (len(self._edits) == 0 and not base_changed):
             return False
@@ -1256,6 +1277,7 @@ class MainWindow(QMainWindow):
         status_bar.showMessage(self.tr("Edits saved to {name}").format(name=target.name), 5000)
         assert self._edits is not None  # guarded above
         self._saved_applied = self._edits.applied
+        self._saved_base_chords = self._edits.base
         self._saved_base_lyrics = self._edits.base_lyrics
         return True
 
@@ -1377,6 +1399,96 @@ class MainWindow(QMainWindow):
         )
         return True
 
+    def load_chart_dialog(self) -> bool:
+        """Ask for a plain-text chord chart and make it the timed base."""
+        if self._session.path is None or not self._session.is_open:
+            return False
+        chosen, _selected = QFileDialog.getOpenFileName(
+            self,
+            self.tr("Load chord chart"),
+            "",
+            CHART_FILTER,
+        )
+        if not chosen:
+            return False
+        return self.load_chart_from(Path(chosen))
+
+    def load_chart_from(self, source: Path) -> bool:
+        """Import ``source`` as the timed chord and lyric base.
+
+        The chart supplies both texts; the detector supplies the chord times and
+        the transcript supplies the lyric times. Both bases change, so the old
+        edit tape is replaced rather than replayed (its commands addressed the
+        engine's layers). The import counts as unsaved work until Ctrl+S writes
+        the chart base to the sidecar. A layer that could not be timed keeps the
+        previous layer and says why in the status bar.
+
+        Returns:
+            ``True`` when the chart chords were imported; ``False`` when there
+            is no open song, the file cannot be read, or no chart chord can be
+            timed (already reported).
+        """
+        edits = self._edits
+        if edits is None or not self._session.is_open:
+            return False
+        if self._unsaved_edits():
+            answer = QMessageBox.question(
+                self,
+                self.tr("Unsaved edits"),
+                self.tr(
+                    "Loading a chord chart replaces the current chord and lyric "
+                    "layers. Discard the unsaved edits?"
+                ),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Cancel,
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                return False
+        duration = self._session.duration()
+        try:
+            text = source.read_text(encoding="utf-8")
+            imported = import_chart(
+                text,
+                detected_chords=edits.base,
+                transcript=edits.base_lyrics,
+                duration=duration,
+                source=source.name,
+            )
+        except (OSError, ValueError) as error:
+            self._report(
+                InputError(
+                    f"Could not import the chart {source.name}: {error}",
+                    hint="A chart needs at least one line made only of chord names.",
+                )
+            )
+            return False
+        if not imported.chords:
+            self._report(
+                InputError(
+                    f"Could not time the chart {source.name}.",
+                    hint="; ".join(imported.warnings)
+                    or "The chart has no chord that matches the detected timeline.",
+                )
+            )
+            return False
+        lyrics = imported.lyrics if imported.lyrics is not None else edits.base_lyrics
+        self._edits = with_chart_bases(edits, chords=imported.chords, lyrics=lyrics)
+        self._populate_timeline()
+        self._populate_lyrics()
+        self._update_actions()
+        self.refresh()
+        status_bar = self.statusBar()
+        assert status_bar is not None  # QMainWindow always creates one on demand
+        message = self.tr("Chart loaded from {name}: {chords} chords, {lines} lyric lines").format(
+            name=source.name,
+            chords=len(imported.chords),
+            lines=len(lyrics),
+        )
+        if imported.warnings:
+            message += " — " + "; ".join(imported.warnings)
+        status_bar.showMessage(message, 12000)
+        return True
+
     def _restore_saved_edits(self, path: Path) -> None:
         """Replay the sidecar over the freshly analysed engine layer, if any.
 
@@ -1477,13 +1589,15 @@ class MainWindow(QMainWindow):
 
         Commands are frozen dataclasses, so tuple equality is exact: undoing
         back to the saved state counts as saved, and a redo counts as unsaved.
-        The same holds for the lyric base after a Phase F swap - the sidecar
-        persists it, so an unsaved swap must keep the close prompt honest.
+        The same holds for the chord and lyric bases after a Phase F swap or a
+        chart import - the sidecar persists them, so an unsaved base must keep
+        the close prompt honest.
         """
         if self._edits is None:
             return False
         return (
             self._edits.applied != self._saved_applied
+            or self._edits.base != self._saved_base_chords
             or self._edits.base_lyrics != self._saved_base_lyrics
         )
 
@@ -1491,8 +1605,8 @@ class MainWindow(QMainWindow):
         """Ask what to do about unsaved edits; ``True`` closes the window."""
         answer = QMessageBox.question(
             self,
-            self.tr("Unsaved chord edits"),
-            self.tr("The chord edits have not been saved. Save them before closing?"),
+            self.tr("Unsaved edits"),
+            self.tr("The chord and lyric edits have not been saved. Save them before closing?"),
             QMessageBox.StandardButton.Save
             | QMessageBox.StandardButton.Discard
             | QMessageBox.StandardButton.Cancel,

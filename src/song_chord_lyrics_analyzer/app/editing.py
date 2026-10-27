@@ -77,6 +77,7 @@ __all__ = [
     "TrimChord",
     "effective_chords",
     "effective_lyrics",
+    "with_chart_bases",
     "with_lyric_base",
 ]
 
@@ -874,3 +875,21 @@ def with_lyric_base(stack: CommandStack, lines: Sequence[LyricSegment]) -> Comma
         if isinstance(command, ChordCommand):
             rebuilt.push(command)
     return rebuilt
+
+
+def with_chart_bases(
+    stack: CommandStack,
+    *,
+    chords: Sequence[ChordEvent],
+    lyrics: Sequence[LyricSegment],
+) -> CommandStack:
+    """A new stack over imported chart layers; the old commands are dropped.
+
+    A chart import replaces **both** bases, so a command from the old tape has
+    nothing left to address: its chord index, its lyric display index and its
+    boundaries belong to the engine's layers, not to the chart. Opening a song
+    starts a fresh tape for the same reason. The caller decides what to do with
+    the old layer (the window offers it as unsaved work before the swap and the
+    chart import is itself a base swap, not an undoable command).
+    """
+    return CommandStack(chords, lyrics=lyrics)

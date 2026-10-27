@@ -1026,8 +1026,12 @@ chord columns), and the lyrics/chart panel gets more of the window width. The
 lyrics themselves remain the engine's transcript: on this song it mixed in
 Portuguese-like words even though the recording is Spanish, because Parakeet
 auto-detects per 20 s window and its runtime does not accept a language hint.
-Replacing the transcript with a user-authored chart is a separate feature, not
-a display bug; it is listed in the roadmap's parity backlog.
+Replacing the transcript with a user-authored chart was a separate feature, not
+a display bug; it landed on 2026-10-27 as `app/chart_import.py` + Edit → Load
+chord chart... (`Ctrl+Shift+L`), with the chart's chords timed from the detected
+sequence and its words from the transcript. The import was verified on this
+song: 86 timed chart chords and 36 correct lyric lines, 83/182 chart words
+anchored. The timing is alignment-based, not beat-level (ROADMAP §16).
 
 **Still open.** P4 bass/slash, P5 duration/metrical model, P6 vocabulary (needs
 bass evidence first), P7 shared decode/chroma, P8/learned engine. The template

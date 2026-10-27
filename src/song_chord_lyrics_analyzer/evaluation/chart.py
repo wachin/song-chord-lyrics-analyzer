@@ -101,6 +101,9 @@ class ChordChart:
         sections: Section names in square brackets, in order.
         lyric_lines: Lyric text lines, kept for a future chart import; they do
             not contribute chords.
+        content_lyrics: Lyric text lines after the chart's first section header
+            or chord line. The lines before it are title/artist metadata, not
+            sung text, so a chart import starts here.
         source: The file name the chart came from, when the caller has one.
     """
 
@@ -108,6 +111,7 @@ class ChordChart:
     chord_lines: tuple[tuple[str, ...], ...]
     sections: tuple[str, ...]
     lyric_lines: tuple[str, ...]
+    content_lyrics: tuple[str, ...] = ()
     source: str | None = None
 
     @property
@@ -144,24 +148,31 @@ def parse_chord_chart(text: str, *, source: str | None = None) -> ChordChart:
     chord_lines: list[tuple[str, ...]] = []
     sections: list[str] = []
     lyric_lines: list[str] = []
+    content_lyrics: list[str] = []
+    content_started = False
     for raw in text.splitlines():
         stripped = raw.strip()
         if not stripped:
             continue
         if stripped.startswith("[") and stripped.endswith("]"):
             sections.append(stripped[1:-1].strip())
+            content_started = True
             continue
         tokens = _tokens(stripped)
         if tokens and all(_CHORD_TOKEN.match(token) for token in tokens):
             chord_lines.append(tuple(tokens))
             chords.extend(tokens)
+            content_started = True
         else:
             lyric_lines.append(stripped)
+            if content_started:
+                content_lyrics.append(stripped)
     return ChordChart(
         chords=tuple(chords),
         chord_lines=tuple(chord_lines),
         sections=tuple(sections),
         lyric_lines=tuple(lyric_lines),
+        content_lyrics=tuple(content_lyrics),
         source=source,
     )
 
@@ -174,11 +185,17 @@ class AlignmentOp:
         reference: The chart chord, or ``None`` for an extra detection.
         hypothesis: The detected chord, or ``None`` for a missing chart chord.
         kind: ``"match"``, ``"substitution"``, ``"missing"`` or ``"extra"``.
+        reference_index: Zero-based index in the chart sequence, when present.
+        hypothesis_index: Zero-based index in the detected sequence, when
+            present. Chart import uses these to map a chart chord onto the
+            detected event's timestamps.
     """
 
     reference: str | None
     hypothesis: str | None
     kind: str
+    reference_index: int | None = None
+    hypothesis_index: int | None = None
 
 
 @dataclass(frozen=True)
@@ -306,14 +323,30 @@ def align_chord_sequences(
                     reference=reference[row - 1],
                     hypothesis=hypothesis[col - 1],
                     kind=move,
+                    reference_index=row - 1,
+                    hypothesis_index=col - 1,
                 )
             )
             row -= 1
             col -= 1
         elif move == "missing":
-            ops.append(AlignmentOp(reference=reference[row - 1], hypothesis=None, kind="missing"))
+            ops.append(
+                AlignmentOp(
+                    reference=reference[row - 1],
+                    hypothesis=None,
+                    kind="missing",
+                    reference_index=row - 1,
+                )
+            )
             row -= 1
         else:  # extra
-            ops.append(AlignmentOp(reference=None, hypothesis=hypothesis[col - 1], kind="extra"))
+            ops.append(
+                AlignmentOp(
+                    reference=None,
+                    hypothesis=hypothesis[col - 1],
+                    kind="extra",
+                    hypothesis_index=col - 1,
+                )
+            )
             col -= 1
     return Alignment(ops=tuple(reversed(ops)), score=scores[rows][cols])

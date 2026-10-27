@@ -8,6 +8,30 @@ the project uses [semantic versioning](https://semver.org/).
 
 ### Added
 
+* **Plain-text chart import (2026-10-27).** A user's own chart can now be the
+  window's lyric and chord source instead of only a checking reference:
+  * `app/chart_import.py` parses the chart's chord sequence and sung lines;
+    chords are timed by aligning the chart sequence to the detected sequence
+    (leading/trailing chart chords share a neighbour's span rather than being
+    dropped), and lyric lines are timed by aligning their words to the
+    transcript's timed words, keeping the chart's spelling and interpolating
+    only unmatched words. Title/artist lines before the first `[Section]` or
+    chord line are excluded. A layer that cannot be aligned is returned empty
+    or `None` with a warning; the caller keeps what it had.
+  * `MainWindow.load_chart_from()` / **Edit → Load chord chart...**
+    (`Ctrl+Shift+L`) replaces both bases through `with_chart_bases` (old
+    commands are dropped, with a confirmation when there are unsaved edits),
+    reports the import and any interpolated layer in the status bar, and stores
+    the chart base in the sidecar on `Ctrl+S`. `_saved_base_chords` makes the
+    chart swap count as unsaved work even when the tape itself is empty.
+  * Tests: 11 importer tests (`tests/unit/test_chart_import.py`) and 6 window
+    tests (`TestImportingAChordChart`). Verified on the private 5:27 song: 86
+    timed chart chords, 36 correct lyric lines, 83/182 chart words anchored
+    (2026-10-27); the song and chart stay out of the repository.
+  * Limitation: the timing is alignment-based, not beat-level; chart sections
+    and chord columns are not used for timing, and the chart path is not yet
+    recorded in provenance.
+
 * **Measured minimum-duration pass and a local chart reference (2026-10-27).**
   * `engines/chroma_baseline.py` — `DEFAULT_MIN_SEGMENT_SECONDS` moved from
     0.30 s to **0.50 s**. On the same 180 GuitarSet comping takes and instructed
@@ -39,9 +63,10 @@ the project uses [semantic versioning](https://semver.org/).
     splitter now gives the chart as much width as the waveform.
   * Tests: chart parser/alignment unit tests, a command-wiring test, the
     no-wrap widget test, and the updated engine-option expectations.
-  * **Gate (2026-10-27):** `ruff check` clean, `ruff format --check` 170 files
-    clean, `mypy` 92 files clean, `.venv-chords` **2114 passed / 2 skipped in
-    284 s**, `.venv` **2106 passed / 10 skipped in 207 s**.
+  * **Gate (2026-10-27, after the chart import):** `ruff check` clean,
+    `ruff format --check` 172 files clean, `mypy` 93 files clean,
+    `.venv-chords` **2131 passed / 2 skipped in 258 s**, `.venv` **2123 passed
+    / 10 skipped in 248 s**.
 * **Chords above the synchronized lyrics (roadmap Phase F, 2026-10-21).** The
   window now draws the Chordify-style chart the project was missing:
   * `app/chord_lyrics.py` (new) — pure presenter. Every chord is seated above

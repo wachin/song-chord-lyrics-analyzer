@@ -1577,6 +1577,7 @@ class TestLoadingLyricsFromAFile:
             "Transpose chords...",
             "Simplify chords",
             "Load lyrics from file...",
+            "Load chord chart...",
         ]
 
     def test_loading_is_enabled_only_once_a_song_is_open(self, qt_app: object, wav: Path) -> None:
@@ -1960,6 +1961,7 @@ class TestTheAnalysisRunsOffTheUiThread:
             "Transpose chords...",
             "Simplify chords",
             "Load lyrics from file...",
+            "Load chord chart...",
         ]  # Save Edits stays off: an empty tape is nothing to save
         assert worker_window.progress.isVisible() is False
 
@@ -2071,3 +2073,107 @@ class TestTheChartFromATimedTextFile:
 
         assert [row.text for row in window.lyrics.rows] == ["hola mundo", "adios amor"]
         assert [row.chord_row for row in window.lyrics.rows] == ["C   G", "N   F"]
+
+
+class TestImportingAChordChart:
+    """A user's chart becomes both bases; the engine layers are left behind."""
+
+    def test_the_chart_replaces_the_chords_and_the_lyric_text(
+        self, window: MainWindow, tmp_path: Path
+    ) -> None:
+        chart = tmp_path / "song.txt"
+        chart.write_text(
+            "[Intro]\nC G\n[Verse]\nC G\nhola mundo\nAm F\nadios amor\n",
+            encoding="utf-8",
+        )
+
+        assert window.load_chart_from(chart) is True
+
+        assert window.edits is not None
+        assert [event.label for event in window.edits.base] == [
+            "C",
+            "G",
+            "C",
+            "G",
+            "Am",
+            "F",
+        ]
+        assert [line.text for line in window.lyrics.lines] == ["hola mundo", "adios amor"]
+        assert all(line.source == "chart" for line in window.lyrics.lines)
+        assert window._unsaved_edits() is True
+
+    def test_a_chart_whose_words_do_not_match_keeps_the_transcript(
+        self, window: MainWindow, tmp_path: Path
+    ) -> None:
+        chart = tmp_path / "song.txt"
+        chart.write_text(
+            "[Verse]\nC G\nsomething completely different\nAm F\nnot the transcript\n",
+            encoding="utf-8",
+        )
+
+        assert window.load_chart_from(chart) is True
+
+        assert [event.label for event in window.edits.base] == ["C", "G", "Am", "F"]  # type: ignore[union-attr]
+        assert [line.text for line in window.lyrics.lines] == ["hola mundo", "adios amor"]
+        status = window.statusBar().currentMessage()
+        assert "could not be matched" in status
+
+    def test_the_imported_base_is_saved_as_unsaved_work(
+        self, window: MainWindow, tmp_path: Path
+    ) -> None:
+        chart = tmp_path / "song.txt"
+        chart.write_text("[Verse]\nC G\nhola mundo\nAm F\nadios amor\n", encoding="utf-8")
+        assert window.load_chart_from(chart) is True
+
+        assert window.save_edits_sidecar() is True
+
+        assert window._unsaved_edits() is False
+
+    def test_importing_over_unsaved_edits_asks_and_drops_them(
+        self,
+        window: MainWindow,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(QtWidgets.QInputDialog, "getText", lambda *a, **k: ("Am", True))
+        assert window.edit_chord_at(0.5) is True
+        asked: list[str] = []
+
+        def _yes(*args: object, **kwargs: object) -> object:
+            asked.append("asked")
+            return QtWidgets.QMessageBox.StandardButton.Yes
+
+        monkeypatch.setattr(QtWidgets.QMessageBox, "question", _yes)
+        chart = tmp_path / "song.txt"
+        chart.write_text("[Verse]\nC G\nhola mundo\nAm F\nadios amor\n", encoding="utf-8")
+
+        assert window.load_chart_from(chart) is True
+
+        assert asked == ["asked"]
+        assert window.edits is not None and len(window.edits) == 0
+
+    def test_the_chart_base_survives_a_reopen(
+        self, window: MainWindow, wav: Path, tmp_path: Path
+    ) -> None:
+        chart = tmp_path / "song.txt"
+        chart.write_text("[Verse]\nC G\nhola mundo\nAm F\nadios amor\n", encoding="utf-8")
+        assert window.load_chart_from(chart) is True
+        assert window.save_edits_sidecar() is True
+
+        session, _player, _clock = opened_session(wav)
+        fresh = MainWindow(session=session, analysis=ImmediateAnalysis(session))
+        assert fresh.open_file(wav) is True
+
+        assert fresh.edits is not None
+        assert [event.label for event in fresh.edits.base] == ["C", "G", "Am", "F"]
+        assert [line.text for line in fresh.lyrics.lines] == ["hola mundo", "adios amor"]
+
+    def test_the_action_is_disabled_without_a_song(self, qt_app: object) -> None:
+        empty = MainWindow()
+        action = next(
+            action
+            for toolbar in empty.findChildren(QtWidgets.QToolBar)
+            for action in toolbar.actions()
+            if action.text() == "Load chord chart..."
+        )
+        assert action.isEnabled() is False

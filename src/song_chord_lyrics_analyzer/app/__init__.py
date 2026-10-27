@@ -10,8 +10,10 @@ Roadmap Phases C and D.
 
 from __future__ import annotations
 
+import song_chord_lyrics_analyzer.app.chart_import as _chart_import
 import song_chord_lyrics_analyzer.app.chord_lyrics as _chord_lyrics
 import song_chord_lyrics_analyzer.app.lyrics_view as _lyrics_view
+from song_chord_lyrics_analyzer.app.chart_import import ChartImport, import_chart
 from song_chord_lyrics_analyzer.app.chord_lyrics import (
     ChordLyricLine,
     PlacedChord,
@@ -41,6 +43,7 @@ from song_chord_lyrics_analyzer.app.timeline import (
 
 __all__ = [
     "DEFAULT_REFRESH_INTERVAL",
+    "ChartImport",
     "ChordBand",
     "ChordLyricLine",
     "ConsoleDisplay",
@@ -52,6 +55,7 @@ __all__ = [
     "SummaryRow",
     "chord_bands",
     "chord_lyric_lines",
+    "import_chart",
     "follow",
     "frame_from",
     "lyric_at",
@@ -64,5 +68,6 @@ __all__ = [
 ]
 
 #: Re-exported modules, so front ends can reach a presenter by one import.
+chart_import = _chart_import
 chord_lyrics = _chord_lyrics
 lyrics_view = _lyrics_view

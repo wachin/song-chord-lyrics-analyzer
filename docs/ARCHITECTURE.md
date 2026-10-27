@@ -31,7 +31,8 @@ analyze → own the player → `chord_at(seconds)`) and the presenters - `displa
 (the pure function that turns a `SessionSnapshot` into a `DisplayFrame`),
 `timeline.py` (a chord event as a band in seconds, and the seconds/pixel mapping
 in both directions), `summary.py` (the analysis as label/value rows) and
-`chord_lyrics.py` (each chord seated above the timed word it starts on). A front
+`chord_lyrics.py` (each chord seated above the timed word it starts on) and
+`chart_import.py` (a user chart timed from the detector and transcript). A front
 end renders; it never re-implements synchronization or geometry. `songlab play`
 is the terminal renderer, `gui/` is the window, and both draw the same frame.
 
@@ -54,7 +55,7 @@ src/song_chord_lyrics_analyzer/
 │   └── commands/         info, doctor, chords, analyze, play, gui, benchmark
 ├── app/                  session (open/analyze/play/chord_at) + the presenters
 │                         (display frame, timeline bands/geometry, summary rows,
-│                         chord-over-lyrics chart)
+│                         chord-over-lyrics chart, chart import)
 ├── gui/                  (phase D, optional `gui` extra) PyQt6 window: main_window,
 │                         timeline widget, chord-chart lyrics widget, analysis panel;
 │                         reads app/ only

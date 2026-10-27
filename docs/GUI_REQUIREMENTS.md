@@ -3,7 +3,8 @@
 > Status: **implemented** (roadmap Phase D, 2026-10-08; lyrics view
 > 2026-10-09; chord and lyric editing with persistence 2026-10-10..12;
 > transpose/simplify/export 2026-10-13; analysis off the UI thread and the
-> language menu 2026-10-14..15; **chord chart over the lyrics** 2026-10-21).
+> language menu 2026-10-14..15; **chord chart over the lyrics** 2026-10-21;
+> **plain-text chart import** 2026-10-27).
 > The window exists, is verified offscreen and on real audio, and exposes the
 > full arrangement below for the features that follow.
 
@@ -110,11 +111,15 @@ CLI, the engine or the session.
    long lyric line scrolls horizontally instead of wrapping under a chord row
    that would no longer line up.
 
-1c. **Import a plain-text chord chart** — `[ ]`. The sequence half exists
-   (`evaluation/chart.py`, `scripts/chord_chart_check.py`), but turning a
-   user-authored chart into the displayed lyric/chord base needs line-level
-   lyric alignment and a timing policy. It is the next product step for users
-   whose own lyrics differ from the transcript; it is not a display fix.
+1c. **Import a plain-text chord chart** — `[~]` (2026-10-27). **Edit → Load
+   chord chart...** (`Ctrl+Shift+L`) parses the chart, times its chords from the
+   detected sequence, times its lyric lines from the transcript's words, and
+   replaces both bases through `with_chart_bases`; the status bar reports
+   unmatched layers and the base is saved by `Ctrl+S`. `app/chart_import.py`
+   holds the importer, `tests/unit/test_chart_import.py` the timing rules and
+   `TestImportingAChordChart` the window flow. Still open: deriving timing from
+   the chart's own sections/chord columns, recording the chart path in
+   provenance, and manual correction of a badly aligned line.
 2. ~~**Chord/lyric editing**~~ **(done, 2026-10-12)** — chords first, 2026-10-10 with persistence
    2026-10-11: `app/editing.py` holds the command tape (`SetChordLabel`,
    `SplitChord`, `MergeChords`, `TrimChord`, `DeleteChord`, `InsertChord`,

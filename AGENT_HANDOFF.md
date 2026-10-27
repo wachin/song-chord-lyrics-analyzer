@@ -147,10 +147,10 @@ Phase C display work landed **2026-10-07**, the Phase D window landed
     `tests/unit/test_timeline_presenter.py`, `tests/unit/test_summary_presenter.py`,
     `tests/unit/test_peaks.py`, `tests/integration/test_gui_integration.py`
     (real engine, real file, real device where one exists, offscreen).
-- Tests: **2114 passed / 2 skipped in 284 s** (`.venv-chords`, DSP + GUI +
+- Tests: **2131 passed / 2 skipped in 258 s** (`.venv-chords`, DSP + GUI +
   real output device, `QT_QPA_PLATFORM=offscreen`, 2026-10-27); `.venv` reports
-  **2106 passed / 10 skipped** (no output device); `ruff check`,
-  `ruff format --check` (170 files), `mypy` (92 files) all green.
+  **2123 passed / 10 skipped** (no output device); `ruff check`,
+  `ruff format --check` (172 files), `mypy` (93 files) all green.
 - **Phase H transforms + export (2026-10-13):**
   - `app/editing.py` — `TransposeDocument` / `SimplifyDocument` over the
     effective layer, on the same tape as the per-chord edits (undo, redo and
@@ -172,8 +172,10 @@ Phase C display work landed **2026-10-07**, the Phase D window landed
   (window) both render the same `DisplayFrame`, and the window now draws the
   **chord-over-lyrics chart** (`app/chord_lyrics.py` + `gui/lyrics_view.py`,
   2026-10-21): each chord above the timed word it starts on, instrumental gap
-  rows, active-chord highlight and key-aware spelling. What the window does
-  **not** have yet is the remaining `[F]` depth - translations.
+  rows, active-chord highlight and key-aware spelling. A **plain-text chart
+  import** (`app/chart_import.py`, 2026-10-27) makes a user's chart the timed
+  chord and lyric base. What the window does **not** have yet is the remaining
+  `[F]` depth - translations, and section-aware chart timing.
 - **GUI testing without a screen**: the presenters are pure Python and the
   widgets are driven offscreen, but nothing here has been run by hand on
   Windows or macOS (no claim is made about them beyond the shared code path).
@@ -461,9 +463,9 @@ window draws the effective chord layer over the effective lyric layer
 (`app/chord_lyrics.py` and the rewritten `gui/lyrics_view.py`), with key-aware
 spelling and instrumental gap rows. Long rows are now `NoWrap` (wrapping used to
 break the chord columns), the chart gets half the default width, the minimum
-chord duration is 0.50 s after the measured pass, and
+chord duration is 0.50 s after the measured pass,
 `evaluation/chart.py` + `scripts/chord_chart_check.py` compare a hand chart to
-the detector. The gate is green (2114 passed / 2 skipped in `.venv-chords`).
+the detector, and `app/chart_import.py` can make that chart the timed base. The gate is green (2131 passed / 2 skipped in `.venv-chords`).
 Use the completed work as the reference for how a GUI feature is split into a
 pure presenter plus a thin widget:
 
@@ -481,11 +483,17 @@ pure presenter plus a thin widget:
 * `ROADMAP.md` §1/§7, `docs/GUI_REQUIREMENTS.md` and the changelog were updated
   in the same change.
 
-**The next product task is chart import** — load the user's plain-text chords +
-lyrics and align them to the song, so the chart shows their words instead of
-the ASR transcript. The parser and sequence alignment already exist; the missing
-piece is line-level lyric alignment and a timing policy (ROADMAP §16,
-`docs/GUI_REQUIREMENTS.md` 1c).
+**Chart import landed 2026-10-27.** `app/chart_import.py` parses the user's
+plain-text chart, times its chords from the detected sequence and its lyric
+lines from the transcript's words, and `MainWindow.load_chart_from()` (Edit →
+Load chord chart..., `Ctrl+Shift+L`) replaces both bases through
+`with_chart_bases`; the chart base is saved to the sidecar like any edit. It was
+verified on the private 5:27 song: 86 timed chart chords and 36 correct lyric
+lines, with 83/182 chart words anchored (ROADMAP Phase F,
+`tests/unit/test_chart_import.py`, `TestImportingAChordChart`). The next
+refinements are section-aware timing, using the chart's chord columns for
+sub-line placement, recording the chart path in provenance, and manual
+correction of a badly aligned line (ROADMAP §16, `docs/GUI_REQUIREMENTS.md` 1c).
 
 The next accuracy task is the **learned chord engine** specified in
 [`ROADMAP.md`](ROADMAP.md) §10 and

@@ -24,6 +24,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 
 from song_chord_lyrics_analyzer.models.music import ChordEvent
+from song_chord_lyrics_analyzer.normalization.spelling import spell_chord_label
 from song_chord_lyrics_analyzer.utils.errors import InputError
 
 __all__ = [
@@ -57,7 +58,12 @@ class ChordBand:
         return self.end - self.start
 
 
-def chord_bands(events: Iterable[ChordEvent], *, duration: float) -> tuple[ChordBand, ...]:
+def chord_bands(
+    events: Iterable[ChordEvent],
+    *,
+    duration: float,
+    prefer_flats: bool = False,
+) -> tuple[ChordBand, ...]:
     """Lay chord events out over a track of ``duration`` seconds.
 
     The rules come from the session, not from the engine:
@@ -75,6 +81,8 @@ def chord_bands(events: Iterable[ChordEvent], *, duration: float) -> tuple[Chord
         events: The chord events of a document, in any order.
         duration: Track length in seconds; ``0.0`` means "unknown", in which case
             the last band is left open-ended at its own end.
+        prefer_flats: Spell each band label for a flat key. The events are not
+            rewritten; only the drawn label changes.
 
     Returns:
         The bands in time order.
@@ -98,7 +106,7 @@ def chord_bands(events: Iterable[ChordEvent], *, duration: float) -> tuple[Chord
             ChordBand(
                 start=event.start,
                 end=end,
-                label=event.to_label(),
+                label=spell_chord_label(event.to_label(), prefer_flats=prefer_flats),
                 is_silence=event.is_silence,
             )
         )

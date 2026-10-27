@@ -7,25 +7,33 @@ both before changing anything.
 
 ## What this repository is
 
-`song-chord-lyrics-analyzer` is a **Python package plus a CLI** (`songlab`), on its
-way to a desktop application. The roadmap was reset on 2026-10-06 around the product
-path, and the *first product milestone* (Phase C) is reached: canonical typed model,
-engine interfaces, audio metadata and validation, a shared decode service, a tested
-playback layer, and the commands `songlab info`, `doctor`, `chords`, `analyze` and
-`play` — the last one plays a file and draws the chord under the playhead as it
-advances. Registered engines: chords `chroma-baseline`, key `krumhansl`, tempo
+`song-chord-lyrics-analyzer` is a **Python package plus a CLI** (`songlab`) and a
+**desktop window**, on its way to a Chordify/Chord AI-style application. The
+roadmap was reset on 2026-10-06 around the product path, and the *first product
+milestone* (Phase C) is reached: canonical typed model, engine interfaces, audio
+metadata and validation, a shared decode service, a tested playback layer, and
+the commands `songlab info`, `doctor`, `chords`, `analyze` and `play` — the last
+one plays a file and draws the chord under the playhead as it advances.
+`songlab gui` adds the window: waveform, chord strip, transport, editing and
+undo/redo, transpose/simplify, exports, external `.lrc`/`.srt` lyrics, and a
+**chord chart over the synchronized lyrics** (each chord above the timed word it
+changes on, instrumental gaps included). Registered engines: chords
+`chroma-baseline`, lyrics `parakeet-onnx`, key `krumhansl`, tempo
 `librosa-tempo`.
 
 Two claims are allowed and no more: what was **measured** (always with its
 environment and date) and what was **verified by running it**. Chord accuracy is
-*measured* (CSR 0.6121 on 180 GuitarSet comping takes against the instructed lead
-sheet, 2026-10-20, reproducible with `scripts/chord_benchmark.py`; it was 0.6029
-with the previous front-end default and the older 0.4260 did not reproduce and is
-retired — `docs/ENGINE_COMPARISON.md` §2, §3, §7), lyrics
-are research with a registered engine but no accuracy claim, and the display is a
-terminal line plus a minimal window — so the project is not yet a Chordify-style
-desktop application, and it must not be described as one.
-The authoritative status is the marker table in [`ROADMAP.md`](ROADMAP.md) §1.
+*measured* (CSR 0.6312, triad-reduced 0.6384, on 180 GuitarSet comping takes
+against the instructed lead sheet, 2026-10-27, reproducible with
+`scripts/chord_benchmark.py`; the previous front end measured 0.6121 / 0.6183
+and the retired 0.4260 did not reproduce — `docs/ENGINE_COMPARISON.md` §2, §3,
+§7, §8). Per-chord confidence is measured too (held-out Brier 0.1485, ECE
+0.0363, accuracy 0.809 at coverage 0.476; `docs/ENGINE_COMPARISON.md` §8).
+Lyrics are research with a registered engine but no accuracy claim; the display
+now includes the synchronized chord-over-lyrics chart, verified offscreen and by
+tests, but the project is not yet at the accuracy of the proprietary apps and
+must not be described as matching their published numbers. The authoritative
+status is the marker table in [`ROADMAP.md`](ROADMAP.md) §1.
 
 | Path | What it is |
 | --- | --- |

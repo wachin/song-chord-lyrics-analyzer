@@ -32,6 +32,7 @@ from song_chord_lyrics_analyzer.audio.validation import validate_audio_file
 from song_chord_lyrics_analyzer.models.analysis import AnalysisResult
 from song_chord_lyrics_analyzer.models.lyrics import LyricSegment, LyricWord
 from song_chord_lyrics_analyzer.models.music import ChordEvent
+from song_chord_lyrics_analyzer.normalization.spelling import prefers_flats
 from song_chord_lyrics_analyzer.utils.errors import InputError
 from song_chord_lyrics_analyzer.utils.logging import get_logger
 
@@ -54,6 +55,9 @@ class SessionSnapshot:
         state: Whether the player is stopped, playing or paused.
         chord: The chord event under the playhead, or ``None`` when no chord
             covers it (before the first event, in a gap, or past the end).
+        prefer_flats: Whether the song's key is conventionally spelled with
+            flats, so a display respells chord roots and basses without
+            touching the canonical document.
     """
 
     path: Path
@@ -61,6 +65,7 @@ class SessionSnapshot:
     position: float
     state: PlaybackState
     chord: ChordEvent | None
+    prefer_flats: bool = False
 
 
 class SongSession:
@@ -280,6 +285,7 @@ class SongSession:
             position=position,
             state=self.state,
             chord=self.chord_at(position),
+            prefer_flats=self.prefer_flats,
         )
 
     # -- playback ----------------------------------------------------------
@@ -374,3 +380,18 @@ class SongSession:
     def lyrics(self) -> tuple[LyricSegment, ...]:
         """The open song's lyric lines in display order (timed first)."""
         return self._lyrics
+
+    @property
+    def prefer_flats(self) -> bool:
+        """Whether chord labels should be spelled with flats for this song.
+
+        Only a major/minor key estimate counts, and an unknown key keeps the
+        canonical sharp spelling: the analysis made no claim strong enough to
+        respell a chord. The canonical document is never rewritten - a display
+        applies this, and a stored chord keeps its pitch-class spelling.
+        """
+        document = self.document
+        key = document.key if document is not None else None
+        if key is None:
+            return False
+        return prefers_flats(key.tonic, key.mode.value)

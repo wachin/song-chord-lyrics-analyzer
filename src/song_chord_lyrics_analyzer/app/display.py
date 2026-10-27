@@ -28,6 +28,7 @@ from typing import IO
 from song_chord_lyrics_analyzer.app.session import SessionSnapshot, SongSession
 from song_chord_lyrics_analyzer.audio.playback import PlaybackState
 from song_chord_lyrics_analyzer.models.music import ChordEvent
+from song_chord_lyrics_analyzer.normalization.spelling import spell_chord_label
 from song_chord_lyrics_analyzer.utils.errors import InputError
 from song_chord_lyrics_analyzer.utils.time import format_timestamp
 
@@ -66,17 +67,22 @@ class DisplayFrame:
         state: Whether the player is stopped, playing or paused.
         chord: The event under the playhead, or ``None`` when no chord is
             claimed there (before the first event, in a gap, or past the end).
+        prefer_flats: Whether to spell the chord for a flat key. The chord
+            object itself is never rewritten.
     """
 
     position: float
     duration: float
     state: PlaybackState
     chord: ChordEvent | None
+    prefer_flats: bool = False
 
     @property
     def chord_text(self) -> str:
         """The chord label to show: ``N`` for silence, ``--`` for no claim."""
-        return self.chord.to_label() if self.chord is not None else NO_CHORD_TEXT
+        if self.chord is None:
+            return NO_CHORD_TEXT
+        return spell_chord_label(self.chord.to_label(), prefer_flats=self.prefer_flats)
 
     @property
     def chord_confidence_text(self) -> str:
@@ -122,6 +128,7 @@ def frame_from(snapshot: SessionSnapshot) -> DisplayFrame:
         duration=snapshot.duration,
         state=snapshot.state,
         chord=snapshot.chord,
+        prefer_flats=snapshot.prefer_flats,
     )
 
 

@@ -16,7 +16,7 @@ from song_chord_lyrics_analyzer.analysis.service import StepOutcome, StepStatus
 from song_chord_lyrics_analyzer.app.summary import SummaryRow, summarize
 from song_chord_lyrics_analyzer.models.analysis import AnalysisResult
 from song_chord_lyrics_analyzer.models.confidence import ConfidenceScore
-from song_chord_lyrics_analyzer.models.music import TempoEstimate
+from song_chord_lyrics_analyzer.models.music import KeyEstimate, KeyMode, TempoEstimate
 
 
 def _rows(document: AnalysisResult, steps: Sequence[StepOutcome] = STEPS) -> dict[str, str]:
@@ -130,6 +130,12 @@ class TestMissingEvidence:
         outcome.result.key = None
 
         assert _rows(outcome.result)["Key"] == "unknown"
+
+    def test_a_flat_key_is_spelled_for_display(self) -> None:
+        outcome = analysis_outcome("song.wav")
+        outcome.result.key = KeyEstimate(tonic="A#", mode=KeyMode.MAJOR)
+
+        assert _rows(outcome.result)["Key"] == "Bb major"
 
     def test_no_tempo_guess_leaves_the_row_out(self) -> None:
         outcome = analysis_outcome("song.wav")

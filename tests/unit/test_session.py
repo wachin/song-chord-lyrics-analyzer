@@ -28,7 +28,12 @@ from song_chord_lyrics_analyzer.models.analysis import (
 )
 from song_chord_lyrics_analyzer.models.audio import AudioDocument
 from song_chord_lyrics_analyzer.models.lyrics import LyricSegment, LyricWord
-from song_chord_lyrics_analyzer.models.music import ChordEvent, ChordQuality
+from song_chord_lyrics_analyzer.models.music import (
+    ChordEvent,
+    ChordQuality,
+    KeyEstimate,
+    KeyMode,
+)
 from song_chord_lyrics_analyzer.utils.errors import (
     AudioFileNotFoundError,
     DependencyError,
@@ -47,12 +52,17 @@ EVENTS: list[ChordEvent] = [
 
 
 def _outcome(
-    path: Path, chords: list[ChordEvent], *, duration: float = DURATION
+    path: Path,
+    chords: list[ChordEvent],
+    *,
+    duration: float = DURATION,
+    key: KeyEstimate | None = None,
 ) -> AnalysisOutcome:
     document = AnalysisResult(
         provenance=Provenance(application_version=__version__, input_path=str(path)),
         audio=AudioDocument(path=path, duration=duration),
         chords=list(chords),
+        key=key,
         run=AnalysisRun(status=RunStatus.SUCCEEDED, started_at=datetime.now(timezone.utc)),
     )
     return AnalysisOutcome(result=document, steps=())
@@ -221,6 +231,34 @@ class TestOpen:
         session = SongSession(analyze=_Recorder())
         session.open(_wav(tmp_path))
         assert session.player is not None
+
+
+class TestKeySpelling:
+    """The song's key decides the display spelling; the document keeps sharps."""
+
+    def test_a_flat_key_asks_the_display_to_spell_flats(self, tmp_path: Path) -> None:
+        path = _wav(tmp_path)
+        key = KeyEstimate(tonic="A#", mode=KeyMode.MAJOR, source="fake-key")
+        session = SongSession(
+            player=FakePlayer(), analyze=lambda _path, **_: _outcome(path, EVENTS, key=key)
+        )
+        session.open(path)
+
+        assert session.prefer_flats is True
+        snapshot = session.snapshot()
+        assert snapshot.prefer_flats is True
+        assert session.chord_at(0.0).label == "C"  # canonical and untouched
+
+    def test_an_unknown_key_keeps_the_canonical_spelling(self, tmp_path: Path) -> None:
+        path = _wav(tmp_path)
+        session = SongSession(
+            player=FakePlayer(),
+            analyze=lambda _path, **_: _outcome(path, EVENTS, key=KeyEstimate()),
+        )
+        session.open(path)
+
+        assert session.prefer_flats is False
+        assert session.snapshot().prefer_flats is False
 
 
 class TestChordLookup:

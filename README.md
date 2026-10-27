@@ -7,7 +7,7 @@
 [![Offline-first](https://img.shields.io/badge/offline--first-yes-success.svg)](#design-principles)
 [![Core dependencies](https://img.shields.io/badge/core%20dependencies-none-brightgreen.svg)](#design-principles)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
-[![Tests](https://img.shields.io/badge/tests-1340%20passing-brightgreen.svg)](#development)
+[![Tests](https://img.shields.io/badge/tests-2114%20passing-brightgreen.svg)](#development)
 
 A cross-platform, offline-first laboratory that analyzes an audio song and
 produces a synchronized representation of its **lyrics, chords, beats, tempo
@@ -22,20 +22,24 @@ and key** — with confidence and provenance attached to every inference.
   analysis → timestamped `ChordEvent`s → playback → the chord under the playhead,
   drawn by `songlab play` as a terminal line (see the
   [demo](#demo-the-chords-follow-the-song)) and by `songlab gui` in a **desktop
-  window** with a waveform timeline, a chord strip and a seekable playhead
-  (roadmap Phase D, 2026-10-08). The repository, CLI, canonical typed model,
-  engine interfaces, audio metadata, playback layer, tests and CI are all in
-  place, and three engines are registered: chords `chroma-baseline` (CQT chroma
-  matched against triad templates through an optional numpy/librosa front end),
-  key `krumhansl` and tempo `librosa-tempo`. What is still missing is the
-  *depth* of that window — editing, lyrics, exports, translations, the `[F]`
-  work listed in [`docs/GUI_REQUIREMENTS.md`](docs/GUI_REQUIREMENTS.md). Accuracy
-  work (Phase I) comes after that foundation; the measurements behind it (lyrics
-  ASR, key, tempo) came from temporary, gitignored harnesses, and the chord
-  measurement now has a committed one (`scripts/chord_benchmark.py`); all are
-  recorded in
-  [`docs/ENGINE_COMPARISON.md`](docs/ENGINE_COMPARISON.md) and
-  [`docs/DEPENDENCY_MATRIX.md`](docs/DEPENDENCY_MATRIX.md).
+  window** with a waveform timeline, a chord strip, a seekable playhead and a
+  **chord chart over the synchronized lyrics** (roadmap Phases D and F). The
+  repository, CLI, canonical typed model, engine interfaces, audio metadata,
+  playback layer, tests and CI are all in place, and four engines are registered:
+  chords `chroma-baseline` (CQT chroma matched against harmonic-weighted triad
+  templates through an optional numpy/librosa front end), lyrics
+  `parakeet-onnx`, key `krumhansl` and tempo `librosa-tempo`. The window also
+  carries editing/undo-redo, transpose/simplify, the export dialog and external
+  `.lrc`/`.srt` lyrics. What is still open is translations and the deeper
+  accuracy work. The one recorded chord-accuracy figure is duration-weighted
+  **CSR 0.6312** on 180 GuitarSet comping takes against the instructed lead
+  sheet (2026-10-27, `scripts/chord_benchmark.py`; up from 0.6121 after the
+  measured front-end/template change, all recorded in
+  [`docs/ENGINE_COMPARISON.md`](docs/ENGINE_COMPARISON.md)). It is a measured
+  score on solo acoustic guitar, **not** a claim that every song is 93 % correct:
+  the apps that advertise such numbers use different, non-public evaluations and
+  a much larger learned model.
+
 
 ## Why
 
@@ -193,12 +197,13 @@ repository root**, not in the package and not in this repository's history:
 ```
 
 The application never opens this path. It is the input of the *measurement* work
-behind the recorded chord numbers — CSR 0.6121 on 180 comping takes against the
-instructed lead sheet, and the confidence calibration fitted on the same corpus,
-recorded with their environment and date in
-[`docs/ENGINE_COMPARISON.md`](docs/ENGINE_COMPARISON.md) §6 and §7 — and the harness that
-scores it is committed at `scripts/chord_benchmark.py`, driven by the committed
-manifest [`tests/fixtures/guitarset_comp_manifest.json`](tests/fixtures/guitarset_comp_manifest.json).
+behind the recorded chord numbers — **CSR 0.6312** on 180 comping takes against
+the instructed lead sheet (2026-10-27, up from 0.6121), and the confidence
+calibration fitted on the same corpus, recorded with their environment and date
+in [`docs/ENGINE_COMPARISON.md`](docs/ENGINE_COMPARISON.md) §6, §7 and §8 — and
+the harness that scores it is committed at `scripts/chord_benchmark.py`, driven
+by the committed manifest
+[`tests/fixtures/guitarset_comp_manifest.json`](tests/fixtures/guitarset_comp_manifest.json).
 Only that manifest is in the repository; the audio never is.
 
 #### Why your file manager cannot find it
@@ -311,17 +316,17 @@ before the CLI is allowed to grow. Current state and direction:
 | Repository, CLI, canonical typed model, engine protocols, audio metadata | **implemented** |
 | Dependency and licence research (candidates adopted/deferred/rejected) | **done** |
 | Chord metrics — timing-free (align, exact/root/quality/MIREX views) and boundary-aware (segment overlap, change detection, timing error) | **library code, dependency-free** |
-| Lyrics / key / tempo / beat engines behind the interfaces | next |
+| Lyrics / key / tempo engines behind the interfaces | **implemented** (lyrics `parakeet-onnx`, key `krumhansl`, tempo `librosa-tempo`); a beat engine is still not started |
 | `songlab benchmark` — `benchmark/{benchmark.json,csv,md}` over stored results | implemented; `--engine` runs a registered chord engine over cases with audio |
 | `songlab chords` — first analysis command, on a selectable registered engine | implemented |
-| `songlab analyze` — chord + key + tempo engines assembled into the canonical document with provenance | implemented |
+| `songlab analyze` — chord + key + tempo (+ lyrics) engines assembled into the canonical document with provenance | implemented |
 | `songlab play` — playback plus the chord under the playhead, refreshed as the song advances (`--at` for one position) | implemented |
-| `chroma-baseline` engine — template matching with a Viterbi decoder (roadmap 19/20) | implemented |
+| `chroma-baseline` engine — harmonic-weighted templates with a measured Viterbi decoder, per-event confidence, key-aware display spelling | implemented (accuracy measured at CSR 0.6312 on 180 GuitarSet takes, 2026-10-27) |
 | `krumhansl` key engine — chroma profile vs the Krumhansl-Kessler profiles (roadmap 31/32) | implemented |
 | `librosa-tempo` tempo engine — BPM with half/double readings kept (roadmap 33) | implemented |
-| Stem separation, alignment, fusion, exports | later |
+| Stem separation, alignment, fusion | lyrics alignment (`.lrc`/`.srt`) implemented; stems and fusion later |
 | PyQt6 window — waveform timeline, chord strip, seekable playhead, chord label, analysis panel (`songlab gui`) | **implemented** (Phase D, minimal window; optional `gui` extra) |
-| Editing, undo/redo, lyrics view, transpose, exports, translations in that window | not started (`[F]` work, see [`docs/GUI_REQUIREMENTS.md`](docs/GUI_REQUIREMENTS.md)) |
+| Editing, undo/redo, **chord-over-lyrics chart**, lyrics view, transpose, exports in that window | **implemented** (2026-10-09..21); translations remain (`[F]`, see [`docs/GUI_REQUIREMENTS.md`](docs/GUI_REQUIREMENTS.md)) |
 
 The metric definitions are already fixed in [`docs/BENCHMARK.md`](docs/BENCHMARK.md):
 chord (exact/root/quality + segment overlap + timing error + change detection),
@@ -449,10 +454,19 @@ the terminal line prints, plus the surrounding timeline:
   with the label the session would report for that instant;
 * a **playhead** over both, moved by the same frame the terminal display renders,
   so the window and the CLI can never disagree about what is sounding;
+* a **chord chart over the lyrics**: every detected chord sits above the timed
+  word it starts on, an instrumental intro/break gets its own chord row, and the
+  active chord is highlighted while the line and word play (`app/chord_lyrics.py`
+  + `gui/lyrics_view.py`);
 * a **transport** (open, play/pause, stop, back/forward) and a click-or-drag
   timeline that seeks, plus an **analysis panel** with the file, the duration,
   the key, the tempo, which engine ran for each layer, which layer was skipped,
   the run status and the provenance summary.
+
+Chord labels are respelled for the song's key on every surface: a song detected
+in B flat shows `Bb`, `Eb` and `Gm` rather than `A#`, `D#` and `F#m`. The
+canonical document keeps its sharp-spelled pitch classes, so exports, edits and
+comparisons remain stable.
 
 The synchronization is the same one the command line uses: one
 `SongSession.snapshot()` per refresh, projected onto the same `DisplayFrame`. The
@@ -484,6 +498,12 @@ songlab gui
 
 ![Song Chord Lyrics Analyzer early GUI screenshot](images/01-song-chord-lyrics-analizer-early.png)
 
+The chart itself, captured offscreen on a generated C–G–Am–F fixture with a
+matching `.lrc` (the active chord and lyric line are highlighted at
+`00:00:06.500`):
+
+![Chords above the synchronized lyrics](images/02-chord-chart.png)
+
 * `cd` changes to the repository directory. The absolute path above is an
   **example from one machine**; replace it with your own checkout's path if it
   differs.
@@ -507,10 +527,17 @@ That figure is a **user-reported manual observation, not a benchmark or a
 measured accuracy result**. It came from one song, with no reference
 annotations and no repeatable procedure, so it must not be quoted as a
 scientifically validated 75% chord-detection accuracy. An objective number
-needs audio with timed reference chords and a fixed evaluation procedure; the
-project's candidate is GuitarSet (CC BY 4.0), the metric definitions are in
-[`docs/BENCHMARK.md`](docs/BENCHMARK.md), and the current engine's limits are
-traced in [`docs/CHORD_DETECTION_AUDIT.md`](docs/CHORD_DETECTION_AUDIT.md).
+needs audio with timed reference chords and a fixed evaluation procedure: the
+project's is GuitarSet (CC BY 4.0), scored with `scripts/chord_benchmark.py`.
+The currently recorded result is **CSR 0.6312** against the instructed lead
+sheet (180 comping takes, 2026-10-27) and **0.6384** in the triad-reduced view;
+the previous front end measured 0.6121 / 0.6183, and the first scoring step
+(0.30 s minimum) measured 0.6283 / 0.6356. The gap to the numbers a
+proprietary app quotes is real and structural: a 24-template chroma matcher is
+not a large learned model, and those apps do not publish a comparable
+evaluation. The measured limits and the next accuracy step are traced in
+[`docs/CHORD_DETECTION_AUDIT.md`](docs/CHORD_DETECTION_AUDIT.md) and
+[`docs/ENGINE_COMPARISON.md`](docs/ENGINE_COMPARISON.md) §8.
 
 When you have finished with the application, close the window and leave the
 virtual environment in that terminal session with:
@@ -545,27 +572,61 @@ songlab export    song.mp3 --format chordpro  ChordPro, JSON, Markdown, ...
 | Audio validation, FFmpeg discovery, metadata probing (WAV without FFmpeg) | implemented |
 | `songlab info`, `songlab doctor`, error handling and exit codes | implemented |
 | `songlab chords` — chord detection on a registry-selected engine (`--engine`, `--json`, time range) | implemented |
-| Chord decoder — bulk majority smoothing or max-sum Viterbi with a measured change penalty and no-chord state | implemented |
-| Per-chord confidence — the emitted label's score margin mapped through a logistic calibrated on GuitarSet (held-out Brier 0.1420); shown in `songlab analyze`, the window's panel and the chord tooltip | implemented (2026-10-20) |
+| Chord decoder — bulk majority smoothing or max-sum Viterbi with a measured change penalty, no-chord state and a 0.50 s minimum-duration merge | implemented (defaults re-measured 2026-10-27) |
+| Per-chord confidence — the emitted label's score margin mapped through a logistic calibrated on GuitarSet (held-out Brier 0.1485, ECE 0.0363, accuracy 0.809 at coverage 0.476); shown in `songlab analyze`, the window's panel and the chord tooltip | implemented (2026-10-21 refit) |
+| Key-aware display spelling — flat keys show `Bb`/`Eb`/`Ab` while the canonical document keeps sharps (held-out key from `krumhansl`) | implemented (2026-10-21) |
 | `krumhansl` key engine — key, mode and correlation confidence, scored by `songlab benchmark --engine` | implemented |
 | `librosa-tempo` tempo engine — BPM scored as absolute, half-time and double-time error by `songlab benchmark --engine` | implemented |
 | `songlab analyze` — the canonical document (`AnalysisResult` + `Provenance` + `AnalysisRun`) from the registered engines | implemented |
 | `songlab play` — play a file and show the chord under the playhead, updating with playback (terminal display; `--at`, `--interval`, `--frames`) | implemented |
 | `songlab gui` — the desktop window: waveform timeline, chord bands, playhead, transport, seek, analysis panel (optional `gui` extra) | implemented (minimal window, roadmap Phase D) |
+| Chord-over-lyrics chart — chord onset anchored to the timed word, instrumental gap rows, current chord highlighted, same clock as the playback | implemented (2026-10-21, `app/chord_lyrics.py` + `gui/lyrics_view.py`) |
 | `SongSession` + presenters (`app/`) — open → decode → analyze → player → `chord_at()` → `SessionSnapshot` → frame, band and summary rows | implemented |
 | Waveform peak data (`audio/peaks.py`) — min/max per drawn column, frame-aligned, dependency-free | implemented |
 | Chord metrics (`metrics/`) — timing-free and boundary-aware scoring views | implemented as library code |
 | Key, tempo and lyrics metrics (`metrics/`) — WER/CER, key relation, half/double BPM | implemented as library code |
 | Chord scoring semantics (`evaluation/`) — MIREX equality, duration-weighted CSR | implemented as library code |
 | `songlab benchmark` — scores stored reference/hypothesis cases into `benchmark/{json,csv,md}` | implemented; `--engine chroma-baseline` fills cases from a real measured run |
-| GUI editing, undo/redo, lyrics view, transpose, simplify and the export dialog | implemented (2026-10-09..13) |
+| Local hand-chart sequence check — `scripts/chord_chart_check.py` parses a plain-text chart and aligns its chords to the detector, no timestamps required | implemented (2026-10-27) |
+| GUI editing, undo/redo, lyrics view, **chord-over-lyrics chart**, transpose, simplify and the export dialog | implemented (2026-10-09..21) |
 | GUI translations — the Language menu ships, no catalogue does | not started (`[F]` work) |
-| Further chord decoders, lyrics/beat engines, separation, alignment, fusion | not started |
+| Further chord decoders (a learned engine is the measured next step), beat engine, stem separation, fusion | not started |
+
+## Checking a song against your own chord chart
+
+If a song already has a hand-written chart, that chart is a useful local
+reference without needing timestamps. `scripts/chord_chart_check.py` parses the
+common plain-text format — a line whose tokens are all chords is a chord line,
+`[Section]` headers are labels, every other line is lyrics — and aligns the
+chart's chords to the detector's sequence:
+
+```bash
+# run the engine on the song and compare
+python scripts/chord_chart_check.py \
+    --chart "my song.txt" \
+    --audio "my song.mp3"
+
+# or reuse a saved result
+songlab chords "my song.mp3" --json > /tmp/chords.json
+python scripts/chord_chart_check.py \
+    --chart "my song.txt" --chords-json /tmp/chords.json
+```
+
+On a private 5:27 Spanish worship recording with an 86-chord hand chart, the
+current engine matched **84 of 86 chart chords in order (97.7%)**, with two
+substitutions and fifteen extra detections (2026-10-27). That is
+**sequence agreement**, not duration-weighted accuracy: the chart has no
+timestamps, an abridged chart or a repeated section written only once will show
+missing/extra chords that are not detector mistakes, and the song/chart stay
+private and are not committed. The tool is developer tooling, not a `songlab`
+command; its parser and alignment are in `evaluation/chart.py`, its semantics
+are documented in [`docs/BENCHMARK.md`](docs/BENCHMARK.md), and the timed
+GuitarSet number remains the one quoted as accuracy.
 
 ## Development
 
 ```bash
-pytest                # 1967 tests + environment-dependent skips, no network, no models
+pytest                # 2114 tests + environment-dependent skips, no network, no models
 ruff check . && ruff format --check .
 python -m mypy
 ```

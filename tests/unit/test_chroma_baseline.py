@@ -673,3 +673,108 @@ class TestFullAnalysis:
             assert event.end is not None
             assert event.end - event.start >= 1.0 - 1e-9
             assert event.confidence.is_known
+
+
+class TestMeasuredEngineOptions:
+    """The measured defaults are options, recorded, and can be turned off."""
+
+    def test_the_defaults_are_the_measured_front_end(self) -> None:
+        assert baseline.DEFAULT_FEATURE_TRANSFORM == "sqrt"
+        assert baseline.DEFAULT_TEMPLATE_WEIGHTING == "harmonic"
+        assert baseline.DEFAULT_MIN_SEGMENT_SECONDS == 0.5
+        assert baseline.DEFAULT_CHANGE_PENALTY == 0.4
+
+    def test_every_new_option_is_recorded_on_a_run(self, tmp_path) -> None:
+        wav = write_sine_wav(tmp_path / "tone.wav", seconds=1.0, channels=1)
+
+        result = ENGINE.analyze(wav, ChordAnalysisOptions())
+
+        assert result.metadata["feature_transform"] == "sqrt"
+        assert result.metadata["template_weighting"] == "harmonic"
+        assert result.metadata["minimum_duration"] == pytest.approx(0.5)
+
+    def test_the_transform_can_be_disabled(self, tmp_path) -> None:
+        wav = write_sine_wav(tmp_path / "tone.wav", seconds=1.0, channels=1)
+
+        result = ENGINE.analyze(wav, ChordAnalysisOptions(extra={"feature_transform": "raw"}))
+
+        assert result.metadata["feature_transform"] == "raw"
+
+    def test_an_unknown_transform_is_refused_before_decoding(self, tmp_path) -> None:
+        wav = write_sine_wav(tmp_path / "tone.wav", seconds=1.0, channels=1)
+
+        with pytest.raises(InputError, match="Unknown chroma transform") as excinfo:
+            ENGINE.analyze(wav, ChordAnalysisOptions(extra={"feature_transform": "mel"}))
+
+        assert "sqrt" in str(excinfo.value.hint)
+
+    def test_an_unknown_weighting_is_refused(self, tmp_path) -> None:
+        wav = write_sine_wav(tmp_path / "tone.wav", seconds=1.0, channels=1)
+
+        with pytest.raises(InputError, match="Unknown template weighting") as excinfo:
+            ENGINE.analyze(wav, ChordAnalysisOptions(extra={"template_weighting": "flat"}))
+
+        assert "harmonic" in str(excinfo.value.hint)
+
+    def test_the_short_segment_merge_can_be_disabled(self, tmp_path) -> None:
+        wav = write_sine_wav(tmp_path / "tone.wav", seconds=1.0, channels=1)
+
+        result = ENGINE.analyze(wav, ChordAnalysisOptions(extra={"min_segment_seconds": 0}))
+
+        assert result.metadata["minimum_duration"] == pytest.approx(0.0)
+
+    def test_the_public_minimum_duration_still_wins(self, tmp_path) -> None:
+        wav = write_sine_wav(tmp_path / "tone.wav", seconds=3.0, channels=1)
+
+        result = ENGINE.analyze(wav, ChordAnalysisOptions(minimum_duration=1.0))
+
+        assert result.metadata["minimum_duration"] == pytest.approx(1.0)
+
+    def test_a_negative_min_segment_seconds_is_refused(self, tmp_path) -> None:
+        wav = write_sine_wav(tmp_path / "tone.wav", seconds=1.0, channels=1)
+
+        with pytest.raises(InputError, match="must not be negative"):
+            ENGINE.analyze(wav, ChordAnalysisOptions(extra={"min_segment_seconds": -0.1}))
+
+    def test_the_harmonic_template_penalises_the_clashing_third(self) -> None:
+        c_major = baseline.HARMONIC_TEMPLATES[0]
+        c_minor = baseline.HARMONIC_TEMPLATES[12]
+
+        assert c_major[0] == pytest.approx(1.0)
+        assert c_major[4] == pytest.approx(0.95)
+        assert c_major[7] == pytest.approx(0.85)
+        assert c_major[3] == pytest.approx(-0.35)  # the minor third is a clash
+        assert c_minor[3] == pytest.approx(0.95)
+        assert c_minor[4] == pytest.approx(-0.35)
+
+    def test_the_weighting_changes_the_scores(self) -> None:
+        frame = [0.0] * 12
+        frame[0] = 1.0
+        frame[4] = 0.5
+
+        binary = baseline.frame_scores([frame], weighting="binary")[0][0]
+        harmonic = baseline.frame_scores([frame], weighting="harmonic")[0][0]
+
+        assert binary != pytest.approx(harmonic)
+
+    def test_apply_feature_transform_keeps_silence_silent(self) -> None:
+        for transform in baseline.SUPPORTED_FEATURE_TRANSFORMS:
+            frames = baseline.apply_feature_transform([[0.0] * 12], transform)
+            assert frames == [[0.0] * 12]
+
+    def test_apply_feature_transform_compresses_positively(self) -> None:
+        frames = baseline.apply_feature_transform([[4.0] * 12], "sqrt")
+        assert frames[0][0] == pytest.approx(2.0)
+
+        logged = baseline.apply_feature_transform([[4.0] * 12], "log")
+        assert logged[0][0] == pytest.approx(__import__("math").log1p(60.0))
+
+    def test_the_public_option_carries_the_product_minimum(self) -> None:
+        assert ChordAnalysisOptions().minimum_duration == pytest.approx(0.5)
+
+    def test_zero_on_the_public_option_disables_the_merge(self, tmp_path) -> None:
+        wav = write_sine_wav(tmp_path / "tone.wav", seconds=1.0, channels=1)
+
+        result = ENGINE.analyze(wav, ChordAnalysisOptions(minimum_duration=0.0))
+
+        assert result.metadata["minimum_duration"] == pytest.approx(0.0)

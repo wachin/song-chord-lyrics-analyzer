@@ -43,7 +43,11 @@ from pathlib import Path
 from typing import Any
 
 from song_chord_lyrics_analyzer.audio.decode import decode_audio
-from song_chord_lyrics_analyzer.engines.base import ChordAnalysisOptions, EngineKind
+from song_chord_lyrics_analyzer.engines.base import (
+    DEFAULT_MINIMUM_CHORD_DURATION,
+    ChordAnalysisOptions,
+    EngineKind,
+)
 from song_chord_lyrics_analyzer.engines.decoding import viterbi_decode
 from song_chord_lyrics_analyzer.models.analysis import EngineInfo, EngineResult
 from song_chord_lyrics_analyzer.models.confidence import ConfidenceScore
@@ -61,7 +65,10 @@ __all__ = [
     "DEFAULT_CHANGE_PENALTY",
     "DEFAULT_ENERGY_GATE_DB",
     "DEFAULT_FEATURE",
+    "DEFAULT_FEATURE_TRANSFORM",
     "DEFAULT_HARMONIC",
+    "DEFAULT_MIN_SEGMENT_SECONDS",
+    "DEFAULT_TEMPLATE_WEIGHTING",
     "DEFAULT_TUNING",
     "DEFAULT_DECODER",
     "DEFAULT_MATCH_THRESHOLD",
@@ -72,11 +79,16 @@ __all__ = [
     "HOP_LENGTH",
     "SAMPLE_RATE",
     "SUPPORTED_FEATURES",
+    "SUPPORTED_FEATURE_TRANSFORMS",
+    "SUPPORTED_TEMPLATE_WEIGHTINGS",
     "SUPPORTED_TUNING",
     "TEMPLATE_LABELS",
+    "HARMONIC_TEMPLATES",
     "ChromaBaselineEngine",
     "FrontEndSettings",
+    "apply_feature_transform",
     "compute_chroma",
+    "feature_transform",
     "front_end_settings",
     "decode_labels",
     "events_from_segments",
@@ -87,12 +99,13 @@ __all__ = [
     "segment_margins",
     "segments_from_labels",
     "smooth_labels",
+    "template_weighting",
 ]
 
 #: Stable, CLI-facing engine identifier.
 ENGINE_NAME = "chroma-baseline"
 #: Engine version recorded as provenance in every result.
-ENGINE_VERSION = "0.1.0"
+ENGINE_VERSION = "0.2.0"
 
 #: Audio decoded to this mono sample rate before analysis.
 SAMPLE_RATE = 22_050
@@ -137,6 +150,32 @@ DEFAULT_ENERGY_GATE_DB = 0.0
 SUPPORTED_FEATURES: tuple[str, ...] = ("cqt", "cens")
 SUPPORTED_TUNING: tuple[str, ...] = ("zero", "auto", "estimate")
 
+#: Per-frame compression applied to the chroma before template matching.
+#: ``"sqrt"`` is the measured default (2026-10-21): it reduced the influence of
+#: one loud overtone on a 12-bin vector and gained +0.0044 duration CSR over the
+#: raw chroma on the 180 GuitarSet comping takes, with the harmonic templates
+#: below and the same decoder. ``"raw"`` keeps the previous behaviour and
+#: ``"log"`` compresses harder.
+DEFAULT_FEATURE_TRANSFORM = "sqrt"
+SUPPORTED_FEATURE_TRANSFORMS: tuple[str, ...] = ("raw", "sqrt", "log")
+
+#: Template weighting used by the engine. ``"harmonic"`` (the default) weights
+#: the root/third/fifth 1.00/0.95/0.85 and pushes the clashing third of the
+#: opposite quality negative, which measurably beat the flat binary triads of
+#: ``"binary"`` on the 180 GuitarSet comping takes (see
+#: ``docs/ENGINE_COMPARISON.md`` §8). The binary set stays the library default
+#: of :func:`frame_scores`/:func:`match_frames` so every earlier pinned test
+#: keeps describing the earlier geometry.
+DEFAULT_TEMPLATE_WEIGHTING = "harmonic"
+SUPPORTED_TEMPLATE_WEIGHTINGS: tuple[str, ...] = ("binary", "harmonic")
+
+#: Segments shorter than this are merged into a neighbour before the events are
+#: emitted. The public default lives in
+#: :data:`~song_chord_lyrics_analyzer.engines.base.DEFAULT_MINIMUM_CHORD_DURATION`
+#: because it is a product default shared by the CLI and the session; an engine
+#: caller can override it with ``extra["min_segment_seconds"]`` (0 disables).
+DEFAULT_MIN_SEGMENT_SECONDS = DEFAULT_MINIMUM_CHORD_DURATION
+
 #: CQT bins per octave. ``cqt(tuning=...)`` expects fractions of one of these
 #: bins, while :func:`librosa.estimate_tuning` returns fractions of a semitone,
 #: so an estimate is scaled by ``CQT_BINS_PER_OCTAVE / 12`` before use.
@@ -147,11 +186,11 @@ CQT_BINS_PER_OCTAVE = 36
 #: section 20).
 DEFAULT_DECODER = "viterbi"
 #: Flat transition cost per chord change for the Viterbi decoder. ``0.0``
-#: decodes every frame independently. ``0.80`` is the measured optimum on 180
-#: real GuitarSet takes (CSR, segment overlap and change-detection F1); CSR
-#: alone would push it higher at the cost of change-detection F1. The measured
-#: comparison lives in ``docs/ENGINE_COMPARISON.md``.
-DEFAULT_CHANGE_PENALTY = 0.80
+#: decodes every frame independently. The default is the measured optimum for
+#: the current front end (``sqrt`` chroma + harmonic templates): 180 GuitarSet
+#: comping takes, 2026-10-21. The previous front end measured 0.80; the number
+#: follows the emissions, which is exactly why it is re-measured with them.
+DEFAULT_CHANGE_PENALTY = 0.40
 #: Emission score of the Viterbi no-chord state. It is a constant, so a frame
 #: is decoded as ``N`` only when no triad outscores it by enough *and* the
 #: change costs the transition penalty.
@@ -164,26 +203,25 @@ DEFAULT_NO_CHORD_SCORE = 0.06
 #: right at that instant**, and only on the corpus it was fitted to: the 90
 #: even-indexed GuitarSet comping takes of
 #: ``tests/fixtures/guitarset_comp_manifest.json``, against the instructed JAMS
-#: annotation, with the default front end (``tuning="zero"`` since 2026-10-20),
-#: Viterbi decoder and change penalty. It was
-#: fitted on 2026-10-20 (Linux, CPython 3.13.5, numpy 2.5.3, librosa 1.0.0) and
-#: measured on the 90 held-out odd-indexed takes: Brier score 0.1420, expected
-#: calibration error 0.0161, and duration accuracy rising from 0.584 over all
-#: events to 0.808 over the events scoring at least 0.60 (47.2 % of the held-out
+#: annotation, with the current front end (``feature_transform="sqrt"``,
+#: ``template_weighting="harmonic"``, ``tuning="zero"``), a 0.50 s minimum
+#: segment, the Viterbi decoder and the 0.40 change penalty. It was refitted on
+#: 2026-10-27 (Linux, CPython 3.13.5, numpy 2.5.3, librosa 1.0.0) after the
+#: minimum-duration default moved to 0.50 s and measured on the 90 held-out
+#: odd-indexed takes: Brier score 0.1485, expected calibration error 0.0363, and
+#: accuracy 0.809 on the events scoring at least 0.60 (47.6 % of the held-out
 #: duration). GuitarSet is solo acoustic guitar, so elsewhere the number is a
 #: heuristic, not a guarantee.
 #:
-#: The constants follow the front end: moving the default from ``tuning="auto"``
-#: to ``tuning="zero"`` changed the chroma, so the logistic was refitted on the
-#: same corpus (``--fit-confidence`` now gives slope 23.4861 / intercept 0.1973,
-#: matching these to the fourth decimal). The earlier ``tuning="auto"`` fit was
-#: slope 24.2814 / intercept 0.1552 and is recorded in the measurement log.
-#:
-#: Reproduce the fit with
-#: ``python scripts/chord_benchmark.py --fit-confidence``; the method and the
-#: measured figures are recorded in ``docs/ENGINE_COMPARISON.md``.
-CONFIDENCE_SLOPE = 23.4861
-CONFIDENCE_INTERCEPT = 0.1973
+#: The constants follow the front end: every front-end or template change moves
+#: the margin scale, so the logistic is refitted on the same corpus with
+#: ``python scripts/chord_benchmark.py --fit-confidence``. Earlier fits (the
+#: ``tuning="auto"`` binary-template fit, slope 24.2814 / intercept 0.1552, the
+#: ``tuning="zero"`` binary-template fit, slope 23.4861 / intercept 0.1973, and
+#: the sqrt/harmonic fit before the minimum-duration change, slope 29.8735 /
+#: intercept -0.1484) are recorded in the measurement log for history only.
+CONFIDENCE_SLOPE = 28.7942
+CONFIDENCE_INTERCEPT = -0.0738
 
 #: The 24 phase-1 labels: 12 major roots first, then the 12 minor ones.
 TEMPLATE_LABELS: tuple[str, ...] = tuple(PITCH_CLASS_NAMES) + tuple(
@@ -209,21 +247,74 @@ TEMPLATES: tuple[tuple[float, ...], ...] = tuple(
     _rotate(_MAJOR, root) for root in range(12)
 ) + tuple(_rotate(_MINOR, root) for root in range(12))
 
-#: Norm shared by every triad template (three 1.0 bins): sqrt(3).
-_TEMPLATE_NORM = math.sqrt(3.0)
+
+def _harmonic_template(
+    *,
+    minor: bool,
+    root: int,
+) -> tuple[float, ...]:
+    """A weighted triad with the clashing third of the opposite quality negated.
+
+    The weights follow the physical strength of the chord tones in a plucked
+    guitar: root 1.00, third 0.95, fifth 0.85. The opposite third is a
+    *negative* weight (-0.35), so a frame carrying both thirds (a suspension, a
+    passing tone, a badly tuned recording) cannot look like a clean triad. This
+    is an original weighting; the measurement that supports it is in
+    ``docs/ENGINE_COMPARISON.md`` §8.
+    """
+    third = 3 if minor else 4
+    avoid = 4 if minor else 3
+    vector = [0.0] * 12
+    vector[(root + 0) % 12] = 1.00
+    vector[(root + third) % 12] = 0.95
+    vector[(root + 7) % 12] = 0.85
+    vector[(root + avoid) % 12] = -0.35
+    return tuple(vector)
 
 
-def _chord_scores(frame: Sequence[float]) -> list[float]:
-    """Cosine similarity of one chroma frame to each of the 24 triad templates."""
+#: The 24 harmonic templates, aligned with :data:`TEMPLATE_LABELS`.
+HARMONIC_TEMPLATES: tuple[tuple[float, ...], ...] = tuple(
+    _harmonic_template(minor=False, root=root) for root in range(12)
+) + tuple(_harmonic_template(minor=True, root=root) for root in range(12))
+
+#: Selectable template sets, by option value.
+_TEMPLATE_SETS: dict[str, tuple[tuple[float, ...], ...]] = {
+    "binary": TEMPLATES,
+    "harmonic": HARMONIC_TEMPLATES,
+}
+
+#: Norm of every template in each set, so a frame score does not recompute it.
+_TEMPLATE_NORMS: dict[str, tuple[float, ...]] = {
+    name: tuple(math.sqrt(sum(value * value for value in template)) for template in templates)
+    for name, templates in _TEMPLATE_SETS.items()
+}
+
+
+def _chord_scores(
+    frame: Sequence[float],
+    *,
+    weighting: str = "binary",
+) -> list[float]:
+    """Cosine similarity of one chroma frame to each of the 24 triad templates.
+
+    ``weighting`` selects the template set: ``"binary"`` is the original
+    three-bins-at-1.0 geometry, ``"harmonic"`` weights the chord tones and
+    penalises the clashing third. An unknown value is a programming error, not
+    user input, and raises ``ValueError`` immediately.
+    """
+    templates = _TEMPLATE_SETS.get(weighting)
+    if templates is None:
+        raise ValueError(f"unknown template weighting: {weighting!r}")
+    norms = _TEMPLATE_NORMS[weighting]
     norm = math.sqrt(sum(float(value) * float(value) for value in frame))
     if norm <= 0.0:
         return [0.0] * len(TEMPLATE_LABELS)
     scores: list[float] = []
-    for template in TEMPLATES:
+    for template, template_norm in zip(templates, norms, strict=True):
         dot = sum(
             float(value) * weight for value, weight in zip(frame, template, strict=True) if weight
         )
-        scores.append(dot / (norm * _TEMPLATE_NORM))
+        scores.append(dot / (norm * template_norm))
     return scores
 
 
@@ -231,6 +322,7 @@ def frame_scores(
     frames: Sequence[Sequence[float]],
     *,
     no_chord_score: float = DEFAULT_NO_CHORD_SCORE,
+    weighting: str = "binary",
 ) -> list[list[float]]:
     """Per-frame scores over the 24 triad states plus a no-chord state.
 
@@ -238,14 +330,18 @@ def frame_scores(
     treats *no chord* as one more state with a fixed, modest affinity rather
     than a post-hoc threshold: ``N`` is only chosen when no triad clearly wins
     and paying the change penalty to enter it is still worth it.
+
+    ``weighting`` defaults to ``"binary"`` so the function's historical contract
+    is unchanged; the engine passes its measured ``"harmonic"`` default.
     """
-    return [[*_chord_scores(frame), no_chord_score] for frame in frames]
+    return [[*_chord_scores(frame, weighting=weighting), no_chord_score] for frame in frames]
 
 
 def match_frames(
     frames: Sequence[Sequence[float]],
     *,
     threshold: float = DEFAULT_MATCH_THRESHOLD,
+    weighting: str = "binary",
 ) -> list[str]:
     """The best triad label for every chroma frame, or ``N`` when nothing fits.
 
@@ -263,7 +359,7 @@ def match_frames(
     """
     labels: list[str] = []
     for frame in frames:
-        scores = _chord_scores(frame)
+        scores = _chord_scores(frame, weighting=weighting)
         best_index = max(range(len(scores)), key=scores.__getitem__)
         labels.append(TEMPLATE_LABELS[best_index] if scores[best_index] >= threshold else "N")
     return labels
@@ -277,6 +373,7 @@ def decode_labels(
     smoothing_window: int = DEFAULT_SMOOTHING_WINDOW,
     change_penalty: float = DEFAULT_CHANGE_PENALTY,
     no_chord_score: float = DEFAULT_NO_CHORD_SCORE,
+    weighting: str = "binary",
     scores: Sequence[Sequence[float]] | None = None,
 ) -> list[str]:
     """Decode one label per frame with the selected temporal model.
@@ -297,10 +394,14 @@ def decode_labels(
             invalid (a negative ``change_penalty``).
     """
     if decoder == "majority":
-        return smooth_labels(match_frames(frames, threshold=threshold), width=smoothing_window)
+        return smooth_labels(
+            match_frames(frames, threshold=threshold, weighting=weighting), width=smoothing_window
+        )
     if decoder == "viterbi":
         emissions = (
-            frame_scores(frames, no_chord_score=no_chord_score) if scores is None else scores
+            frame_scores(frames, no_chord_score=no_chord_score, weighting=weighting)
+            if scores is None
+            else scores
         )
         path = viterbi_decode(emissions, change_penalty=change_penalty)
         return [TEMPLATE_LABELS[index] if index < len(TEMPLATE_LABELS) else "N" for index in path]
@@ -648,6 +749,64 @@ def front_end_settings(extra: Mapping[str, Any]) -> FrontEndSettings:
     )
 
 
+def feature_transform(extra: Mapping[str, Any]) -> str:
+    """The validated per-frame chroma compression from ``options.extra``.
+
+    Raises:
+        InputError: When the requested transform is not supported. Validation
+            happens before decoding, so a typo costs no DSP time and the message
+            names the accepted values.
+    """
+    value = str(extra.get("feature_transform", DEFAULT_FEATURE_TRANSFORM))
+    if value not in SUPPORTED_FEATURE_TRANSFORMS:
+        raise InputError(
+            f"Unknown chroma transform: {value!r}",
+            hint=f"Supported transforms: {', '.join(SUPPORTED_FEATURE_TRANSFORMS)}.",
+        )
+    return value
+
+
+def template_weighting(extra: Mapping[str, Any]) -> str:
+    """The validated template set from ``options.extra``.
+
+    Raises:
+        InputError: When the requested weighting is not supported.
+    """
+    value = str(extra.get("template_weighting", DEFAULT_TEMPLATE_WEIGHTING))
+    if value not in SUPPORTED_TEMPLATE_WEIGHTINGS:
+        raise InputError(
+            f"Unknown template weighting: {value!r}",
+            hint=f"Supported weightings: {', '.join(SUPPORTED_TEMPLATE_WEIGHTINGS)}.",
+        )
+    return value
+
+
+def apply_feature_transform(
+    frames: Sequence[Sequence[float]],
+    transform: str,
+) -> list[list[float]]:
+    """Compress every chroma frame before template matching.
+
+    ``"raw"`` returns a copy of the frames, ``"sqrt"`` takes the square root of
+    each bin and ``"log"`` applies ``log1p(15 * bin)``. Both compressions keep a
+    frame's shape and preserve zero bins, so a silent frame stays silent and can
+    still only be decoded as ``N``.
+
+    Raises:
+        InputError: When ``transform`` is not one of the supported values.
+    """
+    if transform == "raw":
+        return [list(frame) for frame in frames]
+    if transform == "sqrt":
+        return [[math.sqrt(max(0.0, float(value))) for value in frame] for frame in frames]
+    if transform == "log":
+        return [[math.log1p(15.0 * max(0.0, float(value))) for value in frame] for frame in frames]
+    raise InputError(
+        f"Unknown chroma transform: {transform!r}",
+        hint=f"Supported transforms: {', '.join(SUPPORTED_FEATURE_TRANSFORMS)}.",
+    )
+
+
 def compute_chroma(
     librosa: Any,
     numpy: Any,
@@ -777,10 +936,10 @@ class ChromaBaselineEngine:
             version=ENGINE_VERSION,
             available=self.is_available(),
             description=(
-                "CQT chroma matched per frame against the 24 phase-1 triad "
-                "templates by cosine similarity, with a majority smoother or "
-                "a Viterbi decoder, and a per-event confidence from the score "
-                "margin."
+                "CQT chroma compressed per frame and matched against 24 "
+                "harmonic-weighted triad templates by cosine similarity, with "
+                "a majority smoother or a Viterbi decoder, a minimum-duration "
+                "merge, and a per-event confidence from the score margin."
             ),
             license="GPL-3.0-or-later",
             capabilities={
@@ -789,6 +948,9 @@ class ChromaBaselineEngine:
                 "no_chord": True,
                 "confidence": True,
                 "confidence_method": "score_margin_logistic",
+                "feature_transform": DEFAULT_FEATURE_TRANSFORM,
+                "template_weighting": DEFAULT_TEMPLATE_WEIGHTING,
+                "minimum_segment_seconds": DEFAULT_MIN_SEGMENT_SECONDS,
             },
         )
 
@@ -815,6 +977,8 @@ class ChromaBaselineEngine:
 
         # Validate the front-end options before decoding: a typo costs nothing.
         settings = front_end_settings(options.extra)
+        transform = feature_transform(options.extra)
+        weighting = template_weighting(options.extra)
 
         startup_started = time.perf_counter()
         try:
@@ -846,19 +1010,21 @@ class ChromaBaselineEngine:
             frames, front_end_metadata = compute_chroma(
                 librosa, numpy, samples, float(sample_rate), settings
             )
+            frames = apply_feature_transform(frames, transform)
             frame_period = HOP_LENGTH / float(sample_rate)
 
             decoder = str(options.extra.get("decoder", DEFAULT_DECODER))
             change_penalty = float(options.extra.get("change_penalty", DEFAULT_CHANGE_PENALTY))
             no_chord_score = float(options.extra.get("no_chord_score", DEFAULT_NO_CHORD_SCORE))
-            raw_labels = match_frames(frames)
-            scores = frame_scores(frames, no_chord_score=no_chord_score)
+            raw_labels = match_frames(frames, weighting=weighting)
+            scores = frame_scores(frames, no_chord_score=no_chord_score, weighting=weighting)
             try:
                 labels = decode_labels(
                     frames,
                     decoder=decoder,
                     change_penalty=change_penalty,
                     no_chord_score=no_chord_score,
+                    weighting=weighting,
                     scores=scores,
                 )
             except ValueError as error:
@@ -872,8 +1038,23 @@ class ChromaBaselineEngine:
                 duration=offset + audio_seconds,
                 offset=offset,
             )
-            if options.minimum_duration > 0.0:
-                segments = merge_short_segments(segments, minimum_duration=options.minimum_duration)
+            try:
+                minimum_duration = float(
+                    options.extra.get("min_segment_seconds", options.minimum_duration)
+                )
+            except (TypeError, ValueError) as error:
+                raise InputError(
+                    "minimum chord duration must be a number, "
+                    f"got {options.extra.get('min_segment_seconds')!r}",
+                    hint="Use 0 to disable the merge, or a positive number of seconds.",
+                ) from error
+            if minimum_duration < 0.0:
+                raise InputError(
+                    f"minimum chord duration must not be negative, got {minimum_duration!r}",
+                    hint="Use 0 to disable the merge, or a positive number of seconds.",
+                )
+            if minimum_duration > 0.0:
+                segments = merge_short_segments(segments, minimum_duration=minimum_duration)
             # Confidence is measured *after* merging, against the label each
             # surviving segment actually claims: a merged-in chord is not
             # credited with the margin of the label it replaced.
@@ -908,6 +1089,9 @@ class ChromaBaselineEngine:
                 "match_threshold_used": decoder == "majority",
                 "smoothing_window_used": decoder == "majority",
                 **front_end_metadata,
+                "feature_transform": transform,
+                "template_weighting": weighting,
+                "minimum_duration": minimum_duration,
                 "decoder": decoder,
                 "change_penalty": change_penalty,
                 "no_chord_score": no_chord_score,

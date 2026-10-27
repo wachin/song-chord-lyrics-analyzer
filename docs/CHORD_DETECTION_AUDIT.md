@@ -879,6 +879,10 @@ beat-alignment layer. Each is expensive and unverifiable until P1 exists.
 
 ## 13. Addenda (2026-10-20)
 
+> **Historical addenda.** These entries describe the state on 2026-10-20.
+> §14 records the 2026-10-21 scoring-stage change that supersedes the
+> 0.6121 figure and the old confidence constants.
+
 > **P1 harness closed.** `docs/ENGINE_COMPARISON.md` §1 now carries the full method
 > table (`tests/fixtures/guitarset_comp_manifest.json`, 180 comp takes, instructed
 > lead sheet). Reproducing it needs the audio, which stays in the gitignored cache:
@@ -944,3 +948,90 @@ beat-alignment layer. Each is expensive and unverifiable until P1 exists.
   belong to the user.
 * It did not re-measure CSR, change F1, WER or any other number.
 * It did not mark any proposal as implemented in `ROADMAP.md`.
+
+## 14. Addendum — measured scoring-stage improvement and the ceiling (2026-10-21)
+
+This addendum supersedes the "at the time of the audit, nothing here was
+implemented" framing for P3 and records what the next measured pass found.
+
+**Adopted (P3 continuation), all on the same 180 GuitarSet comping takes and the
+instructed lead sheet, 2026-10-21.** `sqrt` chroma compression, harmonic-weighted
+triad templates (root/third/fifth 1.00/0.95/0.85, opposite third −0.35), a Viterbi
+change penalty of 0.40 (re-swept, closing the open item in §7 of
+`ENGINE_COMPARISON.md`) and a 300 ms minimum-duration merge. Result: **CSR
+0.6121 → 0.6283** (triad 0.6183 → 0.6356), segment overlap 0.8343 → 0.8403,
+change F1 0.8296 → 0.8347, median boundary error 0.168 → 0.154 s; paired CSR
+delta +0.0163 (95 % CI +0.0025..+0.0301). The full method, ablations, paired
+deltas and the confidence refit are in `docs/ENGINE_COMPARISON.md` §8. The
+binary templates and raw chroma remain one option away
+(`template_weighting=binary`, `feature_transform=raw`), so the previous
+measurement is reproducible rather than overwritten.
+
+**Rejected probes (do not repeat as if they were new).**
+
+* The 109-class ONNX reference under `external/Guitariz` was run on 30 takes with
+  the project's log-CQT front end and raw argmax, no smoothing: **0.2159 raw /
+  0.2555 triad CSR**, far below the registered engine. It is reference material,
+  not a dependency, and no weights or code were copied. The probe is 30 takes, so
+  it is not a like-for-like comparison with the 180-take number.
+* A held-out MLP on a ±5-frame chroma context (90 even takes to train, 90 odd
+  takes to test) reached roughly **+0.03 triad CSR over the template baseline**
+  in the same throwaway harness. That is a signal, not a shipping result: it
+  would need a licence-audited feature/inference path, an optional runtime and a
+  generalisation check beyond solo guitar.
+* The conservative seventh pass (§10 P6 groundwork) emitted sevenths on
+  21–53 % of the duration against a 13.4 % reference, even at its strictest
+  setting, and was **not adopted**. Seventh detection needs separate evidence
+  (bass/root first), not a flat extra state on the same chroma.
+* The strong public BTC checkpoints are trained on Isophonics/Robbie
+  Williams/UsPop2002 material and published as **CC-BY-NC-SA 4.0**; they conflict
+  with this project's GPL-3.0-or-later distribution and are not a candidate.
+
+**Consequence for the plan.** P1–P3 are implemented; P4–P8 remain open. The
+template pipeline's measurable ceiling on this corpus is around 0.63 CSR, and
+the remaining errors are mostly root/quality confusions rather than boundaries
+(the confusion analysis in §7 still holds). The next accuracy step is a
+**licence-clean learned engine** with a documented train/held-out split, not
+another hand-tuned template. A 93 % figure from a proprietary app is not a
+comparable benchmark: it is a different corpus, matching rule and model, and
+this document does not claim it.
+
+## 15. Addendum — minimum duration, a real-song chart check and the current ceiling (2026-10-27)
+
+**What changed.** The minimum-duration merge moved from 0.30 s to **0.50 s** on
+the same 180 GuitarSet comping takes and instructed lead sheet, 2026-10-27. The
+rest of the scoring stage is unchanged (sqrt chroma, harmonic templates,
+Viterbi penalty 0.40). Result: **CSR 0.6312 / triad 0.6384**, segment overlap
+0.8454, change F1 0.8553, median boundary error 0.158 s. Against the 0.30 s step
+the paired delta is **+0.0028 ± 0.0007 CSR** and **+0.0206 ± 0.0027 change F1**;
+against the original defaults (CSR 0.6121) it is **+0.0191** (95 % CI
++0.0052..+0.0329). The confidence logistic was refitted for the new events:
+slope 28.7942 / intercept −0.0738, held-out Brier 0.1485, ECE 0.0363, accuracy
+0.809 at coverage 0.476. Full table: `docs/ENGINE_COMPARISON.md` §8.
+
+**Real-song check.** A private 5:27 Spanish worship recording and its
+hand-written plain-text chart were used as a **sequence-only** reference (the
+chart has no timestamps). `scripts/chord_chart_check.py` parsed 86 chart chords
+and aligned them to 101 detections: **84/86 chart chords found in order (97.7 %),
+2 substitutions (`A→F#m`, `Bm→B`), 15 extra detections**. The 0.50 s merge
+removed one extra without losing a chart chord; 1.0 s lost a chart chord. This
+supports the visual complaint that the chart is cluttered while the harmony is
+mostly right, and it is not a timed accuracy measurement. The song and chart are
+private and are not committed. The tool is `scripts/chord_chart_check.py`, the
+parser/alignment live in `evaluation/chart.py`, and the method is documented in
+`docs/BENCHMARK.md` and `README.md`.
+
+**Display.** Long chart rows now do not wrap (a wrapped continuation lost the
+chord columns), and the lyrics/chart panel gets more of the window width. The
+lyrics themselves remain the engine's transcript: on this song it mixed in
+Portuguese-like words even though the recording is Spanish, because Parakeet
+auto-detects per 20 s window and its runtime does not accept a language hint.
+Replacing the transcript with a user-authored chart is a separate feature, not
+a display bug; it is listed in the roadmap's parity backlog.
+
+**Still open.** P4 bass/slash, P5 duration/metrical model, P6 vocabulary (needs
+bass evidence first), P7 shared decode/chroma, P8/learned engine. The template
+pipeline's measured ceiling on GuitarSet remains around 0.63 CSR; the next real
+accuracy step is a licence-clean learned engine with a documented held-out
+split. The 0.50 s default is not a claim that chords shorter than half a second
+never exist; it is the measured balance on this corpus and on the local chart.

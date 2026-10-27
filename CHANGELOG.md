@@ -8,6 +8,87 @@ the project uses [semantic versioning](https://semver.org/).
 
 ### Added
 
+* **Measured minimum-duration pass and a local chart reference (2026-10-27).**
+  * `engines/chroma_baseline.py` — `DEFAULT_MIN_SEGMENT_SECONDS` moved from
+    0.30 s to **0.50 s**. On the same 180 GuitarSet comping takes and instructed
+    lead sheet the measured vector is now **CSR 0.6312** (triad 0.6384),
+    segment overlap 0.8454, change F1 0.8553, median boundary error 0.158 s.
+    Against the 0.30 s step the paired gain is +0.0028 ± 0.0007 CSR and
+    +0.0206 ± 0.0027 change F1; against the original defaults it is +0.0191 CSR
+    (95 % CI +0.0052..+0.0329). The confidence logistic was refitted on the new
+    events: slope 28.7942 / intercept −0.0738, held-out Brier 0.1485,
+    ECE 0.0363, accuracy 0.809 at coverage 0.476.
+    `ChordAnalysisOptions.minimum_duration` now defaults to 0.5 and **0 still
+    disables** the merge (the CLI `--min-duration` default was updated to match),
+    so the public contract no longer silently means "use the engine default".
+  * `evaluation/chart.py` (new) — a plain-text chord-chart parser (chord-only
+    lines, `[Section]` headers, lyric lines, `|` separators, slash chords,
+    `N.C.`) and Needleman–Wunsch sequence alignment on triads, reporting
+    matches, substitutions, missing chart chords and extra detections.
+    `scripts/chord_chart_check.py` (new) wraps it for a real file (run the engine
+    or reuse `songlab chords --json`). It never invents timestamps and never
+    requires the song or chart to be committed.
+  * The private real-song check that motivated the change: 84 of 86 hand-chart
+    chords found in order (97.7%), 2 substitutions, 15 extra detections
+    (2026-10-27). This is sequence agreement, not duration accuracy, and the
+    song/chart are not in the repository; `docs/BENCHMARK.md` and `README.md`
+    state the limits.
+  * `gui/lyrics_view.py` — chart rows no longer wrap, so a long lyric line
+    cannot push its continuation under a chord row that no longer aligns; the
+    chart scrolls horizontally and keeps the columns exact. The window's default
+    splitter now gives the chart as much width as the waveform.
+  * Tests: chart parser/alignment unit tests, a command-wiring test, the
+    no-wrap widget test, and the updated engine-option expectations.
+  * **Gate (2026-10-27):** `ruff check` clean, `ruff format --check` 170 files
+    clean, `mypy` 92 files clean, `.venv-chords` **2114 passed / 2 skipped in
+    284 s**, `.venv` **2106 passed / 10 skipped in 207 s**.
+* **Chords above the synchronized lyrics (roadmap Phase F, 2026-10-21).** The
+  window now draws the Chordify-style chart the project was missing:
+  * `app/chord_lyrics.py` (new) — pure presenter. Every chord is seated above
+    the timed word whose `start <= chord.start < end`; a line without word
+    timestamps falls back to a proportional column; chords starting in an
+    instrumental intro/break get their own chord-only rows, grouped by the
+    lyric line they precede, so a chord before the first line and one after the
+    last never share a row; a chord merely spanning into the next line is not
+    repeated; colliding labels are nudged apart instead of overwritten; and an
+    untimed line stays at the end, unplaced.
+  * `gui/lyrics_view.py` — each row is one monospace chord line plus one lyric
+    line in a single `QTextBlock`, so the chord's character column is exactly
+    above its word and the right-click-to-display-index mapping the lyric edits
+    rely on stays exact. The active chord is highlighted from the same frame as
+    the big label; gap rows open no lyric menu.
+  * `normalization/spelling.py` (new) — key-aware display spelling. Flat keys
+    (F, Bb, Eb, Ab, Db major; Dm, Gm, Cm, Fm, Bbm, Ebm minor) show `Bb`, `Eb`,
+    `Ab`; the canonical document keeps its sharp pitch classes, and an unknown
+    key keeps the canonical spelling. Wired into `DisplayFrame.chord_text`,
+    `chord_bands`, the window's big label, the chart and the analysis panel's
+    `Key` row (`spell_key_label`: `A# major` displays as `Bb major`).
+  * Tests: 16 presenter tests (`tests/unit/test_chord_lyrics.py`), 17 offscreen
+    widget tests, 3 window tests (`TestChordsAboveTheLyrics`), 45 spelling
+    tests, plus session/display/timeline coverage of the key preference.
+* **Measured chord-engine improvement (roadmap Phase I, 2026-10-21).** The
+  template matcher now uses a `sqrt` chroma compression, harmonic-weighted
+  templates (root 1.00, third 0.95, fifth 0.85, opposite third −0.35), a 0.40
+  Viterbi change penalty and a 300 ms minimum-duration merge. On the same 180
+  GuitarSet comping takes and instructed lead sheet, **CSR 0.6121 → 0.6283**
+  (triad 0.6183 → 0.6356), segment overlap 0.8343 → 0.8403, change F1
+  0.8296 → 0.8347, median boundary error 0.168 → 0.154 s; the paired CSR
+  delta is +0.0163 (95 % CI +0.0025..+0.0301). Every option can be restored
+  (`feature_transform=raw`, `template_weighting=binary`, `change_penalty=0.8`,
+  `min_segment_seconds=0`) and is recorded in `EngineResult.metadata`.
+  `engines/chroma_baseline.py` bumps to 0.2.0. The confidence logistic was
+  refitted on the new margin scale (slope 29.8735 / intercept −0.1484; held-out
+  Brier 0.1497, ECE 0.0357, accuracy 0.803 at coverage 0.475).
+  `scripts/chord_benchmark.py` now omits `--change-penalty` by default, so an
+  unpassed flag uses the engine's measured default instead of a stale 0.80.
+  The rejected 109-class ONNX reference probe and the measured ceiling are
+  recorded in `docs/ENGINE_COMPARISON.md` §8; no `external/` code or weights are
+  used by the package.
+* **Test count after the 2026-10-21 gate:** `ruff check` clean, `ruff format
+  --check` 166 files clean, `mypy` 91 files clean, and the full `.venv-chords`
+  suite (DSP + GUI + real output device, `QT_QPA_PLATFORM=offscreen`) reported
+  **2077 passed / 2 skipped in 202 s**.
+
 * **Front-end robustness sweep and a new tuning default (roadmap Phase I P3,
   2026-10-20).** The chroma front end had exactly one shape; it now exposes one
   option per measured variable, each adopted or rejected on the same 180-take
@@ -69,8 +150,8 @@ the project uses [semantic versioning](https://semver.org/).
     (coverage 0.463). Over the whole run, the very-high band is right 0.869 of
     the time and the very-low band 0.129. **These constants were later refit**
     by the front-end change below, which moved the tuning default and therefore
-    the margins; the shipped values are slope 23.4861 / intercept 0.1973 with
-    held-out Brier 0.1420 / ECE 0.0161. Both are recorded because they describe
+    the margins; the values shipped at that date were slope 23.4861 / intercept
+    0.1973 with held-out Brier 0.1420 / ECE 0.0161. Both are recorded because they describe
     two different front ends, not two attempts at the same one.
   * **The decoded labels are unchanged:** all 180 per-take rows are identical to
     the P1 run on all ten scored fields, and the means are still CSR 0.6029 /

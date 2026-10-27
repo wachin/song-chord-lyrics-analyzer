@@ -19,6 +19,7 @@ __all__ = [
     "BeatEngine",
     "ChordAnalysisOptions",
     "ChordEngine",
+    "DEFAULT_MINIMUM_CHORD_DURATION",
     "EngineKind",
     "KeyEngine",
     "LyricsEngine",
@@ -41,6 +42,13 @@ class EngineKind(str, Enum):
     NOTES = "notes"
 
 
+#: Product default for the shortest chord an engine should emit. It is a
+#: smallest claim about the music, not a display preference: below this the
+#: chart and the timeline show decoder flicker. An engine may ignore it or
+#: override it; the value it uses is recorded in its metadata.
+DEFAULT_MINIMUM_CHORD_DURATION = 0.5
+
+
 @dataclass
 class ChordAnalysisOptions:
     """Options passed to a chord engine.
@@ -49,14 +57,17 @@ class ChordAnalysisOptions:
         start: Restrict analysis to a time range starting here (seconds).
         end: Restrict analysis to a time range ending here (seconds).
         vocabulary_phase: Chord vocabulary phase to allow (roadmap section 13).
-        minimum_duration: Minimum chord duration in seconds (0 disables it).
+        minimum_duration: Minimum chord duration in seconds. The product
+            default is :data:`DEFAULT_MINIMUM_CHORD_DURATION`; ``0`` disables
+            merging. An engine-specific ``extra["min_segment_seconds"]``
+            overrides it when present.
         extra: Engine-specific options, forwarded verbatim.
     """
 
     start: float | None = None
     end: float | None = None
     vocabulary_phase: int = 1
-    minimum_duration: float = 0.0
+    minimum_duration: float = DEFAULT_MINIMUM_CHORD_DURATION
     extra: dict[str, Any] = field(default_factory=dict)
 
 

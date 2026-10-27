@@ -148,6 +148,17 @@ it with `AssertionError: the playhead must never go backwards` (positions
 0.0503198 then 0.0385552) and both `.venv-chords` full-suite runs after the fix
 passed it (`.venv` skips that test: no output device there).
 
+Gate re-run after the chord chart and the measured front-end/template and
+minimum-duration work (2026-10-27, same machine, Python 3.13.5, numpy 2.5.3,
+librosa 1.0.0, PyQt6 offscreen): `ruff check` clean, `ruff format --check` 170
+files clean, `mypy` 92 files clean, `pytest` **2114 passed / 2 skipped in
+284 s**
+(`.venv-chords`: numpy 2.5.3, librosa 1.0.0, sounddevice 0.5.6, PyQt6
+6.11.0, real output device, `QT_QPA_PLATFORM=offscreen`; the two skips are the
+intentional "the optional stack is installed here" branches) and **2106 passed
+/ 10 skipped in 207 s** (`.venv`: no output device, so the eight playback
+tests skip; the two "stack installed" branches differ too).
+
 ### Manual GUI verification — user-reported (2026-10-18)
 
 The window was launched **by hand on MX Linux 25** (Debian 13 based) in this
@@ -179,13 +190,29 @@ Separate from that manual session, the audit's own run on 2026-10-18 executed
 the chord-related unit suites in `.venv-chords` and got **381 passed** (no GUI
 and no real song).
 
+### Chord-over-lyrics chart — verified (2026-10-21)
+
+The window now draws a **chord chart over the synchronized lyrics**, the view
+Chordify and Chord AI are known for, and it was verified by running the code:
+`app/chord_lyrics.py` seats every chord above the timed word it starts on,
+gives instrumental intros/breaks their own chord-only rows, never repeats a
+chord that merely spans into the next line, and respells roots for a flat key;
+`gui/lyrics_view.py` paints one monospace chord row plus one lyric row per
+block, highlights the current chord from the same frame as the big label, and
+keeps the block-to-display-index mapping exact for the lyric edits. The pure
+presenter has 16 unit tests, the widget has 17 offscreen tests, and the window
+has a test that C opens the first line, G starts a gap row, N opens the second
+line and F starts the closing gap row. The measured accuracy of the engine
+behind the chart is in §10 (Phase I); this section claims the **display**, not
+a new accuracy number.
+
 ### The product path, link by link
 
 | # | Link | Status | Evidence |
 | --- | --- | --- | --- |
 | 1 | Real audio file input | `[x]` | `audio/validation.py` + `audio/probe.py` (ffprobe; WAV via stdlib). Verified on a real song file (296.8 s, MP3, 324 kbit/s). |
 | 2 | Decoding to samples | `[x]` | One decode owner: `audio/decode.py` → `decode_audio()` (librosa/soundfile backend plus a stdlib WAV backend, mono/interleaved floats + sample rate) is asked by the chords, key, tempo and lyrics engines for the window they need, by `SoundDevicePlayer.load` for playback, and by `SongSession` for the waveform fallback; no component calls `librosa.load` privately any more. Verified 2026-10-16 on `samples/vocadito_6.wav` and `samples/vocadito_16.wav`: the three DSP engines return the same chord events (start/end/label), key and tempo before and after the switch, both whole-file and with a time window, plus a real compressed transcode through the service (`tests/integration/test_decode_integration.py`). |
-| 3 | Chord engine on real audio | `[x]` | `ChromaBaselineEngine` registered, tested, measured (CSR 0.6121 with Viterbi 0.80 on 180 GuitarSet comping takes, instructed lead sheet, 2026-10-20 — `docs/ENGINE_COMPARISON.md` §7, reproducible with `scripts/chord_benchmark.py`; 0.6029 with the previous front-end default). Ran on a real song during the audit. |
+| 3 | Chord engine on real audio | `[x]` | `ChromaBaselineEngine` registered, tested, measured (CSR **0.6312**, triad 0.6384, on 180 GuitarSet comping takes, instructed lead sheet, 2026-10-27 — `docs/ENGINE_COMPARISON.md` §8, reproducible with `scripts/chord_benchmark.py`; 0.6121 with the previous front end). Ran on a real song during the audit. |
 | 4 | Timestamped ChordEvent sequence | `[x]` | `songlab chords` printed 76 events with `start`/`end`/`label` on a real song; `songlab analyze --json` emitted the same inside the canonical document with provenance (schema version 1, `schema/codec.py`). |
 | 5 | Audio playback | `[x]` | `audio/playback.py`: `SoundDevicePlayer` streams decoded samples through PortAudio (`sounddevice`, optional `playback` extra), with `load`/`play`/`pause`/`stop`/`seek`/`close`. Verified on a real device on 2026-10-06; skipped honestly where no output device exists. |
 | 6 | Lyrics engine (roadmap Phase E) | `[x]` | `ParakeetLyricsEngine` via `onnx-asr` (MIT runtime, CC-BY-4.0 weights), `songlab lyrics`, `run_analysis()` lyrics step. Chunked at 20 s; words carry `unknown` confidence. Verified on `samples/vocadito_6.wav` (real weights and real voice, offscreen) and structurally everywhere else. Model pulls (CC-BY-4.0) are fetched on first use and never committed. |
@@ -193,19 +220,23 @@ and no real song).
 | 8 | Desktop window minimal slice | `[x]` | Phase D: `songlab gui`, `gui/` (`main_window.py`, `timeline.py`, `analysis_panel.py`, `__init__.py`), PyQt6 behind the `gui` extra, offscreen-verified; `app/timeline.py` + `app/summary.py` present all the data.
 | 6 | Current playback timestamp | `[x]` | `position()` on the same player, backed by a pure `PlaybackTimeline` (injectable clock) and re-anchored to the frames PortAudio actually consumed. Deterministic unit tests plus a real-device test. |
 | 7 | Synchronized chord display | `[x]` | `songlab play` draws the chord under the playhead from `SessionSnapshot` (`app/display.py`: `frame_from`, `render_frame`, `ConsoleDisplay`, `follow`; `cli/commands/play.py`), refreshing while the song plays and updating the frame as the chord changes. `--at SECONDS` prints one frame headlessly. Verified end to end on a real device on 2026-10-07 (the chord changed during real playback) and headlessly in CI. **Now with a window too:** since 2026-10-08 `songlab gui` renders the *same* frame, plus the waveform, the chord bands and the analysis panel (`gui/` + `app/timeline.py` + `app/summary.py`), so the display exists both as a terminal line and as a desktop window. |
+| 9 | Chords above the lyrics | `[x]` | Phase F, 2026-10-21: `app/chord_lyrics.py` seats each chord above the timed word it starts on, with instrumental gap rows and flat-key spelling; `gui/lyrics_view.py` draws it in the same block the lyric edits address. 16 presenter tests, 17 offscreen widget tests and a window test (`TestChordsAboveTheLyrics`) were run. |
 
-**Conclusion:** all seven links now exist, in **two** front ends. Links 1–4 are
-verified on real audio, 5–6 are a tested player with a playhead, and 7 is the
-display driven by the same session: the frame drawn at each refresh carries
-exactly the chord `chord_at()` claims for that position, so neither the terminal
-line nor the window can drift from the playhead. The **First Product Milestone
-(Phase C) is therefore reached as a command-line product slice**, and **Phase D
-(2026-10-08) adds the minimal desktop window** around it: open a file, see the
-waveform timeline with the detected chords, play, pause, seek, and always see the
-chord for the current position in a window instead of a line of text. What is
-still missing from a Chordify/Chord AI-style application is the *depth* of that
-window - editing, undo/redo, lyrics, exports - which is `[F]` work inside
-Phase D and the later phases, not a missing foundation.
+**Conclusion:** all seven links now exist, in **two** front ends, plus the chart
+that seats the chords over the lyrics. Links 1–4 are verified on real audio, 5–6
+are a tested player with a playhead, 7 is the display driven by the same
+session, and 9 is the chord-over-lyrics chart driven by the effective chord and
+lyric layers: the frame drawn at each refresh carries exactly the chord
+`chord_at()` claims for that position, so neither the terminal line nor the
+window can drift from the playhead, and a placed chord is anchored to the word
+whose timestamps cover its onset. The **First Product Milestone (Phase C) is
+therefore reached as a command-line product slice**, and **Phase D
+(2026-10-08) adds the desktop window** around it: open a file, see the waveform
+timeline with the detected chords, play, pause, seek, always see the chord for
+the current position, and read the chords above the synchronized lyrics. What is
+still missing from the *accuracy* of a Chordify/Chord AI-style application is a
+learned chord model and a broader vocabulary; that is Phase I work, measured
+against the same harness, not a missing foundation.
 
 ### What is genuinely implemented today
 
@@ -218,11 +249,14 @@ Phase D and the later phases, not a missing foundation.
   **key** `krumhansl`, **tempo** `librosa-tempo` (verified through
   `create_default_registry()` on 2026-10-16). Kinds `BEATS`, `STEMS`, `NOTES`
   have **no** registered engine.
-* `[x]` Chord engine: CQT chroma → 24 triad templates → majority or Viterbi
-  decoding (`engines/chroma_baseline.py`, `engines/decoding.py`), with the
-  change penalty measured (0.80) on GuitarSet, and the front end exposed as one
-  variable per option (tuning, feature, harmonic, energy gate) with each
-  measured separately (`docs/ENGINE_COMPARISON.md` §7).
+* `[x]` Chord engine: CQT chroma → 24 harmonic-weighted or binary triad
+  templates → majority or Viterbi decoding (`engines/chroma_baseline.py`,
+  `engines/decoding.py`), with a measured `sqrt` chroma compression, the
+  change penalty 0.40, a 0.50 s minimum-duration merge, and every front-end /
+  template option measurable separately (`docs/ENGINE_COMPARISON.md` §7, §8).
+  Measured 2026-10-27: **CSR 0.6312 / triad 0.6384** on 180 GuitarSet comping
+  takes (previous front end 0.6121 / 0.6183; the 0.30 s step measured 0.6283 /
+  0.6356).
 * `[x]` Application service `run_analysis()` (`analysis/service.py`): runs
   chords/key/tempo, skips unavailable engines honestly, assembles provenance
   (version, SHA-256, python, platform, engines, configuration).
@@ -234,7 +268,15 @@ Phase D and the later phases, not a missing foundation.
 * `[x]` Playback and the two displays: `audio/playback.py` (tested player with a
   playhead), `audio/peaks.py` (waveform peaks), `app/display.py` (terminal
   display), `app/timeline.py` + `app/summary.py` (timeline and panel presenters)
-  and `gui/` (the PyQt6 window behind the optional `gui` extra).
+  and `gui/` (the PyQt6 window behind the optional `gui` extra). The window's
+  lyrics view is a **chord chart**: `app/chord_lyrics.py` aligns chord onsets to
+  timed words and `gui/lyrics_view.py` draws them, with instrumental gap rows
+  and the active chord highlighted (2026-10-21).
+* `[x]` Key-aware display spelling: `normalization/spelling.py` respells chord
+  roots and slash basses for flat keys on the terminal, the chord strip, the big
+  label and the chord chart, while the canonical document keeps its sharp
+  spelling. An unknown key keeps the canonical spelling. Tests:
+  `tests/unit/test_spelling.py`.
 * `[x]` Metrics as library code: chord (CSR, boundary/change, timing), key,
   tempo (half/double kept), lyrics WER/CER (`metrics/`, `evaluation/`).
 * `[x]` Benchmark infrastructure, kind-agnostic runner (`benchmark/`).
@@ -244,21 +286,24 @@ Phase D and the later phases, not a missing foundation.
   GuitarSet oracles, CI workflow (the DSP job also runs the window offscreen).
   The chord-harness work on 2026-10-19 adds 27 tests; the gate then reported
   **1910 passed / 11 skipped** (same machine, `ruff` and `mypy` clean). The
-  confidence work on 2026-10-20 adds 57 tests; the gate reports **1967 passed /
-  11 skipped** (`ruff` clean over 162 files, `ruff format --check` 162 files,
-  `mypy` 89 files).
+  confidence work on 2026-10-20 adds 57 tests; the gate then reported **1967
+  passed / 11 skipped** (`ruff` clean over 162 files, `ruff format --check` 162
+  files, `mypy` 89 files). The chord-chart, spelling, chart-check and
+  measured-front-end work through 2026-10-21..27 adds its own tests; the full
+  `.venv-chords` suite reports **2114 passed / 2 skipped in 284 s**, `ruff`
+  clean over 170 files and `mypy` 92 files clean.
 * `[x]` Documentation of decisions: `docs/ARCHITECTURE.md`,
   `DEPENDENCY_MATRIX.md`, `LICENSE_AUDIT.md`, `DATASET.md`,
   `ENGINE_COMPARISON.md`, `BENCHMARK.md`, `TROUBLESHOOTING.md`.
-* `[x]` Chord confidence: every `ChordEvent` now carries a measured value
-  (2026-10-20). The baseline engine averages the emitted label's score margin
-  over the event's frames and maps it through a logistic calibrated on
-  GuitarSet (slope 23.4861 / intercept 0.1973); the held-out 90 takes give
-  Brier 0.1420 and ECE 0.0161, and accuracy rises from 0.584 over all events to
-  0.808 on the events scoring at least 0.60 (`docs/ENGINE_COMPARISON.md` §6).
-  The raw margin stays in `metadata["score_margin"]`. The constants follow the
-  front end: the P3 sweep moved the tuning default, so the logistic was
-  refitted on the same corpus (§7).
+* `[x]` Chord confidence: every `ChordEvent` carries a measured value. The
+  current fit (2026-10-27, after the sqrt/harmonic front end and the 0.50 s
+  minimum) is a logistic with slope 28.7942 / intercept -0.0738 on the event's
+  mean score margin; the held-out 90 takes give Brier 0.1485 and ECE 0.0363,
+  and accuracy is 0.809 on events scoring at least 0.60 (47.6 % of the held-out
+  duration). The raw margin stays in `metadata["score_margin"]`. The earlier
+  fits (slope 29.8735 / intercept -0.1484 for the 0.30 s step, and 23.4861 /
+  0.1973 for the binary-template/tuning-zero front end) are kept in
+  `docs/ENGINE_COMPARISON.md` as history.
 * `[x]` Real-file E2E: `tests/integration/test_analysis_e2e.py` runs the real
   default registry (chroma-baseline + krumhansl + librosa-tempo) over a
   deterministic generated WAV and, with FFmpeg, over its MP3 transcode, and
@@ -621,8 +666,10 @@ lyrics-view presenter + `gui/lyrics_view.py`, active segment and active word on
 the same snapshot the chord label reads; see `docs/GUI_REQUIREMENTS.md` §5.1);
 chord/lyric editing with undo/redo (2026-10-10..12); transpose and chord
 simplification (2026-10-13); the Export document... save dialog over the
-Phase H exporters (2026-10-13). Still open: confidence/engine panels →
-translations. The window's layout is already prepared for them (`app/`
+Phase H exporters (2026-10-13); and the **chord-over-lyrics chart** (2026-10-21,
+`app/chord_lyrics.py` + the rewritten `gui/lyrics_view.py`: each chord above the
+timed word it changes on, instrumental gap rows, active chord highlighted). Still
+open: translations. The window's layout is already prepared for them (`app/`
 produces the data, the widgets only render).
 
 ---
@@ -683,11 +730,11 @@ WER numbers from the old harness; an adapter that only runs on one machine;
 un-timestamped transcripts; a `lyrics` extra that can be installed without
 decoding (numpy/librosa), which the decoder and the engine both need.
 
-**Current status:** `[~]` — research measured, models/libraries known,
+**Pre-adoption status (history):** research measured, models/libraries known,
 `engines/lyrics_chunking.py` (windowing, reassembly) and `metrics/lyrics.py`
-exist; **no engine was registered** (`LYRICS -> []`). Adopted in 2026-10-08:
-`ParakeetLyricsEngine` through `onnx-asr` (MIT runtime, CC-BY-4.0 weights),
-chunked at 20 s, behind the new `lyrics` extra.
+existed; `LYRICS -> []` until **2026-10-08**, when `ParakeetLyricsEngine` was
+registered through `onnx-asr` (MIT runtime, CC-BY-4.0 weights), chunked at 20 s,
+behind the `lyrics` extra.
 
 ### Tasks
 
@@ -750,7 +797,10 @@ The external timed-text alignment landed 2026-10-14: `alignment/lrc.py` and
 `LyricSegment` rows the lyrics engine produces, `songlab analyze --lyrics-from
 FILE` takes the layer from a file instead of the engine, and the window loads
 one with Ctrl+L (`with_lyric_base` swaps the tape's lyric base, keeping the
-chord work and persisting the new base to the Phase G sidecar).
+chord work and persisting the new base to the Phase G sidecar). The
+**chord-over-lyrics chart** landed 2026-10-21: every chord is seated above the
+timed word it starts on, instrumental gaps get chord-only rows, the active
+chord is highlighted, and flat keys are respelled for display.
 
 ### Tasks
 
@@ -782,14 +832,33 @@ chord work and persisting the new base to the Phase G sidecar).
   (`TestLyricLookup` in `tests/unit/test_session.py` pins the same edges as
   `chord_at`; `TestTheLyricsViewFollowsTheSameClock` asserts both front-end
   views read one snapshot)
+- [x] **Chord chart over the lyrics** (2026-10-21): `app/chord_lyrics.py` is the
+  pure presenter (`chord_lyric_lines`, `ChordLyricLine`, `PlacedChord`). A chord
+  is seated above the timed word whose `start <= chord.start < end`; without
+  word timestamps the line falls back to a proportional column; a chord that
+  starts in an instrumental gap gets its own chord-only row, grouped by the
+  lyric line it precedes; a chord merely spanning into a line is not repeated;
+  two chords on one word are nudged apart rather than overwritten; canonical
+  labels are respelled for a flat key through `normalization/spelling.py`.
+  `gui/lyrics_view.py` draws each row as one monospace chord line plus one lyric
+  line in the same `QTextBlock`, so the right-click-to-display-index mapping the
+  lyric commands rely on stays exact. Tests: 16 presenter tests
+  (`tests/unit/test_chord_lyrics.py`), 17 offscreen widget tests
+  (`tests/unit/test_gui_lyrics_view.py`) and a window test that the chart is
+  built from the effective layers (`TestChordsAboveTheLyrics`)
 
 ### Acceptance criteria
 
 While a song plays, both the current chord and the current lyric line update in
 sync, from one timestamped source of truth. **Met for the engine-transcribed
-lyrics on 2026-10-10, and for an external `.lrc`/`.srt` lyric base on
-2026-10-14** (the parsed rows carry `start`/`end` in the same clock the chord
-layer uses, and the session's `lyric_at` does not care where they came from).
+lyrics on 2026-10-10, for an external `.lrc`/`.srt` lyric base on 2026-10-14,
+and for the chord-over-lyrics chart on 2026-10-21** (the parsed rows carry
+`start`/`end` in the same clock the chord layer uses, the session's `lyric_at`
+does not care where they came from, and the chart's placed chords read the same
+effective layers the playback clock does). The chart positions chords at the
+word whose onset the chord changes on; a chord change inside a long held word
+therefore lands on that word, which is the resolution the word timestamps
+support. It is **not** a claim of sub-word or beat-level alignment.
 
 ### Dependencies / blockers
 
@@ -941,16 +1010,25 @@ documented, tested rule table.
 **Objective:** improve chord recognition **after** the vertical slice works,
 and only where measurement justifies it.
 
-**Current status:** `[~]` — measured with the committed harness: **CSR 0.6121**
-(instructed lead sheet), segment overlap 0.8343, change-F1 0.8296 on 180
-GuitarSet comping takes (2026-10-20, `docs/ENGINE_COMPARISON.md` §7); the same
-engine measured 0.6029 with the previous front-end default (2026-10-19, §2), and
-the previously cited 0.4260 did not reproduce and is retired. No second chord
-engine is registered. A read-only audit of the implementation was completed on
-**2026-10-18** and its prioritized plan is
-[`docs/CHORD_DETECTION_AUDIT.md`](docs/CHORD_DETECTION_AUDIT.md); P1 (the
-measurement harness), P2 (per-chord confidence) and P3 (the front-end sweep,
-which moved the tuning default) are implemented; P4–P8 are not.
+**Current status:** `[~]` — measured with the committed harness: **CSR 0.6312**
+(raw) / **0.6384** (triad-reduced), segment overlap 0.8454, change-F1 0.8553 on
+180 GuitarSet comping takes (2026-10-27, `docs/ENGINE_COMPARISON.md` §8). The
+previous front end measured 0.6121 / 0.6183 (2026-10-20, §7), the first scoring
+step measured 0.6283 / 0.6356 (2026-10-21), 0.6029 with the front-end default
+before that (2026-10-19, §2), and the previously cited 0.4260 did not reproduce
+and is retired. No second chord engine is registered. A
+read-only audit of the implementation was completed on **2026-10-18** and its
+prioritized plan is [`docs/CHORD_DETECTION_AUDIT.md`](docs/CHORD_DETECTION_AUDIT.md);
+P1 (the measurement harness), P2 (per-chord confidence) and P3 (the front-end
+sweep) are implemented, and the 2026-10-21 template/compression pass is the
+measured continuation of P3. P4–P8 are not. The ceiling of this template
+pipeline has been probed: a 109-class CRNN reference available only as
+`external/` weights scored **0.2555 triad CSR** raw on 30 takes and was
+rejected, a held-out MLP on chroma context added only ~0.03, and the open
+pretrained chord models that do score well are non-commercial (BTC /
+Isophonics-derived weights are CC-BY-NC-SA), so the next real step is a
+licence-clean learned engine with its own held-out measurement, not another
+template tweak.
 
 ### Tasks
 
@@ -983,8 +1061,23 @@ which moved the tuning default) are implemented; P4–P8 are not.
   the same 180 takes (`docs/ENGINE_COMPARISON.md` §7). `tuning=zero` gained
   +0.0092 CSR (paired, ±0.0033) against the old default and **was adopted**;
   HPSS (−0.0139, 6.7× the CPU) and CENS (−0.0554) were measured and rejected;
-  the −40 dB energy gate is within noise and stays an option. The change
-  penalty itself was **not** re-swept on the new front end.
+  the −40 dB energy gate is within noise and stays an option.
+- [x] P3 continuation — **harmonic templates, sqrt chroma compression and a
+  0.50 s minimum-duration merge**, measured 2026-10-21..27 on the same 180 takes
+  (audit §10 P3/P6 groundwork). `frame_scores`/`decode_labels` gained
+  `weighting`, `apply_feature_transform()` gained `sqrt`/`log`, and the
+  engine gained `min_segment_seconds`. The adopted defaults are
+  `weighting="harmonic"` (root/third/fifth 1.00/0.95/0.85, opposite third
+  −0.35), `feature_transform="sqrt"`, `change_penalty=0.40` and
+  `min_segment_seconds=0.5`: **CSR 0.6121 → 0.6312**, triad 0.6183 → 0.6384,
+  overlap 0.8343 → 0.8454, change F1 0.8296 → 0.8553, median boundary error
+  0.168 → 0.158 s. The paired CSR gain against the previous defaults is +0.0191
+  (95 % CI +0.0052..+0.0329). The first scoring step used 0.30 s and measured
+  0.6283 / 0.6356; moving to 0.50 s after the real-song chart check gained a
+  further +0.0028 ± 0.0007 CSR and +0.0206 change F1 without losing a chart
+  chord. The binary templates and raw chroma remain selectable, and the
+  confidence logistic was refitted on the new margin scale (Brier 0.1485, ECE
+  0.0363). The change penalty was re-swept, closing the 2026-10-20 open item.
 - [ ] P4 — bass-aware feature and slash-chord output, reported separately from
   the triad label (audit §10 P4)
 - [ ] P5 — duration-aware transition model (and metrical alignment once a beat
@@ -1004,11 +1097,30 @@ which moved the tuning default) are implemented; P4–P8 are not.
   method table was missing): sections 1–3 were restored on 2026-10-19 together
   with the method table, the three measured runs and the note that retired the
   0.4260
-- [ ] Baseline improvements with measured deltas (confidence margins, bass
-  templates, phase-2 vocabulary) — each behind the existing engine interface
+- [~] Baseline improvements with measured deltas — **partly delivered**
+  2026-10-21 (harmonic templates, sqrt chroma, minimum-duration merge; above).
+  Not delivered: bass templates/slash output (P4), duration-aware transitions
+  (P5) and the phase-2 vocabulary (P6). The conservative seventh pass that was
+  measured emitted sevenths on 21–53 % of the duration against a 13.4 %
+  reference, so it was not adopted; a hierarchical decision needs the bass
+  evidence first.
 - [ ] Candidate engines (Chordino via Sonic Annotator, madmom, Guitariz-style
   ensembles, `external/` references) evaluated only with a **product reason**:
-  "users need X and the baseline fails X"
+  "users need X and the baseline fails X". A first probe on 2026-10-21
+  measured the 109-class ONNX reference under `external/Guitariz` at 0.2555
+  triad CSR on 30 takes (raw argmax, no smoothing), which is far below the
+  registered engine; it is **not** adopted and no `external/` code or weights
+  are used by the package. The strong public BTC checkpoints are
+  CC-BY-NC-SA and conflict with this project's licence, so they are out.
+- [ ] **Learned chord engine, licence-clean and measured held out** — the
+  measured next step for accuracy. Requirements: a dataset whose audio and
+  annotations permit redistribution or local use, a training script that lives
+  in `scripts/` (not the wheel), a compact inference path behind
+  `ChordEngine` with an optional extra, the same 180-take (or better,
+  multi-corpus) before/after vector, and a documented train/held-out split.
+  Do not ship weights of unknown provenance and do not train and test on the
+  same takes. GuitarSet (CC BY 4.0) is a legitimate start for the solo-guitar
+  case; full-mix generalisation needs a second, licence-audited corpus.
 - [ ] Fusion only if single-engine accuracy plateaus (`fusion/` is reserved)
 
 ### Acceptance criteria
@@ -1036,6 +1148,15 @@ never as the main development path.
 - [x] `songlab benchmark` with kind-agnostic runner and `--engine`
 - [x] Dataset policy + GuitarSet adoption (`docs/DATASET.md`)
 - [ ] Benchmark case for the real-file product workflow (feeds Phase B/C tests)
+- [x] Local hand-chart agreement check (2026-10-27): `evaluation/chart.py`
+  parses the plain-text chart format and aligns chart chords to detected chords
+  with Needleman–Wunsch on triads; `scripts/chord_chart_check.py` reports
+  matches, substitutions, missing and extra chords (human and `--json`).
+  Tests: `tests/unit/test_chart_agreement.py` (parser/alignment) and
+  `tests/unit/test_chart_check_command.py` (command wiring). A private 5:27
+  recording against an 86-chord hand chart matched 84 chart chords in order
+  (97.7%), 2 substitutions, 15 extra detections, 2026-10-27; that is a local
+  sequence check, not a timed benchmark, and the song/chart are not committed.
 - [ ] Track accuracy on the same fixed evaluation set when engines change (Phase I)
 
 ### Must NOT be considered complete
@@ -1152,6 +1273,36 @@ languages (Qt Linguist), stems view and stem playback, practice features
 (loop/speed — see `external/musicpractice` as reference), beat grid display,
 additional export formats (MIDI, MusicXML), plugin-style third-party engines,
 mobile/web distribution.
+
+---
+
+## 16. Parity Backlog — the features named in the Chordify / Chord AI comparison **[F]**
+
+This is the product gap list, not the accuracy plan (that is Phase I) and not
+the core milestone (Phases A–H). Each item is `[ ]` until it exists, runs and is
+verified; none of them is a prerequisite for the chord chart or the measured
+engine. The order is the order a user would notice the difference.
+
+| Feature | Status | Why it is not done yet / what it needs |
+| --- | --- | --- |
+| File input, playback, seek, synchronized chords, chord-over-lyrics chart, key/tempo/lyrics, editing, undo/redo, transpose, simplify, export | `[x]` | delivered 2026-10-07..21; see Phases C–H |
+| Import a user's plain-text chord chart (chords + lyrics) and align it to the song | `[ ]` | the first half exists: `evaluation/chart.py` parses the format and `scripts/chord_chart_check.py` aligns the chord sequence for checking. Turning the chart into the displayed lyric/chord base needs line-level lyric alignment and a decision on timing (word onsets versus proportional placement), plus editing/persistence rules |
+| Transposition / capo-style display | `[~]` | transpose is implemented; an explicit capo setting that shifts what the player reads while the sounding chords stay fixed is a small presenter addition, not a new engine |
+| Guitar / piano / ukulele chord diagrams | `[ ]` | needs a voicing table and an `app/` presenter; the chord label already exists, and the diagrams must not be generated by inventing finger positions |
+| Loop playback (A/B) | `[ ]` | needs a player-side loop over the existing decoded buffer; the `Player` protocol already has `seek`/`play`/`pause` |
+| Tempo slowdown without changing pitch | `[ ]` | needs a time-stretch backend behind the `Player` protocol; no dependency is audited yet, and the current `sounddevice` path plays the decoded samples at their own rate |
+| Microphone / live input | `[ ]` | needs capture plus a streaming analysis path; `decode_audio()` is file-based today, and the accuracy of a short-window streaming decode is unmeasured |
+| YouTube / SoundCloud import | `[ ]` | would be an optional downloader (`yt-dlp`-style) with its own licence, terms-of-service and failure surface; never a core dependency, and never redistributing the downloaded audio |
+| 700+ chord vocabulary and slash chords | `[ ]` | Phase I P4/P6; the conservative seventh pass was measured and rejected, so this needs bass/root evidence and a measured triad-reduced non-regression |
+| Offline mode (no network at analysis time) | `[~]` | the engines are local once installed; the lyrics model is pulled on first use (CC-BY-4.0) and the learned chord model does not exist yet. Packaging must make the model state explicit |
+| Mobile / web clients | `[ ]` | out of scope for the desktop first product; the canonical JSON document is the integration seam if it is ever revisited |
+| Translations | `[ ]` | the Language menu ships, no catalogue does; English is deliberately first until the UI is frozen |
+
+**Rules for this backlog.** No item may be taken by copying an `external/`
+repository or weights; a new dependency needs the licence audit first; an
+accuracy feature needs the Phase I harness; a practice feature needs its own
+tests and must not fork the playback clock. The desktop product stays the
+priority.
 
 ---
 

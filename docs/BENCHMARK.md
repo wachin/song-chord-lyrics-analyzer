@@ -126,6 +126,35 @@ installed or reachable from `songlab`, and it needs the downloaded corpus
 the environment are in `docs/ENGINE_COMPARISON.md` §1–3; the generated-fixture and
 synthetic-corpus paths are covered by `tests/unit/test_chord_benchmark_harness.py`.
 
+## Hand-chart agreement (developer harness, 2026-10-27)
+
+A hand-written chord chart is the cheapest reference a real recording has, but
+it usually has **no timestamps**. `scripts/chord_chart_check.py` answers the
+sequence question honestly instead of pretending to be a timed benchmark:
+
+* parse the common plain-text chart format (chord-only lines, `[Section]`
+  headers, lyric lines, `|` separators, slash chords, `N.C.`);
+* reduce both sides to triads (minor families keep their `m`, so `Bm7` matches a
+  detected `Bm`; extensions and slash basses drop);
+* align the chart sequence to the detected sequence with Needleman–Wunsch and
+  report matches, substitutions, missing chart chords and extra detections;
+* never invent timings and never require the song or chart to be committed.
+
+```bash
+python scripts/chord_chart_check.py --chart song.txt --audio song.mp3
+python scripts/chord_chart_check.py --chart song.txt --chords-json chords.json --json
+```
+
+The report's percentage is **sequence agreement**, not duration-weighted CSR.
+An abridged chart or a repeated chorus written once will produce missing/extra
+entries that are not detector mistakes; read the alignment, not only the
+percentage. On a private 5:27 recording with an 86-chord chart, the current
+engine found 84 chart chords in order (97.7%), with 2 substitutions and 15
+extra detections (2026-10-27). The song/chart are private and not committed.
+The parser and alignment live in `evaluation/chart.py`, with unit tests in
+`tests/unit/test_chart_agreement.py` and a command-wiring test in
+`tests/unit/test_chart_check_command.py`.
+
 ## Metrics (roadmap section 44)
 
 Chord metrics: exact chord accuracy, root accuracy, quality accuracy, segment

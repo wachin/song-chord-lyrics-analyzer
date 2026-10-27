@@ -40,6 +40,14 @@ class TestBands:
         assert bands[0] == ChordBand(start=0.0, end=1.0, label="C", is_silence=False)
         assert bands[3].duration == pytest.approx(1.0)
 
+    def test_a_flat_key_respells_the_drawn_labels_only(self) -> None:
+        sharp = ChordEvent(start=0.0, end=1.0, root="A#", quality=ChordQuality.MAJOR)
+
+        bands = chord_bands([sharp], duration=DURATION, prefer_flats=True)
+
+        assert bands[0].label == "Bb"
+        assert sharp.label == "A#"
+
     def test_events_are_drawn_in_time_order_whatever_order_they_arrive_in(self) -> None:
         bands = chord_bands([F, SILENCE, G, C], duration=DURATION)
 

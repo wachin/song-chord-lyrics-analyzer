@@ -424,10 +424,10 @@ class MainWindow(QMainWindow):
         splitter.addWidget(self._timeline)
         splitter.addWidget(self._lyrics)
         splitter.addWidget(self._panel)
-        splitter.setStretchFactor(0, 3)
-        splitter.setStretchFactor(1, 1)
+        splitter.setStretchFactor(0, 2)
+        splitter.setStretchFactor(1, 2)
         splitter.setStretchFactor(2, 1)
-        splitter.setSizes([520, 260, 180])
+        splitter.setSizes([420, 420, 200])
 
         central = QWidget(self)
         layout = QVBoxLayout(central)
@@ -707,18 +707,30 @@ class MainWindow(QMainWindow):
         self._bucket_count = width
         self._timeline.set_peaks(self._session.waveform_peaks(buckets=width))
         chords = self._edits.effective if self._edits is not None else []
-        self._timeline.set_bands(chord_bands(chords, duration=duration))
+        self._timeline.set_bands(
+            chord_bands(
+                chords,
+                duration=duration,
+                prefer_flats=self._session.prefer_flats,
+            )
+        )
         self._timeline.set_duration(duration)
 
     def _populate_lyrics(self) -> None:
-        """Draw the *effective* lyric layer (engine + the user's edits).
+        """Draw the *effective* lyric layer with its chords above the words.
 
         Same rule as the chord strip: the view shows what the tape produced,
-        never the document's raw list, so a lyric edit is on screen the moment
-        its command is pushed.
+        never the document's raw list, so a lyric or chord edit is on screen the
+        moment its command is pushed. Both layers come from the same tape, so
+        the chart cannot show a chord the timeline does not.
         """
         lines = self._edits.effective_lyrics if self._edits is not None else []
-        self._lyrics.set_document(lines)
+        chords = self._edits.effective if self._edits is not None else []
+        self._lyrics.set_document(
+            lines,
+            chords=chords,
+            prefer_flats=self._session.prefer_flats,
+        )
 
     def resizeEvent(self, event: QResizeEvent | None) -> None:
         """Redraw the waveform at the new width; peaks are cached per width."""
@@ -1422,7 +1434,7 @@ class MainWindow(QMainWindow):
         # same presenters the session uses answer which line and word sound now.
         lines = self._edits.effective_lyrics if self._edits is not None else self._session.lyrics
         segment = lyric_at(lines, frame.position)
-        self._lyrics.set_active(segment, word_at(segment, frame.position))
+        self._lyrics.set_active(segment, word_at(segment, frame.position), frame.chord)
         return frame
 
     def _report(self, error: SongLabError) -> None:

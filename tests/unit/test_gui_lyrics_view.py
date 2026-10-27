@@ -212,3 +212,121 @@ class TestTheRightClickNamesTheLine:
 
         assert received == []
         assert view.line_index_at(QtCore.QPoint(5, 5)) is None
+
+
+def _chord(label: str, start: float, end: float | None = None):
+    from song_chord_lyrics_analyzer.models.music import ChordEvent
+    from song_chord_lyrics_analyzer.normalization.chords import parse_chord_label
+
+    parsed = parse_chord_label(label)
+    return ChordEvent(
+        start=start,
+        end=end,
+        root=parsed.root,
+        quality=parsed.quality,
+        bass=parsed.bass,
+        label=label,
+    )
+
+
+class TestChordsAboveTheLyrics:
+    """The chart is the product: chords are seated over the words they change on."""
+
+    def test_a_chord_is_drawn_above_its_word(self, qt_app: object) -> None:
+        view = LyricsWidget()
+
+        view.set_document(
+            DOCUMENT,
+            chords=[_chord("G", 0.0, 1.0), _chord("C", 1.0, 2.0), _chord("Am", 3.0, 4.5)],
+        )
+
+        assert [row.chord_row for row in view.rows] == ["G    C", "Am", ""]
+        assert view.rows[0].chords[0].word_index == 0
+        assert view.rows[0].chords[1].word_index == 1
+        assert view.rows[2].segment is view.lines[2]  # untimed line, last
+
+    def test_the_active_chord_is_highlighted(self, qt_app: object) -> None:
+        view = LyricsWidget()
+        chords = [_chord("G", 0.0, 1.0), _chord("C", 1.0, 2.0)]
+        view.set_document(DOCUMENT, chords=chords)
+
+        view.set_active(view.lines[0], _word("mundo", 1.0, 2.0), chords[1])
+
+        assert view.active_chord_start == 1.0
+        assert "background-color" in view._view.toHtml()
+
+    def test_clearing_the_chord_clears_the_highlight(self, qt_app: object) -> None:
+        view = LyricsWidget()
+        chords = [_chord("G", 0.0, 1.0)]
+        view.set_document(DOCUMENT, chords=chords)
+        view.set_active(view.lines[0], None, chords[0])
+        assert view.active_chord_start == 0.0
+
+        view.set_active()
+
+        assert view.active_chord_start is None
+
+    def test_a_gap_row_opens_no_lyric_menu(self, qt_app: object) -> None:
+        view = LyricsWidget()
+        view.show()
+        line = _segment("hola", 5.0, 7.0, [_word("hola", 5.0, 7.0)])
+        view.set_document([line], chords=[_chord("G", 0.0, 1.0), _chord("C", 6.0, 7.0)])
+        assert [row.is_gap for row in view.rows] == [True, False]
+        received: list[int] = []
+        view.line_menu_requested.connect(received.append)
+
+        browser = self._browser(view)
+        for index in range(2):
+            cursor = QtGui.QTextCursor(browser.document().findBlockByNumber(index))
+            browser.customContextMenuRequested.emit(browser.cursorRect(cursor).center())
+
+        assert received == [0]  # the gap row emitted nothing; the lyric row addressed 0
+
+    def test_a_flat_key_spells_the_drawn_chords(self, qt_app: object) -> None:
+        view = LyricsWidget()
+
+        view.set_document(
+            DOCUMENT,
+            chords=[_chord("A#", 0.0, 2.0)],
+            prefer_flats=True,
+        )
+
+        assert view.rows[0].chord_row == "Bb"
+
+    @staticmethod
+    def _browser(view: LyricsWidget) -> QtWidgets.QTextBrowser:
+        browser = view.findChild(QtWidgets.QTextBrowser)
+        assert browser is not None
+        return browser
+
+
+class TestGapRowsAreNotLyricLines:
+    def test_a_gap_between_lines_opens_no_lyric_menu(self, qt_app: object) -> None:
+        view = LyricsWidget()
+        view.show()
+        first = _segment("first", 0.0, 2.0, [_word("first", 0.0, 2.0)])
+        second = _segment("second", 6.0, 8.0, [_word("second", 6.0, 8.0)])
+        view.set_document(
+            [first, second],
+            chords=[_chord("C", 0.0, 2.0), _chord("G", 3.0, 4.0), _chord("Am", 6.0, 8.0)],
+        )
+        assert [row.is_gap for row in view.rows] == [False, True, False]
+        received: list[int] = []
+        view.line_menu_requested.connect(received.append)
+        browser = view.findChild(QtWidgets.QTextBrowser)
+        assert browser is not None
+
+        for index in range(3):
+            cursor = QtGui.QTextCursor(browser.document().findBlockByNumber(index))
+            browser.customContextMenuRequested.emit(browser.cursorRect(cursor).center())
+
+        assert received == [0, 1]  # the gap emitted nothing
+
+
+class TestTheChartLayout:
+    def test_long_rows_do_not_wrap_and_break_the_chord_columns(self, qt_app: object) -> None:
+        view = LyricsWidget()
+        browser = view.findChild(QtWidgets.QTextBrowser)
+        assert browser is not None
+
+        assert browser.lineWrapMode() is QtWidgets.QTextEdit.LineWrapMode.NoWrap

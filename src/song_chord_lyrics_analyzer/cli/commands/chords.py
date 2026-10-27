@@ -19,7 +19,10 @@ from typing import Any
 
 from song_chord_lyrics_analyzer.cli.commands.info import format_bytes
 from song_chord_lyrics_analyzer.engines import EngineKind, create_default_registry
-from song_chord_lyrics_analyzer.engines.base import ChordAnalysisOptions
+from song_chord_lyrics_analyzer.engines.base import (
+    DEFAULT_MINIMUM_CHORD_DURATION,
+    ChordAnalysisOptions,
+)
 from song_chord_lyrics_analyzer.models.analysis import EngineResult
 from song_chord_lyrics_analyzer.performance import real_time_factor
 from song_chord_lyrics_analyzer.schema.codec import encode
@@ -54,9 +57,12 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--min-duration",
         type=float,
-        default=0.0,
+        default=DEFAULT_MINIMUM_CHORD_DURATION,
         metavar="SECONDS",
-        help="merge chords shorter than this into a neighbour (default: 0, no merging)",
+        help=(
+            "merge chords shorter than this into a neighbour "
+            f"(default: {DEFAULT_MINIMUM_CHORD_DURATION:g}; 0 disables merging)"
+        ),
     )
     parser.add_argument(
         "--json",

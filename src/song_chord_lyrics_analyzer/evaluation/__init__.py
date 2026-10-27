@@ -17,10 +17,23 @@ confidence the chord engine reports: it refits the margin-to-probability
 logistic from recorded events, so the calibration is reproducible rather than
 taken on trust, and pools the reports into a calibration table, a
 risk-coverage curve and an expected calibration error.
+
+:mod:`song_chord_lyrics_analyzer.evaluation.chart` aligns a hand-written
+chord chart (no timestamps) to a detected sequence and reports matches,
+substitutions, missing and extra chords; it is sequence agreement, not the
+timed CSR above.
 """
 
 from __future__ import annotations
 
+from song_chord_lyrics_analyzer.evaluation.chart import (
+    Alignment,
+    AlignmentOp,
+    ChordChart,
+    align_chord_sequences,
+    parse_chord_chart,
+    triad_label,
+)
 from song_chord_lyrics_analyzer.evaluation.chords import (
     chord_pcs,
     duration_csr,
@@ -54,6 +67,12 @@ from song_chord_lyrics_analyzer.evaluation.guitarset import (
 
 __all__ = [
     "CONFIDENCE_THRESHOLDS",
+    "Alignment",
+    "AlignmentOp",
+    "ChordChart",
+    "align_chord_sequences",
+    "parse_chord_chart",
+    "triad_label",
     "EventOutcome",
     "GuitarSetManifest",
     "GuitarSetTake",

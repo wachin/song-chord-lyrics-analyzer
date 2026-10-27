@@ -138,12 +138,13 @@ the registered engine's accuracy figure**. This is exactly the traceability gap 
 
 ## 3. Chord engines — verdict
 
-**The registered engine's measured accuracy is CSR 0.6121 (0.6183 triad-reduced) on
+**The registered engine's measured accuracy was CSR 0.6121 (0.6183 triad-reduced) on
 180 GuitarSet comping takes against the instructed lead sheet, 2026-10-20** —
 the default front end after the §7 sweep. The same engine measured 0.6029 / 0.6091
 on 2026-10-19 with the previous default (`tuning=auto`); the difference is the
 §7 measurement, not a different metric. The complete vector is in §7 and §2;
-quote the date and the reference view with the number.
+quote the date and the reference view with the number. **The current default**
+measures **0.6312 / 0.6384** in §8 (2026-10-27), which supersedes both figures.
 
 What this result does **not** establish:
 
@@ -256,6 +257,14 @@ claim should be made from these three fixtures.
 
 ## 6. Per-chord confidence — measurement (roadmap Phase I P2, 2026-10-20)
 
+> **Historical record (updated 2026-10-21).** The constants in this section
+> (slope 23.4861 / intercept 0.1973) describe the binary-template front end
+> measured on 2026-10-20. The **shipped** constants after the §8 change are
+> slope **28.7942** / intercept **−0.0738**, with held-out Brier **0.1485** and
+> ECE **0.0363**. The 2026-10-20 tables are kept because they document the
+> method and the calibration before the scoring-stage change; do not quote them
+> as the current engine's numbers.
+
 **What is reported.** `ChordEvent.confidence` is no longer `unknown`. For every
 event the engine averages, over the frames the event covers, the **score margin**
 of the label it emitted: that label's cosine similarity minus the best similarity
@@ -288,7 +297,8 @@ run over the §7 default front end):
 | held out (odd takes) | 90 | 1,160 | 2,745.5 s | 0.5836 | 0.1420 | 0.0161 |
 
 The fit converged in 6 Newton steps to slope 23.4861 / intercept 0.1973; the
-engine carries exactly those. **The constants follow the front end:** the
+engine carried exactly those on 2026-10-20, and §8 refitted them for the
+current front end. **The constants follow the front end:** the
 §7 sweep moved the tuning default from `auto` to `zero`, which changed the
 chroma and therefore the margins, so the logistic was refitted on the same
 corpus. The pre-sweep fit (`tuning=auto`) was slope 24.2814 / intercept 0.1552
@@ -365,6 +375,11 @@ risk–coverage curve is monotone and wide enough to be useful. What it is *not*
 ---
 
 ## 7. Front-end robustness — one variable at a time (roadmap Phase I P3, 2026-10-20)
+
+> **Historical record (updated 2026-10-21).** This section measures the front
+> end with the binary templates and raw chroma of its day. §8 supersedes its
+> scoring stage; the `tuning=zero` adoption and the HPSS/CENS rejections remain
+> the current front-end decision.
 
 **Why this exists.** The audit's P3 asks whether the chroma front end — which until
 2026-10-20 was just `librosa.feature.chroma_cqt(y, sr, hop_length=2048)` with no
@@ -452,11 +467,149 @@ take in this corpus is played on a tuned instrument; a detuned recording is the
 case where `auto` should win, and this corpus cannot express it. `tuning=auto`
 stays one `--option` away for exactly that reason. The reverb, compression,
 vocal-mix and onset variables of P3 are still unmeasured; the change penalty
-itself (0.80) was fitted on the *old* front end and has not been re-swept.
+itself (0.80 here) was fitted on the *old* front end and was re-swept in §8 to
+0.40.
 
-**Consequence for the recorded numbers.** The default now produces CSR **0.6121**
-/ **0.6183** triad / overlap **0.8343** / change F1 **0.8296** against the
-instructed lead sheet, and the §6 confidence was refitted for it (Brier 0.1420,
-ECE 0.0161 held out). The §2 numbers remain the record of the previous default;
+**Consequence for the recorded numbers at that date.** The default then produced
+CSR **0.6121** / **0.6183** triad / overlap **0.8343** / change F1 **0.8296**
+against the instructed lead sheet, and the §6 confidence was refitted for it
+(Brier 0.1420, ECE 0.0161 held out). §8 supersedes both for the current
+engine. The §2 numbers remain the record of the previous default;
 both are in this file so that "what changed" is a diff between two measurements,
 not a story.
+
+## 8. Harmonic templates, chroma compression, the change penalty and the minimum segment (roadmap Phase I, 2026-10-21; 2026-10-27 addendum)
+
+**Question.** The §7 sweep left the engine's *scoring* untouched (binary triads,
+raw chroma) and explicitly noted that the change penalty had not been re-swept
+for the new front end. Can the same 180-take measurement carry a better scoring
+stage without a learned model? A real-song check on 2026-10-27 then asked a
+second question: how much of the remaining clutter is genuine harmony and how
+much is sub-second decoder flicker?
+
+**Method.** Same manifest, corpus and reference as §1/§2: 180 GuitarSet comping
+takes, **instructed** lead sheet (JAMS `chord` index 0), SHA-256-verified audio,
+no time range, one process, same machine (Linux x86_64, CPython 3.13.5, numpy
+2.5.3, librosa 1.0.0, CPU only), **2026-10-21**, with the minimum-duration
+addendum measured **2026-10-27**. The hypothesis comes from the registered
+`chroma-baseline` engine through `analyze()`; scoring uses
+`evaluation.guitarset.score_take` and the §11 vector. The harness omits
+`--change-penalty` by default so an unpassed flag means *the engine's measured
+default*, not a stale script constant; the effective value is recorded in every
+row and in the aggregate.
+
+Reproduce the adopted run with:
+
+```bash
+python scripts/chord_benchmark.py --corpus-dir .cache/chords/guitarset \
+  --limit 180 --out .cache/chords/bench-v3-default
+```
+
+and the confidence fit with `--fit-confidence` on the same run.
+
+**Adopted configuration.**
+
+| Parameter | Previous default | Adopted default | Option to restore |
+| --- | --- | --- | --- |
+| Chroma compression | none (raw) | `sqrt` | `feature_transform=raw` |
+| Triad templates | three bins at 1.0 | root 1.00, third 0.95, fifth 0.85, opposite third −0.35 | `template_weighting=binary` |
+| Viterbi change penalty | 0.80 | 0.40 | `change_penalty=0.8` |
+| Minimum segment | none | **0.50 s** | `min_segment_seconds=0` |
+
+**Measured runs (all 180 takes, same corpus and reference).**
+
+| Run | CSR | CSR (triad) | Segment overlap | Change F1 | Boundary err. ref→hyp | Hyp chords | Wall |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Previous defaults (§7, measured 2026-10-20) | 0.6121 | 0.6183 | 0.8343 | 0.8296 | 0.168 s | 12.91 | 43.2 s |
+| First scoring step (0.30 s, 2026-10-21) | 0.6283 | 0.6356 | 0.8403 | 0.8347 | 0.154 s | 13.84 | 64.0 s |
+| **Adopted (sqrt + harmonic + p=0.40 + 0.50 s, 2026-10-27)** | **0.6312** | **0.6384** | **0.8454** | **0.8553** | **0.158 s** | 13.07 | 53.3 s |
+| Ablation: 0.70 s minimum | 0.6316 | 0.6384 | 0.8464 | 0.8577 | 0.169 s | 12.35 | 45.7 s |
+| Ablation at 0.30 s: no minimum merge | 0.6273 | 0.6345 | 0.8384 | 0.8279 | 0.154 s | 14.16 | 57.2 s |
+| Ablation at 0.30 s: binary templates | 0.6219 | 0.6289 | 0.8431 | 0.8389 | 0.137 s | 13.39 | 50.7 s |
+| Ablation at 0.30 s: raw chroma | 0.6194 | 0.6268 | 0.8147 | 0.7956 | 0.110 s | 16.98 | 52.0 s |
+| Ablation at 0.30 s: change penalty 0.60 | 0.6266 | 0.6332 | 0.8330 | 0.8457 | 0.199 s | 11.94 | 50.7 s |
+| Ablation at 0.30 s: change penalty 0.80 | 0.6189 | 0.6252 | 0.8128 | 0.8382 | 0.264 s | 10.69 | 51.8 s |
+
+The wall column is the sum of the per-take `analyze()` times in each run's
+aggregate (decode included), not the shell's elapsed time and not a machine
+benchmark; the baseline row is the 2026-10-20 run of the previous defaults with
+the same harness, which is why its wall differs from the §7 table's shell
+elapsed figure. The component ablations were measured at a 0.30 s minimum
+because that was the default then; they answer "which component contributes",
+not "what does 0.50 s do to this component".
+
+**Paired deltas (mean of the 180 take-wise differences ± standard error).**
+
+| Comparison | Δ CSR | Δ change F1 | Wins / losses in CSR |
+| --- | --- | --- | --- |
+| Adopted vs previous defaults | **+0.0191 ± 0.0071** (95 % CI +0.0052..+0.0329) | **+0.0257 ± 0.0068** | 108 / 62 |
+| Adopted vs the 0.30 s step | +0.0028 ± 0.0007 (95 % CI +0.0014..+0.0042) | +0.0206 ± 0.0027 | 45 / 11 |
+| Adopted vs 0.70 s | −0.0004 ± 0.0013 (within noise) | −0.0024 ± 0.0016 | 18 / 22 |
+| At 0.30 s: harmonic vs binary templates | +0.0065 ± 0.0064 | −0.0042 ± 0.0032 | 95 / 71 |
+| At 0.30 s: sqrt vs raw chroma | +0.0089 ± 0.0044 | +0.0391 ± 0.0075 | 98 / 65 |
+| At 0.30 s: adopted vs p=0.80 | +0.0095 ± 0.0044 | −0.0035 ± 0.0040 | 72 / 57 |
+
+**Reading the result.** The adopted combination is a measured win on the target
+metric, with overlap, change F1 and median boundary error all better than the
+previous defaults; the 95 % interval on the CSR delta excludes zero. The
+minimum-duration change is small on CSR (+0.0028) but large on change F1
+(+0.0206) and overlap (+0.0052): the extra chords it removes are the sub-second
+flicker that used to reach the chart. 0.70 s is statistically indistinguishable
+on CSR and slightly better on F1, but it costs 0.011 s of median boundary error
+and risks swallowing genuine fast changes; 0.50 s is the balanced measured
+choice. The component ablations are noisier: harmonic templates alone are within
+one standard error of the binary set, so the CSR gain is the *combined* effect,
+not a claim that every component is individually significant. Raw chroma loses
+0.0089 CSR and 0.039 change F1 — without compression the scores are dominated by
+the loudest partial and the decoder changes far more often (16.98 chords per
+take against 13.07). The change penalty remains a trade-off: 0.60 gives the best
+change F1 (0.8457) but a slightly lower CSR.
+
+**Real-song sequence check (local, 2026-10-27).** A private 5:27 Spanish worship
+recording and its hand-written chart were used as a *sequence* reference (chart
+order, no timestamps): `scripts/chord_chart_check.py` parsed 86 chart chords and
+aligned them to 101 detections. **84 of 86 chart chords were found in order
+(97.7 %), with 2 substitutions and 15 extra detections**; the 0.50 s minimum
+reduced the extras from 16 to 15 without losing a chart chord, while a 1.0 s
+minimum lost a chart chord. This is sequence agreement, not duration accuracy,
+and the song/chart are not committed (copyright); it is a product signal that
+the harmony is mostly right on a real full-band mix and that the visible
+clutter is largely short transitions. It is not a replacement for the GuitarSet
+number and is not quoted as one. The tool is
+`scripts/chord_chart_check.py`; its semantics are in `evaluation/chart.py` and
+`docs/BENCHMARK.md`.
+
+**The 109-class reference probe (rejected).** The `external/Guitariz` submodule
+ships a small CRNN exported to ONNX (`backend/chord_model.onnx`, 109 classes,
+MIT repository). It was read as reference material only and evaluated on 30
+GuitarSet takes with a throwaway script that reproduced the project's log-CQT
+front end and took the raw argmax, with no smoothing: **0.2159 raw CSR / 0.2555
+triad CSR**. That is far below the registered engine and it is a 30-take probe,
+not a harness run, so it is not a like-for-like number. The weights were not
+copied, the model is not a dependency, and it is not adopted. The strong public
+BTC checkpoints are CC-BY-NC-SA (Isophonics/Robbie Williams/UsPop2002 training
+data) and conflict with this project's GPL-3.0-or-later distribution, so they
+are out. A held-out MLP on chroma context trained on 90 takes and tested on the
+other 90 added roughly +0.03 triad CSR over the template baseline in the same
+throwaway harness, but it was not converted into a shipped engine: it would
+need its own licence-audited feature/inference path and a real generalisation
+check beyond solo guitar. That remains the Phase I next step.
+
+**Confidence refit.** Every change above moves the score-margin scale, so the
+logistic was refitted on the 90 even-indexed takes and measured on the 90
+odd-indexed takes with `--fit-confidence`: **slope 28.7942, intercept −0.0738**,
+held-out **Brier 0.1485**, **ECE 0.0363**, and accuracy **0.809** on events
+scoring at least 0.60 (coverage 0.476). The previous constants (29.8735 /
+−0.1484, Brier 0.1497, ECE 0.0357) described the 0.30 s step; the earlier
+23.4861 / 0.1973 binary-template fit is in §6 as history. The mapping is still a
+probability *on GuitarSet*, not a universal guarantee.
+
+**What this does not establish.** That the engine is 93 % accurate on arbitrary
+songs. It is 0.6312 by duration CSR on a solo-acoustic-guitar corpus with a
+strict lead-sheet reference; a proprietary app's published percentage uses a
+different corpus, a different matching rule and a learned model, and the two
+numbers are not comparable. It also does not establish anything about detuned
+recordings, vocals, drums or full-band mixes: the corpus is one instrument. The
+next measured step is a licence-clean learned engine, not a larger vocabulary
+bolted onto the template matcher (the conservative seventh pass emitted sevenths
+on 21–53 % of the duration against a 13.4 % reference and was not adopted).

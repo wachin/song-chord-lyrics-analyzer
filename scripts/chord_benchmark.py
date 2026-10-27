@@ -396,11 +396,16 @@ def run(args: argparse.Namespace) -> int:
 
     # Explicit --option pairs win over the dedicated flags when both name the
     # same key, and the run records the effective value rather than the flag's.
+    # ``--change-penalty`` defaults to ``None`` so an omitted flag means "use
+    # the engine's measured default" instead of silently overriding it with a
+    # number the engine no longer ships.
     extra: dict[str, Any] = {
         "decoder": args.decoder,
-        "change_penalty": args.change_penalty,
         **_parse_options(args.option),
     }
+    if args.change_penalty is not None:
+        extra["change_penalty"] = args.change_penalty
+    effective_penalty = float(extra.get("change_penalty", chroma_baseline.DEFAULT_CHANGE_PENALTY))
     options = ChordAnalysisOptions(extra=extra)
     environment = _environment(engine)
     started = time.time()
@@ -446,7 +451,7 @@ def run(args: argparse.Namespace) -> int:
                 if isinstance(audio_seconds, (int, float))
                 else None,
                 "decoder": extra["decoder"],
-                "change_penalty": extra["change_penalty"],
+                "change_penalty": effective_penalty,
                 "engine": result.engine,
                 "engine_version": result.engine_version,
                 "wall_seconds": round(wall, 3),
@@ -480,7 +485,7 @@ def run(args: argparse.Namespace) -> int:
         "settings": {
             "reference": args.reference,
             "decoder": extra["decoder"],
-            "change_penalty": extra["change_penalty"],
+            "change_penalty": effective_penalty,
             "change_window": args.change_window,
             "corpus_verified": not args.no_verify,
             "engine_options": {
@@ -633,7 +638,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--engine", default="chroma-baseline")
     parser.add_argument("--decoder", choices=("viterbi", "majority"), default="viterbi")
-    parser.add_argument("--change-penalty", type=float, default=0.80)
+    parser.add_argument(
+        "--change-penalty",
+        type=float,
+        default=None,
+        help="Viterbi change penalty; omit to use the engine's measured default",
+    )
     parser.add_argument(
         "--option",
         action="append",

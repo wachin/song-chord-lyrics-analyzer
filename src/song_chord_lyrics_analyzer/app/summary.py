@@ -22,6 +22,7 @@ from dataclasses import dataclass
 
 from song_chord_lyrics_analyzer.analysis.service import StepOutcome, StepStatus
 from song_chord_lyrics_analyzer.models.analysis import AnalysisResult
+from song_chord_lyrics_analyzer.normalization.spelling import spell_key_label
 from song_chord_lyrics_analyzer.utils.text import pluralize
 from song_chord_lyrics_analyzer.utils.time import format_timestamp
 
@@ -157,7 +158,13 @@ def summarize(
     lyrics = lyrics_label(document)
     if lyrics is not None:
         rows.append(SummaryRow("Lyrics", lyrics))
-    rows.append(SummaryRow("Key", document.key.label if document.key is not None else "unknown"))
+    key = document.key
+    rows.append(
+        SummaryRow(
+            "Key",
+            spell_key_label(key.tonic, key.mode.value) if key is not None else "unknown",
+        )
+    )
 
     tempo = _describe_tempo(document)
     if tempo is not None:

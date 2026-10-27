@@ -507,6 +507,31 @@ class TestTheLyricsViewFollowsTheSameClock:
         assert window.lyrics.active_word is None
 
 
+class TestChordsAboveTheLyrics:
+    """The window seats the effective chords over the effective lyric words."""
+
+    def test_the_window_draws_a_chord_chart_not_plain_lyrics(self, window: MainWindow) -> None:
+        rows = window.lyrics.rows
+
+        # C opens the first line; G starts where that line ends (a gap row);
+        # the second line opens on N; F starts where it ends (another gap row).
+        assert [row.text for row in rows] == ["hola mundo", "· · ·", "adios amor", "· · ·"]
+        assert [row.chord_row for row in rows] == ["C", "G", "N", "F"]
+        assert [row.is_gap for row in rows] == [False, True, False, True]
+
+    def test_the_active_chord_is_the_one_the_label_shows(self, window: MainWindow) -> None:
+        window.seek(0.5)
+
+        assert window.chord_label.text() == "C"
+        assert window.lyrics.active_chord_start == 0.0
+
+    def test_a_flat_key_spells_the_chart(self, window: MainWindow) -> None:
+        """The chart reads the song's key preference, not the canonical label."""
+        window.seek(0.5)
+        assert window.session.prefer_flats is False  # the fake key is C major
+        assert window.lyrics.rows[0].chord_row == "C"
+
+
 class TestEditingTheChordLayer:
     """Phase G: correct a chord from the timeline, undo/redo, engine intact.
 
@@ -2033,3 +2058,16 @@ class TestLaunch:
         QtCore.QTimer.singleShot(0, application.quit)
 
         assert launch() == 0
+
+
+class TestTheChartFromATimedTextFile:
+    def test_the_loaded_file_is_drawn_with_its_chords(
+        self, window: MainWindow, tmp_path: Path
+    ) -> None:
+        source = tmp_path / "song.lrc"
+        source.write_text("[00:00.00]hola mundo\n[00:02.00]adios amor\n", encoding="utf-8")
+
+        assert window.load_lyrics_from(source) is True
+
+        assert [row.text for row in window.lyrics.rows] == ["hola mundo", "adios amor"]
+        assert [row.chord_row for row in window.lyrics.rows] == ["C   G", "N   F"]

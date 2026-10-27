@@ -135,6 +135,19 @@ class TestFrameFrom:
         session.seek(3.5)
         assert frame_from(session.snapshot()).chord_text == "?"
 
+    def test_a_flat_key_spells_the_root_for_display(self) -> None:
+        chord = ChordEvent(start=0.0, end=1.0, root="A#", quality=ChordQuality.MAJOR)
+        frame = DisplayFrame(
+            position=0.0,
+            duration=1.0,
+            state=PlaybackState.STOPPED,
+            chord=chord,
+            prefer_flats=True,
+        )
+
+        assert frame.chord_text == "Bb"
+        assert frame.chord.label == "A#"  # the canonical event is untouched
+
 
 class TestTheChordConfidence:
     def test_an_engine_that_reports_none_offers_unknown_not_a_number(self, tmp_path: Path) -> None:

@@ -30,7 +30,8 @@ file explains *how* the layers fit together, not what to build next.
 analyze → own the player → `chord_at(seconds)`) and the presenters - `display.py`
 (the pure function that turns a `SessionSnapshot` into a `DisplayFrame`),
 `timeline.py` (a chord event as a band in seconds, and the seconds/pixel mapping
-in both directions) and `summary.py` (the analysis as label/value rows). A front
+in both directions), `summary.py` (the analysis as label/value rows) and
+`chord_lyrics.py` (each chord seated above the timed word it starts on). A front
 end renders; it never re-implements synchronization or geometry. `songlab play`
 is the terminal renderer, `gui/` is the window, and both draw the same frame.
 
@@ -52,17 +53,20 @@ src/song_chord_lyrics_analyzer/
 │   ├── main.py           parser, error translation, exit codes
 │   └── commands/         info, doctor, chords, analyze, play, gui, benchmark
 ├── app/                  session (open/analyze/play/chord_at) + the presenters
-│                         (display frame, timeline bands/geometry, summary rows)
+│                         (display frame, timeline bands/geometry, summary rows,
+│                         chord-over-lyrics chart)
 ├── gui/                  (phase D, optional `gui` extra) PyQt6 window: main_window,
-│                         timeline widget, analysis panel; reads app/ only
+│                         timeline widget, chord-chart lyrics widget, analysis panel;
+│                         reads app/ only
 ├── audio/                validation, FFmpeg discovery, metadata probing, shared decode, playback, waveform peaks
-├── engines/              engine protocols, options, registry, chord + key + tempo engines, decoding
+├── engines/              engine protocols, options, registry, chord + lyrics + key + tempo engines, decoding
 ├── schema/               canonical JSON codec
 ├── models/               canonical typed data model (dataclasses)
 ├── analysis/             runs the engines and assembles one AnalysisResult + Provenance;
 │                         chunking.py (windowed chords, Phase K) + progress.py
-├── normalization/        chord parsing, rendering, transposition
-├── evaluation/           chord scoring semantics (roadmap §44): MIREX equality, CSR
+├── normalization/        chord parsing, rendering, transposition, key-aware display spelling
+├── evaluation/           chord scoring semantics (roadmap §44): MIREX equality, CSR,
+│                         confidence calibration, GuitarSet corpus, chart alignment
 ├── alignment/            (phase 9) external `.lrc`/`.srt` lyric bases parsed into the
 │                         canonical lyric rows (implemented 2026-10-14); shared timeline still reserved
 ├── fusion/               (phase 10) multi-engine consensus
@@ -233,12 +237,12 @@ Only WAV files can be inspected without FFmpeg.
 | Area | Status |
 | --- | --- |
 | Model, codec, registry, audio metadata, CLI | implemented; the canonical model, the engine protocols and the commands `info`, `doctor`, `chords`, `analyze`, `play` and `gui` all run |
-| Audio decoding and playback | implemented as a shared service (`audio/decode.py`), a tested `Player` with a real `sounddevice` backend (`audio/playback.py`) and waveform peaks (`audio/peaks.py`, min/max per bucket, no numpy import). **Still open:** the DSP engines call `librosa.load` themselves instead of the shared decoder |
-| Chord engine | `chroma-baseline` registered, tested and measured (CSR 0.6121 on 180 GuitarSet comping takes against the instructed lead sheet, 2026-10-20, reproducible with `scripts/chord_benchmark.py`); the front end exposes one option per measured variable (tuning, feature, harmonic, energy gate, `docs/ENGINE_COMPARISON.md` §7) and every event carries a per-chord confidence calibrated on that corpus (held-out Brier 0.1420, ECE 0.0161), with the raw score margin kept in `metadata`, so `evaluation/confidence.py` can refit and check it |
+| Audio decoding and playback | implemented as a shared service (`audio/decode.py`), a tested `Player` with a real `sounddevice` backend (`audio/playback.py`) and waveform peaks (`audio/peaks.py`, min/max per bucket, no numpy import). The chord, lyrics, key and tempo engines all decode through the shared service, as do the player and the waveform fallback |
+| Chord engine | `chroma-baseline` registered, tested and measured (CSR **0.6312**, triad 0.6384, on 180 GuitarSet comping takes against the instructed lead sheet, 2026-10-27, reproducible with `scripts/chord_benchmark.py`); the front end and scoring stage expose one option per measured variable (tuning, feature, harmonic, energy gate, chroma compression, template weighting, change penalty, minimum segment; `docs/ENGINE_COMPARISON.md` §7–§8) and every event carries a per-chord confidence calibrated on that corpus (held-out Brier 0.1485, ECE 0.0363), with the raw score margin kept in `metadata`, so `evaluation/confidence.py` can refit and check it |
 | Key and tempo engines | `krumhansl` and `librosa-tempo` registered, tested and measured; an engine for beats does not exist |
 | Product slice (open → analyze → play → synchronized chord) | **reached** on 2026-10-07 as `songlab play` + `app/display.py`, and reachable through a window since 2026-10-08 (`songlab gui`) |
-| GUI | **minimal window implemented** (2026-10-08): `gui/main_window.py`, `gui/timeline.py` (waveform + chord bands + playhead, click/drag to seek), `gui/analysis_panel.py`; PyQt6 behind the optional `gui` extra, tested offscreen. Editing, lyrics, exports and translations are `[F]` work and not started |
-| Lyrics, beats, stems, alignment, fusion, export, packaging | partially landed; `metrics/`/`evaluation/` metrics and the `benchmark/` runner exist as library code, the `.lrc`/`.srt` parsers, `export/` and the lyrics engine are implemented, `fusion/` and `i18n/` are empty placeholders |
+| GUI | **window implemented** (2026-10-08): `gui/main_window.py`, `gui/timeline.py` (waveform + chord bands + playhead, click/drag to seek), `gui/analysis_panel.py` and the chord-chart `gui/lyrics_view.py`; PyQt6 behind the optional `gui` extra, tested offscreen. Editing/undo-redo, the lyrics view and chord chart, transpose/simplify, exports and external `.lrc`/`.srt` lyrics have landed; translations remain `[F]` |
+| Lyrics, beats, stems, alignment, fusion, export, packaging | partially landed; `metrics/`/`evaluation/` metrics and the `benchmark/` runner exist as library code, the `.lrc`/`.srt` parsers, `export/`, the lyrics engine and `i18n/` are implemented, `fusion/` is an empty placeholder, and a beat/stems engine and packaging are not started |
 
 [`ROADMAP.md`](../ROADMAP.md) is the authoritative progress view, with `[x]` /
 `[~]` / `[ ]` markers per task and per phase; this table summarises it and must

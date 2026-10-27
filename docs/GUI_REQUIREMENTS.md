@@ -3,9 +3,9 @@
 > Status: **implemented** (roadmap Phase D, 2026-10-08; lyrics view
 > 2026-10-09; chord and lyric editing with persistence 2026-10-10..12;
 > transpose/simplify/export 2026-10-13; analysis off the UI thread and the
-> language menu 2026-10-14..15). The window exists, is verified offscreen and
-> on real audio, and exposes the full arrangement below for the features that
-> follow.
+> language menu 2026-10-14..15; **chord chart over the lyrics** 2026-10-21).
+> The window exists, is verified offscreen and on real audio, and exposes the
+> full arrangement below for the features that follow.
 
 ## What exists today
 
@@ -66,6 +66,20 @@ peaks(buckets)` feeds the timeline.
   the lyrics layer exactly as `chord_at()` answers the chords layer, and the
   window's refresh feeds both widgets from that one snapshot — the widget's
   `set_active(segment, word)` decides nothing about the clock.
+* ~~No chords above the lyrics.~~ **Delivered 2026-10-21** (`[F]` item 1b): the
+  lyrics view is now a **chord chart**. `app/chord_lyrics.py` places each chord
+  above the timed word whose `start <= chord.start < end` (proportional
+  fallback when a line has no word timestamps), gives instrumental intro/break
+  chords their own chord-only rows, never repeats a chord that merely spans
+  into the next line, and nudges colliding labels apart instead of overwriting
+  them. `gui/lyrics_view.py` draws each row as one monospace chord line plus
+  one lyric line in the same `QTextBlock`, which keeps the block→display-index
+  mapping exact for the lyric commands; the active chord is highlighted from
+  the same frame as the big chord label. Flat keys are respelled for display by
+  `normalization/spelling.py` (`Bb`, `Eb`, `Ab`) while the canonical document
+  keeps its sharp pitch classes. Tests: `tests/unit/test_chord_lyrics.py`,
+  `tests/unit/test_spelling.py`, `tests/unit/test_gui_lyrics_view.py` and
+  `TestChordsAboveTheLyrics` in `tests/unit/test_gui_main_window.py`.
 
 ## Sequencing and the `[F]` list
 
@@ -87,6 +101,20 @@ CLI, the engine or the session.
    stays undoable, and the new base is saved to the Phase G sidecar by
    `Ctrl+S` like any other edit. The same parse backs `songlab analyze
    --lyrics-from FILE`.
+1b. ~~**Chord chart over the lyrics**~~ **(done, 2026-10-21)** — the chord rows
+   are placed by `app/chord_lyrics.py` and painted by `gui/lyrics_view.py`, with
+   instrumental gap rows, active-chord highlighting and flat-key spelling. The
+   alignment is word-onset resolution, the finest timestamp the lyric layer
+   carries; a chord change inside a long held word lands on that word. This is
+   not a beat-level alignment claim. Chart rows are drawn with `NoWrap`, so a
+   long lyric line scrolls horizontally instead of wrapping under a chord row
+   that would no longer line up.
+
+1c. **Import a plain-text chord chart** — `[ ]`. The sequence half exists
+   (`evaluation/chart.py`, `scripts/chord_chart_check.py`), but turning a
+   user-authored chart into the displayed lyric/chord base needs line-level
+   lyric alignment and a timing policy. It is the next product step for users
+   whose own lyrics differ from the transcript; it is not a display fix.
 2. ~~**Chord/lyric editing**~~ **(done, 2026-10-12)** — chords first, 2026-10-10 with persistence
    2026-10-11: `app/editing.py` holds the command tape (`SetChordLabel`,
    `SplitChord`, `MergeChords`, `TrimChord`, `DeleteChord`, `InsertChord`,

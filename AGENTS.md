@@ -18,8 +18,8 @@ one plays a file and draws the chord under the playhead as it advances.
 undo/redo, transpose/simplify, exports, external `.lrc`/`.srt` lyrics, a
 **chord chart over the synchronized lyrics** (each chord above the timed word it
 changes on, instrumental gaps included), and a **plain-text chart import** that
-uses the chart's chords and lyrics while timing them from the detector and the
-transcript. Registered engines: chords
+uses the chart's chords and lyrics, anchors the chords under the chart's own
+columns, and times the words from the transcript. Registered engines: chords
 `chroma-baseline`, lyrics `parakeet-onnx`, key `krumhansl`, tempo
 `librosa-tempo`.
 

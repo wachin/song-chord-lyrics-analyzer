@@ -7,7 +7,7 @@
 [![Offline-first](https://img.shields.io/badge/offline--first-yes-success.svg)](#design-principles)
 [![Core dependencies](https://img.shields.io/badge/core%20dependencies-none-brightgreen.svg)](#design-principles)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
-[![Tests](https://img.shields.io/badge/tests-2131%20passing-brightgreen.svg)](#development)
+[![Tests](https://img.shields.io/badge/tests-2136%20passing-brightgreen.svg)](#development)
 
 A cross-platform, offline-first laboratory that analyzes an audio song and
 produces a synchronized representation of its **lyrics, chords, beats, tempo
@@ -588,7 +588,7 @@ songlab export    song.mp3 --format chordpro  ChordPro, JSON, Markdown, ...
 | Chord scoring semantics (`evaluation/`) — MIREX equality, duration-weighted CSR | implemented as library code |
 | `songlab benchmark` — scores stored reference/hypothesis cases into `benchmark/{json,csv,md}` | implemented; `--engine chroma-baseline` fills cases from a real measured run |
 | Local hand-chart sequence check — `scripts/chord_chart_check.py` parses a plain-text chart and aligns its chords to the detector, no timestamps required | implemented (2026-10-27) |
-| **Import a plain-text chart** — Edit → Load chord chart... (`Ctrl+Shift+L`): chart chords timed from the detector, chart lyric lines timed from the transcript, saved through the sidecar | implemented (2026-10-27; alignment-based timing, not beat-level) |
+| **Import a plain-text chart** — Edit → Load chord chart... (`Ctrl+Shift+L`): chart chords anchored under the chart's own chord columns, lyric lines timed from the transcript, instrumental runs distributed between anchors, saved through the sidecar | implemented (2026-10-27; column/word timing, not beat-level) |
 | GUI editing, undo/redo, lyrics view, **chord-over-lyrics chart**, transpose, simplify and the export dialog | implemented (2026-10-09..21) |
 | GUI translations — the Language menu ships, no catalogue does | not started (`[F]` work) |
 | Further chord decoders (a learned engine is the measured next step), beat engine, stem separation, fusion | not started |
@@ -630,18 +630,21 @@ The window can use that chart as the actual lyric and chord source instead of
 just checking against it: **Edit → Load chord chart...** (`Ctrl+Shift+L`). The
 importer:
 
-* times the chart's chords from the detected chord sequence (a chart chord with
-  no detected counterpart shares its neighbour's span instead of being dropped);
+* places each chord on the word it is written above, using the chart's own
+  chord columns; instrumental runs are spread between the surrounding anchors
+  and every chart chord gets a slot, so none is dropped;
 * times the chart's lyric lines from the transcript's timed words, keeping the
   chart's accents and punctuation and interpolating only the unmatched words;
+* falls back to the detected chord sequence for a chart with no word anchors;
 * excludes title/artist lines before the first `[Section]` or chord line;
 * keeps the transcript for any layer it cannot align, and reports why in the
   status bar rather than inventing text or times.
 
 The imported chart base is ordinary unsaved work: `Ctrl+S` writes it to the
 sidecar, and loading a chart over existing edits asks before discarding them.
-The timing is alignment-based, not beat-level; a chart whose sections or chord
-columns differ substantially from the performance may need manual correction.
+The timing is column/word-based, not beat-level; a chart whose sections differ
+substantially from the performance, or whose columns are badly displaced, may
+need manual correction.
 On the same private 5:27 song the import produced **86 timed chart chords and 36
 correct lyric lines**, with 83 of 182 chart words anchored to the transcript
 (2026-10-27); the first chart line starts at 20.0 s after the instrumental
@@ -651,7 +654,7 @@ intro. The song and chart remain private and are not committed.
 ## Development
 
 ```bash
-pytest                # 2131 tests + environment-dependent skips, no network, no models
+pytest                # 2136 tests + environment-dependent skips, no network, no models
 ruff check . && ruff format --check .
 python -m mypy
 ```

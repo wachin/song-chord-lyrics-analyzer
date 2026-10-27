@@ -151,12 +151,12 @@ passed it (`.venv` skips that test: no output device there).
 Gate re-run after the chord chart and the measured front-end/template and
 minimum-duration work (2026-10-27, same machine, Python 3.13.5, numpy 2.5.3,
 librosa 1.0.0, PyQt6 offscreen): `ruff check` clean, `ruff format --check` 172
-files clean, `mypy` 93 files clean, `pytest` **2131 passed / 2 skipped in
-258 s**
+files clean, `mypy` 93 files clean, `pytest` **2136 passed / 2 skipped in
+262 s**
 (`.venv-chords`: numpy 2.5.3, librosa 1.0.0, sounddevice 0.5.6, PyQt6
 6.11.0, real output device, `QT_QPA_PLATFORM=offscreen`; the two skips are the
-intentional "the optional stack is installed here" branches) and **2123 passed
-/ 10 skipped in 248 s** (`.venv`: no output device, so the eight playback
+intentional "the optional stack is installed here" branches) and **2128 passed
+/ 10 skipped in 226 s** (`.venv`: no output device, so the eight playback
 tests skip; the two "stack installed" branches differ too).
 
 ### Manual GUI verification — user-reported (2026-10-18)
@@ -290,7 +290,7 @@ against the same harness, not a missing foundation.
   passed / 11 skipped** (`ruff` clean over 162 files, `ruff format --check` 162
   files, `mypy` 89 files). The chord-chart, spelling, chart-check and
   measured-front-end work through 2026-10-21..27 adds its own tests; the full
-  `.venv-chords` suite reports **2131 passed / 2 skipped in 258 s**, `ruff`
+  `.venv-chords` suite reports **2136 passed / 2 skipped in 262 s**, `ruff`
   clean over 172 files and `mypy` 93 files clean.
 * `[x]` Documentation of decisions: `docs/ARCHITECTURE.md`,
   `DEPENDENCY_MATRIX.md`, `LICENSE_AUDIT.md`, `DATASET.md`,
@@ -850,20 +850,22 @@ the transcript's timed words.
   (`tests/unit/test_gui_lyrics_view.py`) and a window test that the chart is
   built from the effective layers (`TestChordsAboveTheLyrics`)
 - [x] **Plain-text chart import** (2026-10-27): `app/chart_import.py` parses the
-  chart's chord sequence and sung lines, aligns the chords to the detected
-  sequence (a chart chord with no counterpart shares a neighbour's span rather
-  than being dropped) and aligns the chart words to the transcript's timed
-  words, keeping the chart text and interpolating unmatched words. Title/artist
-  lines before the first section/chord line are excluded. The window's
+  chart's chord sequence, chord columns and sung lines. A chord written above a
+  lyric word takes that word's start; instrumental runs are distributed between
+  the surrounding anchors, and every chart chord gets a positive slot. Chart
+  words are aligned to the transcript's timed words, keeping the chart text and
+  interpolating unmatched words; the detected sequence is the fallback when the
+  chart has no word anchors. Title/artist lines before the first section/chord
+  line are excluded. The window's
   **Edit → Load chord chart...** (`Ctrl+Shift+L`) replaces both bases through
   `with_chart_bases` (old commands dropped), reports unmatched layers in the
-  status bar, and saves the chart base to the sidecar. Tests: 11 importer
+  status bar, and saves the chart base to the sidecar. Tests: 14 importer
   tests (`tests/unit/test_chart_import.py`) and 6 window tests
   (`TestImportingAChordChart`). Verified on the private 5:27 song: 86 timed
   chart chords, 36 correct lyric lines, 83/182 chart words anchored to the
-  transcript (2026-10-27). Limitation: the timing is alignment-based, not
-  beat-level; chart sections and chord columns are not used for timing, and the
-  chart file path is not yet recorded in provenance.
+  transcript (2026-10-27). Limitation: the timing is column/word-based, not
+  beat-level; chart sections are not used for timing, and the chart file path is
+  not yet recorded in provenance.
 
 ### Acceptance criteria
 
@@ -1305,7 +1307,7 @@ engine. The order is the order a user would notice the difference.
 | Feature | Status | Why it is not done yet / what it needs |
 | --- | --- | --- |
 | File input, playback, seek, synchronized chords, chord-over-lyrics chart, key/tempo/lyrics, editing, undo/redo, transpose, simplify, export | `[x]` | delivered 2026-10-07..21; see Phases C–H |
-| Import a user's plain-text chord chart (chords + lyrics) and align it to the song | `[~]` | implemented 2026-10-27: `app/chart_import.py` + Edit → Load chord chart... (`Ctrl+Shift+L`) time the chart's chords from the detected sequence and its lyric lines from the transcript's words, and save the base to the sidecar. Still open: section-aware timing, using the chart's chord columns for sub-line placement, recording the chart path in provenance, and manual correction of a badly aligned line |
+| Import a user's plain-text chord chart (chords + lyrics) and align it to the song | `[~]` | implemented 2026-10-27: `app/chart_import.py` + Edit → Load chord chart... (`Ctrl+Shift+L`) anchor chart chords under the chart's chord columns, time lyric lines from the transcript's words, distribute instrumental runs, and save the base to the sidecar. Still open: section-aware timing, recording the chart path in provenance, beat-level placement, and manual correction of a badly aligned line |
 | Transposition / capo-style display | `[~]` | transpose is implemented; an explicit capo setting that shifts what the player reads while the sounding chords stay fixed is a small presenter addition, not a new engine |
 | Guitar / piano / ukulele chord diagrams | `[ ]` | needs a voicing table and an `app/` presenter; the chord label already exists, and the diagrams must not be generated by inventing finger positions |
 | Loop playback (A/B) | `[ ]` | needs a player-side loop over the existing decoded buffer; the `Player` protocol already has `seek`/`play`/`pause` |

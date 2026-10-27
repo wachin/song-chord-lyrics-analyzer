@@ -5,14 +5,16 @@ module answers the next question: *make the chart the thing the window shows.*
 A user's chart has the right words and the right chords but no timestamps, so
 the import needs two independent clocks:
 
-* **Chords.** The chart's chord sequence is aligned to the detected chord
-  sequence (`align_chord_sequences`). A matched or substituted chart chord takes
-  the detected event's start and end; a chart chord with no detected counterpart
-  gets an interpolated time between its neighbours. The *label* is always the
+* **Chords.** The chart's own columns decide where a chord sits. A chord written
+  above a lyric word takes that word's start; an instrumental run (an intro or
+  interlude) is spread evenly between the surrounding word anchors, or between
+  the track edge and the first/last anchor. The detected chord sequence is the
+  fallback only when the chart has no word anchors. The *label* is always the
   chart's, so a detector mistake cannot re-enter the imported layer.
 * **Lyrics.** The chart's sung lines are aligned word by word to the
-  transcript's timed words. Exact normalized matches anchor a chart word to the
-  transcript's start/end; the words between anchors are interpolated. The chart
+  transcript's timed words. Normalized matches (exact, or a conservative near
+  match for long words) anchor a chart word to the transcript's start/end; the
+  words between anchors are interpolated. The chart
   text (with its punctuation and accents) is what is stored; only the timings
   come from the transcript. Title/artist lines before the first section or
   chord line are not sung and are excluded.
@@ -22,10 +24,10 @@ presenter. Nothing here is a second player or a second clock: the events and
 lines carry ordinary start/end seconds, and the session/presenters read them
 exactly like engine output.
 
-The import is honest about failure. If there are no detected chords, no timed
-lyrics, or too few word anchors, the corresponding layer is returned empty or
-``None`` together with a warning; the caller keeps what it had rather than
-inventing a timeline.
+The import is honest about failure. If there are no word anchors and no detected
+chords, the chord layer is empty; if the chart has no sung lines or too few word
+anchors, ``lyrics`` is ``None`` and the caller keeps the transcript. Warnings say
+which layer was kept or interpolated rather than inventing a timeline.
 """
 
 from __future__ import annotations
@@ -33,9 +35,10 @@ from __future__ import annotations
 import re
 import statistics
 import unicodedata
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from difflib import SequenceMatcher
+from itertools import pairwise
 
 from song_chord_lyrics_analyzer.evaluation.chart import (
     ChordChart,
@@ -398,16 +401,165 @@ def _event_end(event: ChordEvent, following: ChordEvent | None, duration: float 
     return event.start + 0.5
 
 
+def _word_anchors(
+    chart: ChordChart,
+    word_times: Mapping[tuple[int, int], tuple[float, float]] | None,
+) -> dict[int, float]:
+    """Chart chord index -> the start of the word it is written above."""
+    if not word_times or len(chart.chord_tokens) != len(chart.chords):
+        return {}
+    anchors: dict[int, float] = {}
+    for index, token in enumerate(chart.chord_tokens):
+        if token.lyric_line is None or token.word_index is None:
+            continue
+        span = word_times.get((token.lyric_line, token.word_index))
+        if span is not None:
+            anchors[index] = float(span[0])
+    return anchors
+
+
+def _anchor_times(
+    chart: ChordChart,
+    anchors: Mapping[int, float],
+    detected: Sequence[ChordEvent],
+    *,
+    duration: float | None,
+) -> list[tuple[float, float]]:
+    """A chart-first timeline: word anchors fixed, instrumental runs between.
+
+    The chart is a sequence of changes, and its columns are the user's statement
+    of *where* each change belongs. Anchored chords therefore take their word's
+    start. Instrumental chords (an intro, an interlude) have no word, so they
+    are spread evenly into the interval between the surrounding anchors (or the
+    track start/end at the edges). Every chart chord gets a positive slot; none
+    is dropped because the detector's segment happened to be longer than the
+    lyric line.
+    """
+    count = len(chart.chords)
+    indices = sorted(anchors)
+    starts = [0.0] * count
+    first = indices[0]
+    if first:
+        low = 0.0
+        if detected:
+            first_detected = float(detected[0].start)
+            if first_detected < anchors[first]:
+                low = first_detected
+        span = max(0.1, anchors[first] - low)
+        for index in range(first):
+            starts[index] = low + span * index / first
+    for index in indices:
+        starts[index] = anchors[index]
+    for left, right in pairwise(indices):
+        gap = right - left - 1
+        if gap <= 0:
+            continue
+        span = anchors[right] - anchors[left]
+        if span <= 0.0:
+            span = 0.05 * (gap + 1)
+        for offset in range(1, gap + 1):
+            starts[left + offset] = anchors[left] + span * offset / (gap + 1)
+    last = indices[-1]
+    trailing = count - 1 - last
+    if trailing:
+        high = duration if duration is not None and duration > anchors[last] else None
+        if high is None and detected:
+            detected_end = _event_end(detected[-1], None, duration)
+            if detected_end > anchors[last]:
+                high = detected_end
+        if high is None:
+            high = anchors[last] + 0.5 * trailing
+        span = max(0.1, high - anchors[last])
+        for offset in range(1, trailing + 1):
+            starts[last + offset] = anchors[last] + span * offset / (trailing + 1)
+    for index in range(1, count):
+        if starts[index] <= starts[index - 1]:
+            starts[index] = starts[index - 1] + 0.05
+    if duration is not None and duration > 0.0 and starts[-1] >= duration:
+        scale = (duration - 0.05) / max(starts[-1], 0.05)
+        starts = [start * scale for start in starts]
+        for index in range(1, count):
+            if starts[index] <= starts[index - 1]:
+                starts[index] = starts[index - 1] + 0.001
+    ends: list[float] = []
+    for index in range(count - 1):
+        ends.append(max(starts[index] + 0.05, starts[index + 1]))
+    last_end = duration if duration is not None and duration > starts[-1] else starts[-1] + 0.5
+    if duration is None and detected:
+        detected_end = _event_end(detected[-1], None, duration)
+        if detected_end > starts[-1]:
+            last_end = detected_end
+    ends.append(last_end)
+    return list(zip(starts, ends, strict=True))
+
+
+def _build_chart_events(
+    chart: ChordChart,
+    times: Sequence[tuple[float, float]],
+    *,
+    duration: float | None,
+    warnings: Sequence[str],
+) -> tuple[tuple[ChordEvent, ...], tuple[str, ...]]:
+    """Turn timed chart chord positions into labelled events."""
+    events: list[ChordEvent] = []
+    for index, (start, end) in enumerate(times):
+        if duration is not None and duration > 0.0:
+            start = min(start, max(0.0, duration - 0.05))
+            end = min(end, duration)
+        if end <= start:
+            end = start + 0.05
+        label = chart.chords[index]
+        parsed = parse_chord_label(label)
+        if parsed.quality is ChordQuality.NO_CHORD or label in {"N", "N.C.", "NC"}:
+            events.append(
+                ChordEvent.silence(
+                    start,
+                    end,
+                    source=CHART_SOURCE,
+                    confidence=ConfidenceScore.unknown(CHART_SOURCE),
+                    metadata={"chart_import": True, "chart_label": label},
+                )
+            )
+            continue
+        events.append(
+            ChordEvent(
+                start=start,
+                end=end,
+                root=parsed.root,
+                quality=parsed.quality,
+                bass=parsed.bass,
+                label=label,
+                source=CHART_SOURCE,
+                confidence=ConfidenceScore.unknown(CHART_SOURCE),
+                metadata={"chart_import": True, "chart_label": label},
+            )
+        )
+    # A chart lists changes, not gaps: each chord holds until the next one.
+    for position in range(len(events) - 1):
+        events[position].end = events[position + 1].start
+    return tuple(event for event in events if event.end is None or event.end > event.start), tuple(
+        warnings
+    )
+
+
 def _chart_events(
     chart: ChordChart,
     detected: Sequence[ChordEvent],
     *,
     duration: float | None,
+    word_times: Mapping[tuple[int, int], tuple[float, float]] | None = None,
 ) -> tuple[tuple[ChordEvent, ...], tuple[str, ...]]:
-    """Time every chart chord from the aligned detected sequence."""
-    warnings: list[str] = []
+    """Time every chart chord from word anchors, then from the detector."""
     if not chart.chords:
         return (), ("the chart has no chord lines",)
+    anchors = _word_anchors(chart, word_times)
+    if anchors:
+        return _build_chart_events(
+            chart,
+            _anchor_times(chart, anchors, detected, duration=duration),
+            duration=duration,
+            warnings=(),
+        )
     if not detected:
         return (), ("there are no detected chords to time the chart against",)
     alignment = align_chord_sequences(chart.chords, [event.label for event in detected])
@@ -433,6 +585,7 @@ def _chart_events(
     average = statistics.median(durations) if durations else 0.5
     average = max(0.1, average)
     missing = len(chart.chords) - len(mapped)
+    warnings: list[str] = []
     if missing:
         warnings.append(
             f"{missing} chart chord(s) had no detected counterpart; their times were interpolated"
@@ -442,11 +595,6 @@ def _chart_events(
     for index, span in mapped.items():
         times[index] = span
     first, last = min(mapped), max(mapped)
-    # A chart can carry an intro (or a repeated section) that the detector
-    # missed entirely. There is no gap before the first mapped chord then, so
-    # share the first mapped span between the leading chart chords and that
-    # chord; the chart's order is preserved instead of its first chords being
-    # silently dropped.
     if first > 0:
         first_start, first_end = mapped[first]
         slots = first + 1
@@ -456,18 +604,13 @@ def _chart_events(
             times[index] = (index * step, (index + 1) * step)
         if first_start <= 0.0:
             times[first] = (first * step, max((first + 1) * step, first_end))
-    # Symmetrically, a tail with no detected counterpart runs to the track end
-    # when the duration is known, or shares the last mapped span otherwise.
     if last < count - 1:
         last_start, last_end = mapped[last]
         trailing = count - 1 - last
         if duration is not None and duration > last_end:
             step = max(0.05, (duration - last_end) / trailing)
             for offset, index in enumerate(range(last + 1, count), start=1):
-                times[index] = (
-                    last_end + (offset - 1) * step,
-                    last_end + offset * step,
-                )
+                times[index] = (last_end + (offset - 1) * step, last_end + offset * step)
         else:
             slots = trailing + 1
             step = max(0.05, (last_end - last_start) / slots)
@@ -510,48 +653,7 @@ def _chart_events(
         times[index] = (start, end)
     resolved = [span for span in times if span is not None]
     assert len(resolved) == count
-    events: list[ChordEvent] = []
-    for index, (start, end) in enumerate(resolved):
-        if duration is not None and duration > 0.0:
-            start = min(start, max(0.0, duration - 0.05))
-            end = min(end, duration)
-        if end <= start:
-            end = start + 0.05
-        label = chart.chords[index]
-        parsed = parse_chord_label(label)
-        if parsed.quality is ChordQuality.NO_CHORD or label in {"N", "N.C.", "NC"}:
-            events.append(
-                ChordEvent.silence(
-                    start,
-                    end,
-                    source=CHART_SOURCE,
-                    confidence=ConfidenceScore.unknown(CHART_SOURCE),
-                    metadata={"chart_import": True, "chart_label": label},
-                )
-            )
-            continue
-        events.append(
-            ChordEvent(
-                start=start,
-                end=end,
-                root=parsed.root,
-                quality=parsed.quality,
-                bass=parsed.bass,
-                label=label,
-                source=CHART_SOURCE,
-                confidence=ConfidenceScore.unknown(CHART_SOURCE),
-                metadata={"chart_import": True, "chart_label": label},
-            )
-        )
-    events.sort(key=lambda event: event.start)
-    for position in range(1, len(events)):
-        previous_event = events[position - 1]
-        following_event = events[position]
-        if previous_event.end is None or previous_event.end > following_event.start:
-            previous_event.end = following_event.start
-    return tuple(event for event in events if event.end is None or event.end > event.start), tuple(
-        warnings
-    )
+    return _build_chart_events(chart, resolved, duration=duration, warnings=warnings)
 
 
 def import_chart(
@@ -582,31 +684,42 @@ def import_chart(
     chart = parse_chord_chart(text, source=source)
     if chart.is_empty:
         raise ValueError("the chord chart has no chord line")
-    chords, warnings = _chart_events(chart, detected_chords, duration=duration)
+    warnings: list[str] = []
     chart_words = _chart_words(chart)
     lyrics: tuple[LyricSegment, ...] | None = None
+    word_times: dict[tuple[int, int], tuple[float, float]] = {}
     if not chart_words:
-        warnings = (*warnings, "the chart has no lyric lines; the transcript is kept")
+        warnings.append("the chart has no lyric lines; the transcript is kept")
     else:
         transcript_words = _transcript_words(transcript)
         if not transcript_words:
-            warnings = (*warnings, "there are no timed transcript words to place the chart lyrics")
+            warnings.append("there are no timed transcript words to place the chart lyrics")
         else:
             pairs = _word_pairs(chart_words, transcript_words)
             share = len(pairs) / len(chart_words)
             if not pairs or share < _MIN_ANCHOR_SHARE:
-                warnings = (
-                    *warnings,
+                warnings.append(
                     "the chart's lyrics could not be matched to the transcript; "
-                    "the transcript is kept",
+                    "the transcript is kept"
                 )
             else:
                 _fill_word_times(chart_words, transcript_words, pairs, duration=duration)
                 lyrics = _lyric_segments(chart, chart_words)
+                word_times = {
+                    (word.line_index, word.word_index): (float(word.start), float(word.end))
+                    for word in chart_words
+                    if word.start is not None and word.end is not None
+                }
                 if len(pairs) < len(chart_words):
-                    warnings = (
-                        *warnings,
+                    warnings.append(
                         f"{len(pairs)} of {len(chart_words)} chart words were matched; "
-                        "the rest were interpolated",
+                        "the rest were interpolated"
                     )
-    return ChartImport(chords=chords, lyrics=lyrics, warnings=warnings, chart=chart)
+    chords, chord_warnings = _chart_events(
+        chart,
+        detected_chords,
+        duration=duration,
+        word_times=word_times,
+    )
+    warnings.extend(chord_warnings)
+    return ChartImport(chords=chords, lyrics=lyrics, warnings=tuple(warnings), chart=chart)

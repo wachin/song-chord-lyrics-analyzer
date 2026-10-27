@@ -12,6 +12,7 @@ import pytest
 
 from song_chord_lyrics_analyzer.evaluation.chart import (
     Alignment,
+    ChartWord,
     align_chord_sequences,
     parse_chord_chart,
     triad_label,
@@ -76,6 +77,28 @@ class TestParseChordChart:
 
         assert chart.chord_lines[0] == ("G", "A", "Bm", "F#m")
         assert chart.chord_lines[1] == ("G", "A", "Bm", "A")
+
+    def test_chord_columns_anchor_to_the_lyric_line_below(self) -> None:
+        chart = parse_chord_chart(CHART)
+        anchored = [
+            (token.text, token.word_index)
+            for token in chart.chord_tokens
+            if token.lyric_line is not None
+        ]
+
+        assert anchored == [("G", 0), ("A", 1), ("Bm", 3), ("F#m", 2)]
+        assert chart.lyric_words[0] == (
+            ChartWord("some", 3),
+            ChartWord("invented", 8),
+            ChartWord("lyric", 17),
+            ChartWord("line", 23),
+        )
+
+    def test_an_instrumental_chord_line_has_no_lyric_anchor(self) -> None:
+        chart = parse_chord_chart(CHART)
+        intro = [token for token in chart.chord_tokens if token.text in {"F#m", "Bm"}]
+
+        assert any(token.lyric_line is None for token in intro)
 
     def test_bar_separators_are_accepted(self) -> None:
         chart = parse_chord_chart("| C | G | Am | F |\n")

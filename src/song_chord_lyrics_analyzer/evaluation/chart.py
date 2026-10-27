@@ -40,6 +40,7 @@ than only its percentage.
 from __future__ import annotations
 
 import re
+from bisect import bisect_right
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -49,6 +50,8 @@ from song_chord_lyrics_analyzer.normalization.chords import parse_chord_label
 __all__ = [
     "Alignment",
     "AlignmentOp",
+    "ChartChord",
+    "ChartWord",
     "ChordChart",
     "align_chord_sequences",
     "parse_chord_chart",
@@ -92,6 +95,40 @@ def triad_label(label: str) -> str:
 
 
 @dataclass(frozen=True)
+class ChartWord:
+    """One word of a chart lyric line and its character column.
+
+    Attributes:
+        text: The word as written.
+        column: Zero-based character offset in the raw lyric line; the chord
+            line above the lyric uses the same coordinate system.
+    """
+
+    text: str
+    column: int
+
+
+@dataclass(frozen=True)
+class ChartChord:
+    """One chord token and, when the chart places it over a lyric, its word.
+
+    Attributes:
+        text: The chord as written.
+        column: Zero-based character offset in the chord line.
+        lyric_line: Index into :attr:`ChordChart.content_lyrics` when the next
+            non-empty line is a lyric line, otherwise ``None`` (an intro or an
+            instrumental chord line).
+        word_index: Index of the lyric word nearest to the chord's column, or
+            ``None`` for an instrumental chord line.
+    """
+
+    text: str
+    column: int
+    lyric_line: int | None = None
+    word_index: int | None = None
+
+
+@dataclass(frozen=True)
 class ChordChart:
     """The chords and context read from one plain-text chart.
 
@@ -104,6 +141,10 @@ class ChordChart:
         content_lyrics: Lyric text lines after the chart's first section header
             or chord line. The lines before it are title/artist metadata, not
             sung text, so a chart import starts here.
+        chord_tokens: The same chords as :attr:`chords`, with their column and,
+            when the chart places them above a lyric line, the word they sit
+            over. A chart import uses this for sub-line placement.
+        lyric_words: The words of :attr:`content_lyrics`, with their columns.
         source: The file name the chart came from, when the caller has one.
     """
 
@@ -112,6 +153,8 @@ class ChordChart:
     sections: tuple[str, ...]
     lyric_lines: tuple[str, ...]
     content_lyrics: tuple[str, ...] = ()
+    chord_tokens: tuple[ChartChord, ...] = ()
+    lyric_words: tuple[tuple[ChartWord, ...], ...] = ()
     source: str | None = None
 
     @property
@@ -125,8 +168,47 @@ def _tokens(line: str) -> list[str]:
     return [token for token in _SEPARATOR.split(line.strip()) if token]
 
 
+def _spanned_tokens(line: str) -> list[tuple[str, int]]:
+    """Chord tokens of a chord line with their zero-based character columns."""
+    return [
+        (match.group(), match.start())
+        for match in re.finditer(r"[^|\s]+", line)
+        if _CHORD_TOKEN.match(match.group())
+    ]
+
+
+def _spanned_words(line: str) -> tuple[ChartWord, ...]:
+    """Words of a lyric line with their zero-based character columns."""
+    return tuple(ChartWord(match.group(), match.start()) for match in re.finditer(r"\S+", line))
+
+
+def _chart_word_index(words: Sequence[ChartWord], column: int) -> int | None:
+    """The lyric word a chord column sits over.
+
+    The chord takes the word at or immediately before its column, which is how
+    a person reads a chord placed above a syllable. A chord before the first
+    word or after the last one belongs to that edge word rather than being
+    rejected; the chart's indentation is often approximate.
+    """
+    if not words:
+        return None
+    starts = [word.column for word in words]
+    index = bisect_right(starts, column) - 1
+    return max(0, min(index, len(words) - 1))
+
+
+@dataclass
+class _ChartEntry:
+    """One non-empty chart line while the parse is being assembled."""
+
+    kind: str  # "section", "chord" or "lyric"
+    raw: str
+    tokens: tuple[str, ...] = ()
+    content_index: int | None = None
+
+
 def parse_chord_chart(text: str, *, source: str | None = None) -> ChordChart:
-    """Read a plain-text chord chart into an ordered chord sequence.
+    """Read a plain-text chord chart into ordered chords and lyric context.
 
     Args:
         text: The chart file's contents.
@@ -144,8 +226,7 @@ def parse_chord_chart(text: str, *, source: str | None = None) -> ChordChart:
     """
     if not text.strip():
         raise ValueError("the chord chart is empty")
-    chords: list[str] = []
-    chord_lines: list[tuple[str, ...]] = []
+    entries: list[_ChartEntry] = []
     sections: list[str] = []
     lyric_lines: list[str] = []
     content_lyrics: list[str] = []
@@ -156,23 +237,65 @@ def parse_chord_chart(text: str, *, source: str | None = None) -> ChordChart:
             continue
         if stripped.startswith("[") and stripped.endswith("]"):
             sections.append(stripped[1:-1].strip())
+            entries.append(_ChartEntry("section", raw))
             content_started = True
             continue
-        tokens = _tokens(stripped)
+        tokens = tuple(_tokens(stripped))
         if tokens and all(_CHORD_TOKEN.match(token) for token in tokens):
-            chord_lines.append(tuple(tokens))
-            chords.extend(tokens)
+            entries.append(_ChartEntry("chord", raw, tokens=tokens))
             content_started = True
-        else:
-            lyric_lines.append(stripped)
-            if content_started:
-                content_lyrics.append(stripped)
+            continue
+        lyric_lines.append(stripped)
+        content_index = None
+        if content_started:
+            content_index = len(content_lyrics)
+            content_lyrics.append(stripped)
+        entries.append(_ChartEntry("lyric", raw, content_index=content_index))
+    chords: list[str] = []
+    chord_lines: list[tuple[str, ...]] = []
+    chord_tokens: list[ChartChord] = []
+    for index, entry in enumerate(entries):
+        if entry.kind != "chord":
+            continue
+        chord_lines.append(entry.tokens)
+        following = entries[index + 1] if index + 1 < len(entries) else None
+        lyric = following if following is not None and following.kind == "lyric" else None
+        content_index = lyric.content_index if lyric is not None else None
+        words = _spanned_words(lyric.raw) if lyric is not None else ()
+        previous_word = -1
+        for token, column in _spanned_tokens(entry.raw):
+            chords.append(token)
+            word_index = _chart_word_index(words, column) if content_index is not None else None
+            if word_index is not None and words:
+                # Chords in one line are read left to right and each successive
+                # chord belongs to a later word. Chart spacing is often a
+                # character or two off, so a plain nearest-column match would
+                # put ``G A`` over the same word; advance to the next word
+                # before falling back to the nearest one.
+                word_index = max(word_index, previous_word + 1)
+                word_index = min(word_index, len(words) - 1)
+                previous_word = word_index
+            chord_tokens.append(
+                ChartChord(
+                    text=token,
+                    column=column,
+                    lyric_line=content_index,
+                    word_index=word_index,
+                )
+            )
+    lyric_words = tuple(
+        _spanned_words(entry.raw)
+        for entry in entries
+        if entry.kind == "lyric" and entry.content_index is not None
+    )
     return ChordChart(
         chords=tuple(chords),
         chord_lines=tuple(chord_lines),
         sections=tuple(sections),
         lyric_lines=tuple(lyric_lines),
         content_lyrics=tuple(content_lyrics),
+        chord_tokens=tuple(chord_tokens),
+        lyric_words=lyric_words,
         source=source,
     )
 

@@ -117,9 +117,10 @@ CLI, the engine or the session.
    replaces both bases through `with_chart_bases`; the status bar reports
    unmatched layers and the base is saved by `Ctrl+S`. `app/chart_import.py`
    holds the importer, `tests/unit/test_chart_import.py` the timing rules and
-   `TestImportingAChordChart` the window flow. Still open: deriving timing from
-   the chart's own sections/chord columns, recording the chart path in
-   provenance, and manual correction of a badly aligned line.
+   `TestImportingAChordChart` the window flow. Chords are anchored under the
+   chart's own columns; instrumental runs are distributed between anchors.
+   Still open: section-aware timing, recording the chart path in provenance,
+   beat-level placement, and manual correction of a badly aligned line.
 2. ~~**Chord/lyric editing**~~ **(done, 2026-10-12)** — chords first, 2026-10-10 with persistence
    2026-10-11: `app/editing.py` holds the command tape (`SetChordLabel`,
    `SplitChord`, `MergeChords`, `TrimChord`, `DeleteChord`, `InsertChord`,

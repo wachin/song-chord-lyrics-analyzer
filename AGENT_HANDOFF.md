@@ -147,9 +147,9 @@ Phase C display work landed **2026-10-07**, the Phase D window landed
     `tests/unit/test_timeline_presenter.py`, `tests/unit/test_summary_presenter.py`,
     `tests/unit/test_peaks.py`, `tests/integration/test_gui_integration.py`
     (real engine, real file, real device where one exists, offscreen).
-- Tests: **2131 passed / 2 skipped in 258 s** (`.venv-chords`, DSP + GUI +
+- Tests: **2136 passed / 2 skipped in 262 s** (`.venv-chords`, DSP + GUI +
   real output device, `QT_QPA_PLATFORM=offscreen`, 2026-10-27); `.venv` reports
-  **2123 passed / 10 skipped** (no output device); `ruff check`,
+  **2128 passed / 10 skipped** (no output device); `ruff check`,
   `ruff format --check` (172 files), `mypy` (93 files) all green.
 - **Phase H transforms + export (2026-10-13):**
   - `app/editing.py` — `TransposeDocument` / `SimplifyDocument` over the
@@ -465,7 +465,7 @@ spelling and instrumental gap rows. Long rows are now `NoWrap` (wrapping used to
 break the chord columns), the chart gets half the default width, the minimum
 chord duration is 0.50 s after the measured pass,
 `evaluation/chart.py` + `scripts/chord_chart_check.py` compare a hand chart to
-the detector, and `app/chart_import.py` can make that chart the timed base. The gate is green (2131 passed / 2 skipped in `.venv-chords`).
+the detector, and `app/chart_import.py` can make that chart the timed base. The gate is green (2136 passed / 2 skipped in `.venv-chords`).
 Use the completed work as the reference for how a GUI feature is split into a
 pure presenter plus a thin widget:
 
@@ -484,16 +484,16 @@ pure presenter plus a thin widget:
   in the same change.
 
 **Chart import landed 2026-10-27.** `app/chart_import.py` parses the user's
-plain-text chart, times its chords from the detected sequence and its lyric
-lines from the transcript's words, and `MainWindow.load_chart_from()` (Edit →
+plain-text chart, anchors its chords under the chart's chord columns, times its
+lyric lines from the transcript's words, distributes instrumental runs, and
+`MainWindow.load_chart_from()` (Edit →
 Load chord chart..., `Ctrl+Shift+L`) replaces both bases through
 `with_chart_bases`; the chart base is saved to the sidecar like any edit. It was
 verified on the private 5:27 song: 86 timed chart chords and 36 correct lyric
 lines, with 83/182 chart words anchored (ROADMAP Phase F,
-`tests/unit/test_chart_import.py`, `TestImportingAChordChart`). The next
-refinements are section-aware timing, using the chart's chord columns for
-sub-line placement, recording the chart path in provenance, and manual
-correction of a badly aligned line (ROADMAP §16, `docs/GUI_REQUIREMENTS.md` 1c).
+`tests/unit/test_chart_import.py` (14 tests), `TestImportingAChordChart`). The next
+refinements are section-aware timing, recording the chart path in provenance,
+beat-level placement, and manual correction of a badly aligned line (ROADMAP §16, `docs/GUI_REQUIREMENTS.md` 1c).
 
 The next accuracy task is the **learned chord engine** specified in
 [`ROADMAP.md`](ROADMAP.md) §10 and

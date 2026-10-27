@@ -101,18 +101,44 @@ class TestChartImport:
         assert imported.chart.content_lyrics == ("hello old friend", "we meet again")
         assert "test song" not in " ".join(line.text for line in imported.lyrics or ())
 
-    def test_a_chart_chord_with_no_detection_is_interpolated(self) -> None:
-        # The final chart F has no detected event at all, so the aligner ends
-        # with a genuine missing chart chord rather than a substitution.
+    def test_a_chart_chord_with_no_detection_still_has_a_word_anchor(self) -> None:
+        # The final chart F has no detected event at all, but the chart puts it
+        # over a timed word, so the chart-first timeline still places it.
         detected = _detected()[:-1]
         imported = import_chart(CHART, detected_chords=detected, transcript=_transcript())
 
         assert [event.label for event in imported.chords] == ["C", "G", "C", "G", "Am", "F"]
-        assert any("interpolated" in warning for warning in imported.warnings)
+        assert not any("interpolated" in warning for warning in imported.warnings)
         assert all(
             event.start is not None and event.end is not None and event.end > event.start
             for event in imported.chords
         )
+
+    def test_a_word_anchor_wins_over_a_later_detected_boundary(self) -> None:
+        detected = _detected()
+        detected[2] = ChordEvent(
+            start=5.0,
+            end=9.0,
+            root="C",
+            quality=ChordQuality.MAJOR,
+            label="C",
+        )
+        imported = import_chart(CHART, detected_chords=detected, transcript=_transcript())
+
+        assert imported.chords[2].start == 4.0
+
+    def test_instrumental_chords_are_distributed_between_the_anchors(self) -> None:
+        chart = "[Verse]\nC          G\nhello old friend\nD E\nAm\nwe meet again\n"
+        imported = import_chart(chart, detected_chords=_detected(), transcript=_transcript())
+
+        assert [event.label for event in imported.chords] == ["C", "G", "D", "E", "Am"]
+        assert [round(event.start, 3) for event in imported.chords] == [
+            4.0,
+            6.0,
+            6.667,
+            7.333,
+            8.0,
+        ]
 
     def test_a_detector_substitution_does_not_change_the_chart_label(self) -> None:
         detected = _detected()
@@ -175,8 +201,14 @@ class TestChartImport:
         assert imported.lyrics is None
         assert any("no timed transcript" in warning for warning in imported.warnings)
 
-    def test_no_detected_chords_means_no_timed_chords(self) -> None:
+    def test_a_chart_with_lyrics_can_be_timed_without_detected_chords(self) -> None:
         imported = import_chart(CHART, detected_chords=[], transcript=_transcript())
+
+        assert [event.label for event in imported.chords] == ["C", "G", "C", "G", "Am", "F"]
+        assert imported.warnings == ()
+
+    def test_no_detected_chords_and_no_lyrics_means_no_timed_chords(self) -> None:
+        imported = import_chart("[Intro]\nC G\n", detected_chords=[], transcript=[])
 
         assert imported.chords == ()
         assert any("no detected chords" in warning for warning in imported.warnings)

@@ -13,6 +13,16 @@ A cross-platform, offline-first laboratory that analyzes an audio song and
 produces a synchronized representation of its **lyrics, chords, beats, tempo
 and key** — with confidence and provenance attached to every inference.
 
+> ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+>
+> **✦ BUILD WITH YOUR AI AGENT ✦**
+>
+> Read **[docs/AGENT_ONBOARDING.md](docs/AGENT_ONBOARDING.md)** for the setup
+> guide, repository map, verification gate and a ready-to-paste prompt for your
+> agent. Pick a roadmap item, bring your agent, and help build the program.
+>
+> ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 * **Package:** `song_chord_lyrics_analyzer`
 * **CLI:** `songlab`
 * **Platforms:** Linux, Windows, macOS
@@ -374,8 +384,7 @@ the installation section above installs them.
 The detailed command-line guide, the `songlab play` demo, the window details,
 the MX Linux launch example and the screenshots are in
 [`docs/USAGE.md`](docs/USAGE.md). Developers should start with
-[`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md), and AI agents with
-[`docs/AGENT_ONBOARDING.md`](docs/AGENT_ONBOARDING.md).
+[`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md).
 
 ## What works today
 
@@ -493,55 +502,6 @@ and [`docs/DEPENDENCY_MATRIX.md`](docs/DEPENDENCY_MATRIX.md) +
 [`docs/LICENSE_AUDIT.md`](docs/LICENSE_AUDIT.md) for the research still pending
 before any engine becomes a dependency.
 
-## Research with AI coding agents
-
-This repository is written to be worked on **together with an AI coding agent**,
-and that is a deliberate part of the design. The ground rules an agent needs are
-kept in [`AGENTS.md`](AGENTS.md), so anyone can point a fresh agent at the repo
-and get correct, reproducible work — the faster developers join, the faster this
-becomes something people rely on.
-
-To start a parallel research effort with your own agent:
-
-1. **Fork or clone** the repository and create the documented gate environment
-   (`python -m pip install -e ".[dev,gui]"`). Use
-   `.[dev,dsp,playback,gui]` for the full suite; `mp3-library/` and `external/`
-   are not needed.
-2. **Read the contract first.** Give your agent
-   [`docs/AGENT_ONBOARDING.md`](docs/AGENT_ONBOARDING.md) (setup, repository map,
-   prompt template), [`AGENTS.md`](AGENTS.md) (binding rules),
-   [`ROADMAP.md`](ROADMAP.md) (specification and markers) and
-   [`CONTRIBUTING.md`](CONTRIBUTING.md) (human-facing rules). `CLAUDE.md`,
-   `GEMINI.md`, `.github/copilot-instructions.md` and
-   `.cursor/rules/repository.mdc` are short pointers for specific tools.
-3. **Pick a roadmap item** that is still `[ ]`, and treat its *Status* line as the
-   definition of done.
-4. **Keep the gate green** — run `python scripts/check.py`. It executes the same
-   four commands CI runs (`ruff check .`, `ruff format --check .`,
-   `python -m mypy`, `pytest -q`) and reports what actually ran.
-5. **Record what you learned before you build.** New dependency or dataset
-   findings go to [`docs/DEPENDENCY_MATRIX.md`](docs/DEPENDENCY_MATRIX.md) and
-   [`docs/LICENSE_AUDIT.md`](docs/LICENSE_AUDIT.md); the roadmap marker is set in
-   the same change.
-6. **Measure, never invent.** Reproduce scratch experiments in a throw-away,
-   gitignored harness, but commit the harness and a fixed manifest whenever the
-   result is an accuracy claim that later work will be compared against
-   (`scripts/chord_benchmark.py` + `tests/fixtures/guitarset_comp_manifest.json`
-   are the pattern). Commit only annotation-only fixtures and the numbers they
-   pin, each with its environment and date.
-
-A good first instruction to hand your agent:
-
-> Read `AGENTS.md`, `ROADMAP.md` and `CONTRIBUTING.md`. Pick the first unstarted
-> roadmap item that matches this area, implement it with tests, run the full
-> gate, and update the roadmap marker and the relevant docs in the same change.
-> Do not import, install or copy anything from `external/`.
-
-Two rules keep parallel work mergeable: **`external/` is read-only reference
-material** (never a dependency — see [`AGENTS.md`](AGENTS.md)), and **generated
-state stays out of the repository** (caches, `.venv*`, model downloads,
-temporary WAVs).
-
 ## Documentation
 
 | Document | Contents |
@@ -551,7 +511,6 @@ temporary WAVs).
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | layering, model, error codes, status |
 | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | setup, conventions, adding an engine |
 | [`AGENTS.md`](AGENTS.md) | rules for coding agents: `external/` is reference-only, roadmap markers |
-| [`docs/AGENT_ONBOARDING.md`](docs/AGENT_ONBOARDING.md) | fresh-clone setup, repository map and agent workflow |
 | [`docs/DEPENDENCY_MATRIX.md`](docs/DEPENDENCY_MATRIX.md) | candidate dependencies and their verification status |
 | [`docs/LICENSE_AUDIT.md`](docs/LICENSE_AUDIT.md) | code, model, dataset and tool licences |
 | [`docs/DATASET.md`](docs/DATASET.md) | dataset policy, GuitarSet adoption, committed fixtures |

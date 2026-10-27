@@ -317,6 +317,11 @@ chords are still wrong until Phase I.
   [`docs/USAGE.md`](docs/USAGE.md), where someone who needs the CLI can find
   them without making the README's first screen about commands the window user
   never runs.
+* **One README invitation for AI-agent contributors (2026-10-27).** The
+  scattered agent links and the later "Research with AI coding agents" section
+  were replaced by a single bordered callout near the top. It points developers
+  to `docs/AGENT_ONBOARDING.md` for setup, the repository map, the gate and a
+  ready-to-paste prompt; the detailed guidance stays in that document.
 
 ### Removed
 

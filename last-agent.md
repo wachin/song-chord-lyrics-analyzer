@@ -1,3 +1,4 @@
+20261027 DeepSeek Hardness with Model "DeepSeek-V4.1 Flash 1017"
 
 20261018 freebuff, whats the next step
 
